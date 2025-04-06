@@ -1,1 +1,13 @@
 /* Custom Styles */
+
+body {
+  background-color: #000; /* Black background */
+  color: #eee; /* Light grey text color for better readability than pure white */
+}
+
+.screen {
+  /* Screens are hidden by default, JS will show the active one */
+  display: none;
+}
+
+/* Add any other global styles or overrides here if needed */

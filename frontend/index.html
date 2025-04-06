@@ -13,11 +13,138 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <h1>Wuthering Waves Drafting System</h1>
+    <div class="container mt-5">
+      <div id="welcome-screen" class="text-center screen">
+        <h1 class="display-4">WuWaDraft</h1>
+        <p class="lead">
+          Welcome! Create or join a lobby to start your Wuthering Waves pick &
+          ban draft.
+        </p>
+        <button
+          id="btn-start-app"
+          type="button"
+          class="btn btn-primary btn-lg mt-3"
+        >
+          Start
+        </button>
+      </div>
 
-    <!-- Bootstrap 5 JS Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
+      <div id="action-select-screen" class="text-center screen">
+        <h2>Choose an Action</h2>
+        <div class="d-grid gap-3 col-md-6 mx-auto mt-4">
+          <button
+            id="btn-show-create"
+            type="button"
+            class="btn btn-success btn-lg"
+          >
+            Create Lobby
+          </button>
+          <button id="btn-show-join" type="button" class="btn btn-info btn-lg">
+            Join Lobby
+          </button>
+          <button
+            id="btn-show-randomize"
+            type="button"
+            class="btn btn-secondary btn-lg"
+          >
+            Randomize Pick (Future)
+          </button>
+        </div>
+      </div>
+
+      <div id="create-lobby-screen" class="screen">
+        <h2 class="text-center mb-4">Create Lobby</h2>
+        <div class="row justify-content-center">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="input-create-name" class="form-label"
+                >Your Name:</label
+              >
+              <input
+                type="text"
+                class="form-control"
+                id="input-create-name"
+                placeholder="Enter your display name"
+              />
+            </div>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+              <button
+                id="btn-create-lobby-start"
+                type="button"
+                class="btn btn-primary"
+              >
+                Create & Start Lobby
+              </button>
+              <button
+                id="btn-create-back"
+                type="button"
+                class="btn btn-outline-secondary"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="join-lobby-screen" class="screen">
+        <h2 class="text-center mb-4">Join Lobby</h2>
+        <div class="row justify-content-center">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="input-join-name" class="form-label">Your Name:</label>
+              <input
+                type="text"
+                class="form-control"
+                id="input-join-name"
+                placeholder="Enter your display name"
+              />
+            </div>
+            <div class="mb-3">
+              <label for="input-join-lobby-id" class="form-label"
+                >Lobby ID:</label
+              >
+              <input
+                type="password"
+                class="form-control"
+                id="input-join-lobby-id"
+                placeholder="Enter the Lobby ID"
+              />
+            </div>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+              <button
+                id="btn-join-lobby-start"
+                type="button"
+                class="btn btn-primary"
+              >
+                Join Lobby
+              </button>
+              <button
+                id="btn-join-back"
+                type="button"
+                class="btn btn-outline-secondary"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="lobby-screen" class="screen">
+        <h2 class="text-center">Lobby / Draft</h2>
+        <p class="text-center">
+          <i
+            >(Lobby details, player lists, character grid, etc. will go here)</i
+          >
+        </p>
+      </div>
+    </div>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
     <script src="js/script.js" defer></script>
   </body>
 </html>
