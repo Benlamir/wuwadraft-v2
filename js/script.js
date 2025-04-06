@@ -1,7 +1,7 @@
 // --- WebSocket Connection ---
 
 // Placeholder for the WebSocket endpoint URL - we will replace this later!
-const WEBSOCKET_URL = "wss://placeholder.websocket.endpoint"; // Replace with your actual API Gateway WebSocket URL
+const WEBSOCKET_URL = "wss://bs8e4l0vld.execute-api.us-east-1.amazonaws.com/dev"; // Replace with your actual API Gateway WebSocket URL
 
 console.log("Attempting to connect WebSocket to:", WEBSOCKET_URL);
 
