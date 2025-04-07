@@ -31,12 +31,49 @@ socket.addEventListener("message", (event) => {
 
     switch (message.type) {
       case "lobbyCreated":
+        console.log("Processing lobbyCreated message:", message);
+
+        // Store lobby info globally FIRST
         currentLobbyId = message.lobbyId;
         isCurrentUserHost = message.isHost;
-        const lobbyIdDisplay = document.getElementById("lobby-id-display");
-        if (lobbyIdDisplay) {
-          lobbyIdDisplay.textContent = currentLobbyId;
+
+        // Get element references INSIDE the handler when needed
+        const lobbyIdDisplayElement =
+          document.getElementById("lobby-id-display");
+        const toggleLobbyIdDisplayBtnElement = document.getElementById(
+          "toggle-lobby-id-display"
+        );
+        const hostNameDisplayElement = document.getElementById("host-name");
+
+        // Now use these local references
+        if (lobbyIdDisplayElement) {
+          lobbyIdDisplayElement.textContent = "••••••••"; // Show dots initially
+          const icon = toggleLobbyIdDisplayBtnElement?.querySelector("i");
+          if (icon) {
+            icon.classList.remove("bi-eye-slash-fill");
+            icon.classList.add("bi-eye-fill");
+          }
+        } else {
+          console.error("lobby-id-display element not found!");
         }
+
+        // Update Host Name display with logging
+        console.log(
+          "Updating host display. isHost:",
+          isCurrentUserHost,
+          "userName:",
+          currentUserName
+        );
+        if (hostNameDisplayElement && isCurrentUserHost && currentUserName) {
+          hostNameDisplayElement.textContent = currentUserName; // Removed "(Host)" suffix
+        } else if (hostNameDisplayElement) {
+          hostNameDisplayElement.textContent = "[Host Name Error]";
+          console.error(
+            "Could not display host name. Check isHost and currentUserName values in log above."
+          );
+        }
+
+        // Call the global showScreen function
         showScreen("lobby-wait-screen");
         break;
       case "playerJoined":
@@ -78,8 +115,6 @@ socket.addEventListener("close", (event) => {
   // Optionally, you might want to implement reconnection logic here
 });
 
-
-
 // --- UI Interaction (Placeholder Functions) ---
 // We will add functions here later to update the HTML based on messages
 
@@ -109,9 +144,7 @@ function showScreen(screenIdToShow) {
     if (screenToShow.classList.contains("screen")) {
       screenToShow.classList.add("active");
     } else {
-      console.error(
-        `Element ${screenIdToShow} is missing the 'screen' class.`
-      );
+      console.error(`Element ${screenIdToShow} is missing the 'screen' class.`);
       // Fallback or error handling needed? Maybe show welcome screen?
       // document.getElementById('welcome-screen')?.classList.add('active');
     }
