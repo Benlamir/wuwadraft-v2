@@ -66,23 +66,19 @@
           class="form-control mb-3"
         />
         <label for="join-lobby-id-input">Lobby ID:</label>
-        <div
-          class="input-group mb-3"
-          style="max-width: 300px; margin-left: auto; margin-right: auto"
-        >
-          <input
-            type="password"
+        <div class="password-input-container" style="max-width: 300px; margin-left: auto; margin-right: auto;">
+          <input 
+            type="password" 
             id="join-lobby-id-input"
             placeholder="Enter lobby ID"
             class="form-control"
           />
-          <button
-            class="btn btn-outline-secondary"
-            type="button"
+          <span 
             id="toggle-lobby-id-visibility"
+            class="password-toggle-icon"
           >
             <i class="bi bi-eye-fill"></i>
-          </button>
+          </span>
         </div>
         <div class="button-group">
           <button id="join-start-btn" class="stylish-button">Join</button>
