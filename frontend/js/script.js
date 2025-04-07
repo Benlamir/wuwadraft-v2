@@ -298,23 +298,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Password Toggle Functionality ---
   console.log("Attempting to attach toggle listener...");
-  if (toggleLobbyIdDisplayBtn && lobbyIdDisplay) {
-    toggleLobbyIdDisplayBtn.addEventListener("click", () => {
-      const icon = toggleLobbyIdDisplayBtn.querySelector("i");
-      const currentText = lobbyIdDisplay.textContent; // Get current text
+  if (toggleLobbyIdBtn && joinLobbyIdInput) {
+    toggleLobbyIdBtn.addEventListener("click", () => {
+      // --- Add logs below ---
+      console.log("PASSWORD TOGGLE CLICKED!");
+      const icon = toggleLobbyIdBtn.querySelector("i");
+      const currentType = joinLobbyIdInput.getAttribute("type");
+      console.log("Current input type:", currentType);
+      console.log("Icon element:", icon);
+      // --- End of logs to add for now ---
 
-      if (currentText === "••••••••") {
-        // Show the ID
-        lobbyIdDisplay.textContent = currentLobbyId || "Error"; // Use stored ID
-        icon.classList.remove("bi-eye-fill");
-        icon.classList.add("bi-eye-slash-fill");
+      if (currentType === "password") {
+        console.log("Condition matched: Changing to text"); // Keep this log too
+        joinLobbyIdInput.setAttribute("type", "text");
+        if (icon) {
+          // Check if icon exists before changing class
+          icon.classList.remove("bi-eye-fill");
+          icon.classList.add("bi-eye-slash-fill");
+        }
       } else {
-        // Hide the ID
-        lobbyIdDisplay.textContent = "••••••••";
-        icon.classList.remove("bi-eye-slash-fill");
-        icon.classList.add("bi-eye-fill");
+        console.log("Condition matched: Changing to password"); // Keep this log too
+        joinLobbyIdInput.setAttribute("type", "password");
+        if (icon) {
+          // Check if icon exists before changing class
+          icon.classList.remove("bi-eye-slash-fill");
+          icon.classList.add("bi-eye-fill");
+        }
       }
     });
+    // Add this log after attaching the listener:
+    console.log("Password toggle listener attached successfully.");
+  } else {
+    // Add this log if elements weren't found:
+    console.error(
+      "Could not find password input or toggle button to attach listener."
+    );
   }
 
   // --- Event Listeners ---
