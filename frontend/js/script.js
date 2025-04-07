@@ -292,19 +292,22 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Password Toggle Functionality ---
   if (toggleLobbyIdBtn && joinLobbyIdInput) {
     toggleLobbyIdBtn.addEventListener("click", () => {
-      // Get the icon element inside the button
+      console.log("Toggle Lobby ID clicked!"); // Log: Check if listener fires
       const icon = toggleLobbyIdBtn.querySelector("i");
+      const currentText = lobbyIdDisplay.textContent; // Get current text
+      console.log("Current display text:", currentText); // Log: What text is it checking?
+      console.log("Stored currentLobbyId:", currentLobbyId); // Log: Is the ID stored correctly?
 
-      // Toggle the input type between password and text
-      const currentType = joinLobbyIdInput.getAttribute("type");
-      if (currentType === "password") {
-        joinLobbyIdInput.setAttribute("type", "text");
-        // Change icon to eye-slash
+      if (currentText === "••••••••") {
+        // Show the ID
+        console.log("Condition matched: Trying to show ID"); // Log: Did it enter the 'if'?
+        lobbyIdDisplay.textContent = currentLobbyId || "Error"; // Use stored ID
         icon.classList.remove("bi-eye-fill");
         icon.classList.add("bi-eye-slash-fill");
       } else {
-        joinLobbyIdInput.setAttribute("type", "password");
-        // Change icon back to eye
+        // Hide the ID
+        console.log("Condition matched: Trying to hide ID"); // Log: Did it enter the 'else'?
+        lobbyIdDisplay.textContent = "••••••••";
         icon.classList.remove("bi-eye-slash-fill");
         icon.classList.add("bi-eye-fill");
       }
