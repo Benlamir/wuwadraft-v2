@@ -177,6 +177,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const player1NameDisplay = document.getElementById("player1-name");
   const player2NameDisplay = document.getElementById("player2-name");
   const lobbyStatusDisplay = document.getElementById("lobby-status");
+  const toggleLobbyIdDisplayBtn = document.getElementById(
+    "toggle-lobby-id-display"
+  );
+  console.log(
+    "Attempting to find toggle button. Element found:",
+    toggleLobbyIdDisplayBtn
+  );
 
   // --- Button Elements (Using Correct IDs) ---
   const actionCreateBtn = document.getElementById("action-create-btn");
@@ -290,23 +297,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- Password Toggle Functionality ---
-  if (toggleLobbyIdBtn && joinLobbyIdInput) {
-    toggleLobbyIdBtn.addEventListener("click", () => {
-      console.log("Toggle Lobby ID clicked!"); // Log: Check if listener fires
-      const icon = toggleLobbyIdBtn.querySelector("i");
+  console.log("Attempting to attach toggle listener...");
+  if (toggleLobbyIdDisplayBtn && lobbyIdDisplay) {
+    toggleLobbyIdDisplayBtn.addEventListener("click", () => {
+      const icon = toggleLobbyIdDisplayBtn.querySelector("i");
       const currentText = lobbyIdDisplay.textContent; // Get current text
-      console.log("Current display text:", currentText); // Log: What text is it checking?
-      console.log("Stored currentLobbyId:", currentLobbyId); // Log: Is the ID stored correctly?
 
       if (currentText === "••••••••") {
         // Show the ID
-        console.log("Condition matched: Trying to show ID"); // Log: Did it enter the 'if'?
         lobbyIdDisplay.textContent = currentLobbyId || "Error"; // Use stored ID
         icon.classList.remove("bi-eye-fill");
         icon.classList.add("bi-eye-slash-fill");
       } else {
         // Hide the ID
-        console.log("Condition matched: Trying to hide ID"); // Log: Did it enter the 'else'?
         lobbyIdDisplay.textContent = "••••••••";
         icon.classList.remove("bi-eye-slash-fill");
         icon.classList.add("bi-eye-fill");
