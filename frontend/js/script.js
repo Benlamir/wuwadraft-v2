@@ -180,10 +180,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggleLobbyIdDisplayBtn = document.getElementById(
     "toggle-lobby-id-display"
   );
-  console.log(
-    "Attempting to find toggle button. Element found:",
-    toggleLobbyIdDisplayBtn
-  );
 
   // --- Button Elements (Using Correct IDs) ---
   const actionCreateBtn = document.getElementById("action-create-btn");
@@ -191,16 +187,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const actionRandomizeBtn = document.getElementById("action-randomize-btn");
   const createStartBtn = document.getElementById("create-start-btn");
   const joinStartBtn = document.getElementById("join-start-btn");
-  // --- Back Buttons (Assuming IDs like create-back-btn, join-back-btn) ---
-  // If your back buttons have different IDs, adjust these lines
-  const createBackBtn = document.getElementById("create-back-btn"); // Example ID
-  const joinBackBtn = document.getElementById("join-back-btn"); // Example ID
+  const createBackBtn = document.getElementById("create-back-btn");
+  const joinBackBtn = document.getElementById("join-back-btn");
 
   // --- Input Elements (Using Correct IDs) ---
   const createNameInput = document.getElementById("create-name-input");
   const joinNameInput = document.getElementById("join-name-input");
   const joinLobbyIdInput = document.getElementById("join-lobby-id-input");
-  const toggleLobbyIdBtn = document.getElementById(
+  const toggleLobbyIdVisibilityBtn = document.getElementById(
     "toggle-lobby-id-visibility"
   );
 
@@ -297,42 +291,48 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- Password Toggle Functionality ---
-  console.log("Attempting to attach toggle listener...");
-  if (toggleLobbyIdBtn && joinLobbyIdInput) {
-    toggleLobbyIdBtn.addEventListener("click", () => {
-      // --- Add logs below ---
-      console.log("PASSWORD TOGGLE CLICKED!");
-      const icon = toggleLobbyIdBtn.querySelector("i");
+  if (toggleLobbyIdVisibilityBtn && joinLobbyIdInput) {
+    toggleLobbyIdVisibilityBtn.addEventListener("click", () => {
+      const icon = toggleLobbyIdVisibilityBtn.querySelector("i");
       const currentType = joinLobbyIdInput.getAttribute("type");
-      console.log("Current input type:", currentType);
-      console.log("Icon element:", icon);
-      // --- End of logs to add for now ---
-
       if (currentType === "password") {
-        console.log("Condition matched: Changing to text"); // Keep this log too
         joinLobbyIdInput.setAttribute("type", "text");
         if (icon) {
-          // Check if icon exists before changing class
           icon.classList.remove("bi-eye-fill");
           icon.classList.add("bi-eye-slash-fill");
         }
       } else {
-        console.log("Condition matched: Changing to password"); // Keep this log too
         joinLobbyIdInput.setAttribute("type", "password");
         if (icon) {
-          // Check if icon exists before changing class
           icon.classList.remove("bi-eye-slash-fill");
           icon.classList.add("bi-eye-fill");
         }
       }
     });
-    // Add this log after attaching the listener:
-    console.log("Password toggle listener attached successfully.");
-  } else {
-    // Add this log if elements weren't found:
-    console.error(
-      "Could not find password input or toggle button to attach listener."
-    );
+  }
+
+  // --- Lobby ID Display Toggle Functionality ---
+  if (toggleLobbyIdDisplayBtn && lobbyIdDisplay) {
+    toggleLobbyIdDisplayBtn.addEventListener("click", () => {
+      const icon = toggleLobbyIdDisplayBtn.querySelector("i");
+      const currentText = lobbyIdDisplay.textContent;
+
+      if (currentText === "••••••••") {
+        // Show the ID
+        lobbyIdDisplay.textContent = currentLobbyId || "Error";
+        if (icon) {
+          icon.classList.remove("bi-eye-fill");
+          icon.classList.add("bi-eye-slash-fill");
+        }
+      } else {
+        // Hide the ID
+        lobbyIdDisplay.textContent = "••••••••";
+        if (icon) {
+          icon.classList.remove("bi-eye-slash-fill");
+          icon.classList.add("bi-eye-fill");
+        }
+      }
+    });
   }
 
   // --- Event Listeners ---
