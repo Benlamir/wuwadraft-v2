@@ -131,3 +131,38 @@ header {
 .password-toggle-icon:hover {
   color: #343a40;
 }
+
+/* In style.css */
+
+.lobby-id-container {
+  position: relative; /* Context for positioning icon */
+  background-color: #333; /* Optional: Subtle background for the ID area */
+  padding: 2px 30px 2px 8px; /* Padding: top/bottom, RIGHT (for icon), left */
+  border-radius: 4px;
+  display: inline-block; /* Allow it to sit nicely after "Lobby ID:" text */
+  vertical-align: middle; /* Align with surrounding text */
+}
+
+.lobby-id-text {
+  font-weight: bold;
+  font-family: monospace; /* Helps dots look consistent */
+}
+
+.lobby-id-toggle-icon {
+  position: absolute;
+  top: 50%;
+  right: 5px; /* Position icon from the right */
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #ccc; /* Lighter icon color */
+  line-height: 1;
+}
+
+.lobby-id-toggle-icon:hover {
+    color: #fff;
+}
+
+/* Adjust copy button alignment if needed */
+#copy-lobby-id-btn {
+    vertical-align: middle;
+}
