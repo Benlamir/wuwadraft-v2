@@ -6,6 +6,11 @@ const WEBSOCKET_URL =
 
 console.log("Attempting to connect WebSocket to:", WEBSOCKET_URL);
 
+// Global variables for lobby state
+let currentLobbyId = null;
+let isCurrentUserHost = false;
+let currentUserName = null;
+
 // Create WebSocket connection.
 const socket = new WebSocket(WEBSOCKET_URL);
 
@@ -18,10 +23,35 @@ socket.addEventListener("open", (event) => {
 
 // Listen for messages
 socket.addEventListener("message", (event) => {
-  console.log("Message from server: ", event.data);
-  // Here we will later parse event.data (likely JSON) and update the UI
-  // const message = JSON.parse(event.data);
-  // handleIncomingMessage(message);
+  try {
+    const message = JSON.parse(event.data);
+    console.log("Received message:", message);
+
+    switch (message.type) {
+      case "lobbyCreated":
+        currentLobbyId = message.lobbyId;
+        isCurrentUserHost = message.isHost;
+        updateLobbyWaitScreen();
+        showScreen("lobby-wait-screen");
+        break;
+      case "playerJoined":
+        updatePlayerList(message.players);
+        break;
+      case "updateState":
+        updateLobbyState(message.state);
+        break;
+      case "error":
+        console.error("Server error:", message.error);
+        break;
+      case "echo":
+        console.log("Echo:", message.content);
+        break;
+      default:
+        console.log("Unknown message type:", message.type);
+    }
+  } catch (error) {
+    console.error("Error parsing message:", error);
+  }
 });
 
 // Listen for errors
@@ -47,10 +77,10 @@ socket.addEventListener("close", (event) => {
 // We will add functions here later to update the HTML based on messages
 
 // Example function to send data (we'll call this later from UI elements)
-function sendMessageToServer(messageObject) {
+function sendMessageToServer(message) {
   if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify(messageObject));
-    console.log("Sent message:", messageObject);
+    socket.send(JSON.stringify(message));
+    console.log("Sent message:", message);
   } else {
     console.error("WebSocket is not open. ReadyState: " + socket.readyState);
   }
@@ -64,8 +94,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const welcomeScreen = document.getElementById("welcome-screen");
   const createLobbyScreen = document.getElementById("create-lobby-screen");
   const joinLobbyScreen = document.getElementById("join-lobby-screen");
+  const lobbyWaitScreen = document.getElementById("lobby-wait-screen");
   // Add other screen elements later (e.g., randomize-pick-screen, lobby-wait-screen)
   const screens = document.querySelectorAll(".screen"); // Get all screen divs via common class
+
+  // --- Lobby Wait Screen Elements ---
+  const lobbyIdDisplay = document.getElementById("lobby-id-display");
+  const copyLobbyIdBtn = document.getElementById("copy-lobby-id-btn");
+  const hostControls = document.getElementById("host-controls");
+  const playerControls = document.getElementById("player-controls");
+  const lobbyBackBtn = document.getElementById("lobby-back-btn");
+  const hostNameDisplay = document.getElementById("host-name");
+  const player1NameDisplay = document.getElementById("player1-name");
+  const player2NameDisplay = document.getElementById("player2-name");
+  const lobbyStatusDisplay = document.getElementById("lobby-status");
 
   // --- Button Elements (Using Correct IDs) ---
   const actionCreateBtn = document.getElementById("action-create-btn");
@@ -85,28 +127,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggleLobbyIdBtn = document.getElementById(
     "toggle-lobby-id-visibility"
   );
-
-  // --- Password Toggle Functionality ---
-  if (toggleLobbyIdBtn && joinLobbyIdInput) {
-    toggleLobbyIdBtn.addEventListener("click", () => {
-      // Get the icon element inside the button
-      const icon = toggleLobbyIdBtn.querySelector("i");
-
-      // Toggle the input type between password and text
-      const currentType = joinLobbyIdInput.getAttribute("type");
-      if (currentType === "password") {
-        joinLobbyIdInput.setAttribute("type", "text");
-        // Change icon to eye-slash
-        icon.classList.remove("bi-eye-fill");
-        icon.classList.add("bi-eye-slash-fill");
-      } else {
-        joinLobbyIdInput.setAttribute("type", "password");
-        // Change icon back to eye
-        icon.classList.remove("bi-eye-slash-fill");
-        icon.classList.add("bi-eye-fill");
-      }
-    });
-  }
 
   // --- Helper Function to Switch Screens (Using 'active' class) ---
   function showScreen(screenIdToShow) {
@@ -138,6 +158,38 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function updateLobbyWaitScreen() {
+    if (lobbyIdDisplay) {
+      lobbyIdDisplay.textContent = currentLobbyId || "[ID Loading...]";
+    }
+    if (hostNameDisplay && currentUserName) {
+      hostNameDisplay.textContent = currentUserName;
+    }
+    if (hostControls) {
+      hostControls.style.display = isCurrentUserHost ? "block" : "none";
+    }
+    if (playerControls) {
+      playerControls.style.display = isCurrentUserHost ? "none" : "block";
+    }
+  }
+
+  function updatePlayerList(players) {
+    if (player1NameDisplay) {
+      player1NameDisplay.textContent = players.player1 || "Waiting...";
+    }
+    if (player2NameDisplay) {
+      player2NameDisplay.textContent = players.player2 || "Waiting...";
+    }
+  }
+
+  function updateLobbyState(state) {
+    if (lobbyStatusDisplay) {
+      lobbyStatusDisplay.textContent =
+        state.status || "Waiting for players to join...";
+    }
+    updatePlayerList(state.players || {});
+  }
+
   // --- Button Event Listeners ---
 
   // Welcome Screen Actions
@@ -161,35 +213,30 @@ document.addEventListener("DOMContentLoaded", () => {
   // Create Lobby Screen Action
   if (createStartBtn) {
     createStartBtn.addEventListener("click", () => {
-      const enteredName = createNameInput.value.trim();
-      if (!enteredName) {
-        alert("Please enter your name."); // Simple validation
-        return;
+      const name = createNameInput.value.trim();
+      if (name) {
+        currentUserName = name;
+        sendMessageToServer({
+          action: "createLobby",
+          playerName: name,
+        });
       }
-      console.log(`Sending createLobby action with name: ${enteredName}`);
-      sendMessageToServer({ action: "createLobby", name: enteredName });
-      // Later: Show loading state, transition based on server response
     });
   }
 
   // Join Lobby Screen Action
   if (joinStartBtn) {
     joinStartBtn.addEventListener("click", () => {
-      const enteredName = joinNameInput.value.trim();
-      const enteredLobbyId = joinLobbyIdInput.value.trim();
-      if (!enteredName || !enteredLobbyId) {
-        alert("Please enter both your name and the Lobby ID."); // Simple validation
-        return;
+      const name = joinNameInput.value.trim();
+      const lobbyId = joinLobbyIdInput.value.trim();
+      if (name && lobbyId) {
+        currentUserName = name;
+        sendMessageToServer({
+          action: "joinLobby",
+          playerName: name,
+          lobbyId: lobbyId,
+        });
       }
-      console.log(
-        `Sending joinLobby action with name: ${enteredName}, lobbyId: ${enteredLobbyId}`
-      );
-      sendMessageToServer({
-        action: "joinLobby",
-        name: enteredName,
-        lobbyId: enteredLobbyId,
-      });
-      // Later: Show loading state, transition based on server response
     });
   }
 
@@ -199,6 +246,56 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (joinBackBtn) {
     joinBackBtn.addEventListener("click", () => showScreen("welcome-screen"));
+  }
+
+  // --- Password Toggle Functionality ---
+  if (toggleLobbyIdBtn && joinLobbyIdInput) {
+    toggleLobbyIdBtn.addEventListener("click", () => {
+      // Get the icon element inside the button
+      const icon = toggleLobbyIdBtn.querySelector("i");
+
+      // Toggle the input type between password and text
+      const currentType = joinLobbyIdInput.getAttribute("type");
+      if (currentType === "password") {
+        joinLobbyIdInput.setAttribute("type", "text");
+        // Change icon to eye-slash
+        icon.classList.remove("bi-eye-fill");
+        icon.classList.add("bi-eye-slash-fill");
+      } else {
+        joinLobbyIdInput.setAttribute("type", "password");
+        // Change icon back to eye
+        icon.classList.remove("bi-eye-slash-fill");
+        icon.classList.add("bi-eye-fill");
+      }
+    });
+  }
+
+  // --- Event Listeners ---
+  if (copyLobbyIdBtn) {
+    copyLobbyIdBtn.addEventListener("click", async () => {
+      if (currentLobbyId && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(currentLobbyId);
+          const icon = copyLobbyIdBtn.querySelector("i");
+          if (icon) {
+            icon.classList.remove("bi-clipboard");
+            icon.classList.add("bi-clipboard-check");
+            setTimeout(() => {
+              icon.classList.remove("bi-clipboard-check");
+              icon.classList.add("bi-clipboard");
+            }, 2000);
+          }
+        } catch (error) {
+          console.error("Failed to copy lobby ID:", error);
+        }
+      }
+    });
+  }
+
+  if (lobbyBackBtn) {
+    lobbyBackBtn.addEventListener("click", () => {
+      showScreen("welcome-screen");
+    });
   }
 
   // --- Initial Screen ---
