@@ -1,18 +1,81 @@
 /* Custom Styles */
 
+/* Basic Body Styling */
 body {
   background-color: #000; /* Black background */
-  color: #eee; /* Light grey text color for better readability than pure white */
-  /* Add these for vertical centering */
+  color: #f0f0f0; /* Light grey text for readability */
+  font-family: sans-serif; /* Basic sans-serif font */
+  margin: 0; /* Remove default body margin */
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   justify-content: center;
 }
 
-.screen {
-  /* Screens are hidden by default, JS will show the active one */
-  display: none;
+/* Persistent Header Styling */
+.site-title {
+  text-align: center;
+  padding: 20px 0; /* Add some vertical padding */
+  font-size: 2em; /* Make title larger */
+  color: #ffffff; /* White title */
+  /* Add other styles like font-weight if desired */
 }
+
+/* Screen Visibility Control */
+.screen {
+  display: none; /* Hide all screens by default */
+  flex-direction: column; /* Stack items vertically */
+  justify-content: center; /* Center vertically */
+  align-items: center; /* Center horizontally */
+  min-height: 70vh; /* Give screens some minimum height */
+  padding: 20px; /* Add some padding inside screens */
+}
+
+.screen.active {
+  display: flex; /* Show only the active screen (using flex from above) */
+}
+
+/* Basic element styling within screens */
+.screen h2 {
+  margin-bottom: 30px; /* Space below headings */
+}
+
+.screen label {
+  margin-bottom: 5px;
+  display: block; /* Make labels block elements */
+  width: 100%; /* Make label take full width (adjust if needed) */
+  max-width: 300px; /* Limit width of labels/inputs */
+  text-align: left; /* Align label text left */
+}
+
+.screen input[type="text"] {
+  /* Use Bootstrap 'form-control' for basic input styling or add custom */
+  margin-bottom: 15px; /* Space below inputs */
+  width: 100%;
+  max-width: 300px; /* Limit width */
+  /* Add basic styling if not using Bootstrap form-control */
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+/* Spacing for buttons */
+.stylish-button {
+  /* Target our custom button class */
+  margin: 10px 5px; /* Add vertical and horizontal margin */
+  /* We'll add the fancy styles here later */
+  /* Basic button styles if not relying solely on Bootstrap 'btn' */
+  padding: 10px 20px;
+  font-size: 1em;
+  cursor: pointer;
+}
+
+/* Adjust button spacing if they are grouped */
+#welcome-screen .stylish-button {
+  /* Maybe slightly larger or more spaced on welcome */
+  margin: 15px 10px;
+}
+
+/* Style for back buttons if needed (assuming they also have stylish-button or a specific class) */
 
 /* Add any other global styles or overrides here if needed */
