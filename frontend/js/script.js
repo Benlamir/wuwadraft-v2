@@ -10,6 +10,7 @@ console.log("Attempting to connect WebSocket to:", WEBSOCKET_URL);
 let currentLobbyId = null;
 let isCurrentUserHost = false;
 let currentUserName = null;
+let screens = null;
 
 // Create WebSocket connection.
 const socket = new WebSocket(WEBSOCKET_URL);
@@ -23,6 +24,7 @@ socket.addEventListener("open", (event) => {
 
 // Listen for messages
 socket.addEventListener("message", (event) => {
+  console.log("Message from server: ", event.data);
   try {
     const message = JSON.parse(event.data);
     console.log("Received message:", message);
@@ -31,7 +33,10 @@ socket.addEventListener("message", (event) => {
       case "lobbyCreated":
         currentLobbyId = message.lobbyId;
         isCurrentUserHost = message.isHost;
-        updateLobbyWaitScreen();
+        const lobbyIdDisplay = document.getElementById("lobby-id-display");
+        if (lobbyIdDisplay) {
+          lobbyIdDisplay.textContent = currentLobbyId;
+        }
         showScreen("lobby-wait-screen");
         break;
       case "playerJoined":
@@ -73,6 +78,8 @@ socket.addEventListener("close", (event) => {
   // Optionally, you might want to implement reconnection logic here
 });
 
+
+
 // --- UI Interaction (Placeholder Functions) ---
 // We will add functions here later to update the HTML based on messages
 
@@ -86,6 +93,35 @@ function sendMessageToServer(message) {
   }
 }
 
+function showScreen(screenIdToShow) {
+  console.log(`Navigating to screen: ${screenIdToShow}`);
+  // Hide all screens first by removing 'active' class
+  screens.forEach((screen) => {
+    if (screen) {
+      // Check if element exists
+      screen.classList.remove("active");
+    }
+  });
+  // Show the requested screen by adding 'active' class
+  const screenToShow = document.getElementById(screenIdToShow);
+  if (screenToShow) {
+    // Make sure it has the 'screen' class before adding 'active'
+    if (screenToShow.classList.contains("screen")) {
+      screenToShow.classList.add("active");
+    } else {
+      console.error(
+        `Element ${screenIdToShow} is missing the 'screen' class.`
+      );
+      // Fallback or error handling needed? Maybe show welcome screen?
+      // document.getElementById('welcome-screen')?.classList.add('active');
+    }
+  } else {
+    console.error(`Screen with ID ${screenIdToShow} not found!`);
+    // Fallback to welcome screen if target not found
+    document.getElementById("welcome-screen")?.classList.add("active");
+  }
+}
+
 console.log("WebSocket script loaded.");
 
 // --- UI Navigation and Interaction ---
@@ -96,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const joinLobbyScreen = document.getElementById("join-lobby-screen");
   const lobbyWaitScreen = document.getElementById("lobby-wait-screen");
   // Add other screen elements later (e.g., randomize-pick-screen, lobby-wait-screen)
-  const screens = document.querySelectorAll(".screen"); // Get all screen divs via common class
+  screens = document.querySelectorAll(".screen"); // Get all screen divs via common class
 
   // --- Lobby Wait Screen Elements ---
   const lobbyIdDisplay = document.getElementById("lobby-id-display");
@@ -129,34 +165,6 @@ document.addEventListener("DOMContentLoaded", () => {
   );
 
   // --- Helper Function to Switch Screens (Using 'active' class) ---
-  function showScreen(screenIdToShow) {
-    console.log(`Navigating to screen: ${screenIdToShow}`);
-    // Hide all screens first by removing 'active' class
-    screens.forEach((screen) => {
-      if (screen) {
-        // Check if element exists
-        screen.classList.remove("active");
-      }
-    });
-    // Show the requested screen by adding 'active' class
-    const screenToShow = document.getElementById(screenIdToShow);
-    if (screenToShow) {
-      // Make sure it has the 'screen' class before adding 'active'
-      if (screenToShow.classList.contains("screen")) {
-        screenToShow.classList.add("active");
-      } else {
-        console.error(
-          `Element ${screenIdToShow} is missing the 'screen' class.`
-        );
-        // Fallback or error handling needed? Maybe show welcome screen?
-        // document.getElementById('welcome-screen')?.classList.add('active');
-      }
-    } else {
-      console.error(`Screen with ID ${screenIdToShow} not found!`);
-      // Fallback to welcome screen if target not found
-      document.getElementById("welcome-screen")?.classList.add("active");
-    }
-  }
 
   function updateLobbyWaitScreen() {
     if (lobbyIdDisplay) {
@@ -218,7 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentUserName = name;
         sendMessageToServer({
           action: "createLobby",
-          playerName: name,
+          name: name,
         });
       }
     });
@@ -233,7 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentUserName = name;
         sendMessageToServer({
           action: "joinLobby",
-          playerName: name,
+          name: name,
           lobbyId: lobbyId,
         });
       }
