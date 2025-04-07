@@ -40,65 +40,53 @@
       </div>
 
       <div id="create-lobby-screen" class="screen">
-        <h2 class="text-center mb-4">Create Lobby</h2>
-        <div class="row justify-content-center">
-          <div class="col-md-6">
-            <div class="mb-3">
-              <label for="create-name-input" class="form-label"
-                >Your Name:</label
-              >
-              <input
-                type="text"
-                class="form-control"
-                id="create-name-input"
-                placeholder="Enter your name"
-              />
-            </div>
-            <div class="d-grid gap-2 d-md-flex justify-content-md-between">
-              <button id="create-start-btn" class="btn btn-primary">
-                <i class="bi bi-play-circle"></i> Start Lobby
-              </button>
-              <button id="create-back-btn" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back
-              </button>
-            </div>
-          </div>
+        <h2>Create Lobby</h2>
+        <label for="create-name-input">Your Name:</label>
+        <input
+          type="password"
+          id="create-name-input"
+          placeholder="Enter your name"
+          class="form-control mb-3"
+        />
+        <div class="button-group">
+          <button id="create-start-btn" class="stylish-button">
+            Start Lobby
+          </button>
+          <button id="create-back-btn" class="stylish-button">Back</button>
         </div>
       </div>
 
       <div id="join-lobby-screen" class="screen">
-        <h2 class="text-center mb-4">Join Lobby</h2>
-        <div class="row justify-content-center">
-          <div class="col-md-6">
-            <div class="mb-3">
-              <label for="join-name-input" class="form-label">Your Name:</label>
-              <input
-                type="text"
-                class="form-control"
-                id="join-name-input"
-                placeholder="Enter your name"
-              />
-            </div>
-            <div class="mb-3">
-              <label for="join-lobby-id-input" class="form-label"
-                >Lobby ID:</label
-              >
-              <input
-                type="text"
-                class="form-control"
-                id="join-lobby-id-input"
-                placeholder="Enter lobby ID"
-              />
-            </div>
-            <div class="d-grid gap-2 d-md-flex justify-content-md-between">
-              <button id="join-start-btn" class="btn btn-primary">
-                <i class="bi bi-box-arrow-in-right"></i> Join
-              </button>
-              <button id="join-back-btn" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back
-              </button>
-            </div>
-          </div>
+        <h2>Join Lobby</h2>
+        <label for="join-name-input">Your Name:</label>
+        <input
+          type="text"
+          id="join-name-input"
+          placeholder="Enter your name"
+          class="form-control mb-3"
+        />
+        <label for="join-lobby-id-input">Lobby ID:</label>
+        <div
+          class="input-group mb-3"
+          style="max-width: 300px; margin-left: auto; margin-right: auto"
+        >
+          <input
+            type="password"
+            id="join-lobby-id-input"
+            placeholder="Enter lobby ID"
+            class="form-control"
+          />
+          <button
+            class="btn btn-outline-secondary"
+            type="button"
+            id="toggle-lobby-id-visibility"
+          >
+            <i class="bi bi-eye-fill"></i>
+          </button>
+        </div>
+        <div class="button-group">
+          <button id="join-start-btn" class="stylish-button">Join</button>
+          <button id="join-back-btn" class="stylish-button">Back</button>
         </div>
       </div>
 

@@ -2,10 +2,10 @@
 
 /* Basic Body Styling */
 body {
-  background-color: #000; /* Black background */
-  color: #f0f0f0; /* Light grey text for readability */
-  font-family: sans-serif; /* Basic sans-serif font */
-  margin: 0; /* Remove default body margin */
+  background-color: black;
+  color: #d3d3d3;
+  font-family: Arial, sans-serif;
+  margin: 0;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -13,39 +13,45 @@ body {
 }
 
 /* Persistent Header Styling */
-.site-title {
+header {
   text-align: center;
-  padding: 20px 0; /* Add some vertical padding */
-  font-size: 2em; /* Make title larger */
-  color: #ffffff; /* White title */
-  /* Add other styles like font-weight if desired */
+  padding: 20px;
+  font-size: 24px;
+  color: white;
 }
 
 /* Screen Visibility Control */
 .screen {
-  display: none; /* Hide all screens by default */
-  flex-direction: column; /* Stack items vertically */
-  justify-content: center; /* Center vertically */
-  align-items: center; /* Center horizontally */
-  min-height: 70vh; /* Give screens some minimum height */
-  padding: 20px; /* Add some padding inside screens */
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 
 .screen.active {
-  display: flex; /* Show only the active screen (using flex from above) */
+  display: flex;
 }
 
 /* Basic element styling within screens */
 .screen h2 {
-  margin-bottom: 30px; /* Space below headings */
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Ensure label and input take consistent width */
+.screen label,
+.screen input.form-control {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .screen label {
+  text-align: left;
   margin-bottom: 5px;
-  display: block; /* Make labels block elements */
-  width: 100%; /* Make label take full width (adjust if needed) */
-  max-width: 300px; /* Limit width of labels/inputs */
-  text-align: left; /* Align label text left */
 }
 
 .screen input[type="text"] {
@@ -59,14 +65,26 @@ body {
   border: 1px solid #ccc;
 }
 
-/* Spacing for buttons */
+/* Button Group Styling */
+.button-group {
+  width: 100%;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Individual button margin within the group */
+.button-group .stylish-button {
+  margin: 0 5px;
+}
+
+/* Button styling */
 .stylish-button {
-  /* Target our custom button class */
-  margin: 10px 5px; /* Add vertical and horizontal margin */
-  /* We'll add the fancy styles here later */
-  /* Basic button styles if not relying solely on Bootstrap 'btn' */
+  margin: 10px;
   padding: 10px 20px;
-  font-size: 1em;
   cursor: pointer;
 }
 

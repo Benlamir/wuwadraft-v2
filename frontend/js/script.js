@@ -58,138 +58,152 @@ function sendMessageToServer(messageObject) {
 
 console.log("WebSocket script loaded.");
 
-// Custom JavaScript Logic
-
 // --- UI Navigation and Interaction ---
-
 document.addEventListener("DOMContentLoaded", () => {
-  // Make sure the DOM is fully loaded before trying to find elements
-
-  // Screen Elements
+  // --- Screen Elements ---
   const welcomeScreen = document.getElementById("welcome-screen");
-  const actionSelectScreen = document.getElementById("action-select-screen");
   const createLobbyScreen = document.getElementById("create-lobby-screen");
   const joinLobbyScreen = document.getElementById("join-lobby-screen");
-  const lobbyScreen = document.getElementById("lobby-screen"); // Placeholder for later
-  const screens = [
-    welcomeScreen,
-    actionSelectScreen,
-    createLobbyScreen,
-    joinLobbyScreen,
-    lobbyScreen,
-  ];
+  // Add other screen elements later (e.g., randomize-pick-screen, lobby-wait-screen)
+  const screens = document.querySelectorAll(".screen"); // Get all screen divs via common class
 
-  // Button Elements
-  const startAppBtn = document.getElementById("btn-start-app");
-  const showCreateBtn = document.getElementById("btn-show-create");
-  const showJoinBtn = document.getElementById("btn-show-join");
-  const showRandomizeBtn = document.getElementById("btn-show-randomize"); // Future feature
-  const createLobbyStartBtn = document.getElementById("btn-create-lobby-start");
-  const createBackBtn = document.getElementById("btn-create-back");
-  const joinLobbyStartBtn = document.getElementById("btn-join-lobby-start");
-  const joinBackBtn = document.getElementById("btn-join-back");
+  // --- Button Elements (Using Correct IDs) ---
+  const actionCreateBtn = document.getElementById("action-create-btn");
+  const actionJoinBtn = document.getElementById("action-join-btn");
+  const actionRandomizeBtn = document.getElementById("action-randomize-btn");
+  const createStartBtn = document.getElementById("create-start-btn");
+  const joinStartBtn = document.getElementById("join-start-btn");
+  // --- Back Buttons (Assuming IDs like create-back-btn, join-back-btn) ---
+  // If your back buttons have different IDs, adjust these lines
+  const createBackBtn = document.getElementById("create-back-btn"); // Example ID
+  const joinBackBtn = document.getElementById("join-back-btn"); // Example ID
 
-  // Input Elements
-  const createNameInput = document.getElementById("input-create-name");
-  const joinNameInput = document.getElementById("input-join-name");
-  const joinLobbyIdInput = document.getElementById("input-join-lobby-id");
+  // --- Input Elements (Using Correct IDs) ---
+  const createNameInput = document.getElementById("create-name-input");
+  const joinNameInput = document.getElementById("join-name-input");
+  const joinLobbyIdInput = document.getElementById("join-lobby-id-input");
+  const toggleLobbyIdBtn = document.getElementById(
+    "toggle-lobby-id-visibility"
+  );
 
-  // --- Navigation Function ---
-  function showScreen(screenIdToShow) {
-    console.log(`Navigating to screen: ${screenIdToShow}`);
-    // Hide all screens first
-    screens.forEach((screen) => {
-      if (screen) {
-        // Check if element exists before trying to style
-        screen.style.display = "none";
+  // --- Password Toggle Functionality ---
+  if (toggleLobbyIdBtn && joinLobbyIdInput) {
+    toggleLobbyIdBtn.addEventListener("click", () => {
+      // Get the icon element inside the button
+      const icon = toggleLobbyIdBtn.querySelector("i");
+
+      // Toggle the input type between password and text
+      const currentType = joinLobbyIdInput.getAttribute("type");
+      if (currentType === "password") {
+        joinLobbyIdInput.setAttribute("type", "text");
+        // Change icon to eye-slash
+        icon.classList.remove("bi-eye-fill");
+        icon.classList.add("bi-eye-slash-fill");
+      } else {
+        joinLobbyIdInput.setAttribute("type", "password");
+        // Change icon back to eye
+        icon.classList.remove("bi-eye-slash-fill");
+        icon.classList.add("bi-eye-fill");
       }
     });
+  }
 
-    // Show the requested screen
+  // --- Helper Function to Switch Screens (Using 'active' class) ---
+  function showScreen(screenIdToShow) {
+    console.log(`Navigating to screen: ${screenIdToShow}`);
+    // Hide all screens first by removing 'active' class
+    screens.forEach((screen) => {
+      if (screen) {
+        // Check if element exists
+        screen.classList.remove("active");
+      }
+    });
+    // Show the requested screen by adding 'active' class
     const screenToShow = document.getElementById(screenIdToShow);
     if (screenToShow) {
-      screenToShow.style.display = "block"; // Or 'flex' if using flexbox layout inside
+      // Make sure it has the 'screen' class before adding 'active'
+      if (screenToShow.classList.contains("screen")) {
+        screenToShow.classList.add("active");
+      } else {
+        console.error(
+          `Element ${screenIdToShow} is missing the 'screen' class.`
+        );
+        // Fallback or error handling needed? Maybe show welcome screen?
+        // document.getElementById('welcome-screen')?.classList.add('active');
+      }
     } else {
       console.error(`Screen with ID ${screenIdToShow} not found!`);
+      // Fallback to welcome screen if target not found
+      document.getElementById("welcome-screen")?.classList.add("active");
     }
   }
 
   // --- Button Event Listeners ---
 
-  if (startAppBtn) {
-    startAppBtn.addEventListener("click", () => {
-      showScreen("action-select-screen");
-    });
-  }
-
-  if (showCreateBtn) {
-    showCreateBtn.addEventListener("click", () => {
+  // Welcome Screen Actions
+  if (actionCreateBtn) {
+    actionCreateBtn.addEventListener("click", () => {
       showScreen("create-lobby-screen");
     });
   }
-
-  if (showJoinBtn) {
-    showJoinBtn.addEventListener("click", () => {
+  if (actionJoinBtn) {
+    actionJoinBtn.addEventListener("click", () => {
       showScreen("join-lobby-screen");
     });
   }
-
-  // Back buttons
-  if (createBackBtn) {
-    createBackBtn.addEventListener("click", () =>
-      showScreen("action-select-screen")
-    );
-  }
-  if (joinBackBtn) {
-    joinBackBtn.addEventListener("click", () =>
-      showScreen("action-select-screen")
-    );
+  if (actionRandomizeBtn) {
+    actionRandomizeBtn.addEventListener("click", () => {
+      console.log("Randomize Pick clicked - feature not implemented yet.");
+      // Potentially showScreen('randomize-pick-screen') later
+    });
   }
 
-  // TODO: Add listener for showRandomizeBtn when implemented
-
-  // --- Action Buttons ---
-
-  if (createLobbyStartBtn) {
-    createLobbyStartBtn.addEventListener("click", () => {
-      const playerName = createNameInput.value.trim();
-      if (!playerName) {
+  // Create Lobby Screen Action
+  if (createStartBtn) {
+    createStartBtn.addEventListener("click", () => {
+      const enteredName = createNameInput.value.trim();
+      if (!enteredName) {
         alert("Please enter your name."); // Simple validation
         return;
       }
-      console.log(`Sending createLobby action with name: ${playerName}`);
-      // Action to send to backend WebSocket
-      sendMessageToServer({ action: "createLobby", name: playerName });
-      // TODO: Optionally show a loading state here
-      // showScreen('loading-screen'); // Example
-      // We will transition to lobby-screen later based on server response
+      console.log(`Sending createLobby action with name: ${enteredName}`);
+      sendMessageToServer({ action: "createLobby", name: enteredName });
+      // Later: Show loading state, transition based on server response
     });
   }
 
-  if (joinLobbyStartBtn) {
-    joinLobbyStartBtn.addEventListener("click", () => {
-      const playerName = joinNameInput.value.trim();
-      const lobbyId = joinLobbyIdInput.value.trim();
-      if (!playerName || !lobbyId) {
-        alert("Please enter your name and the Lobby ID."); // Simple validation
+  // Join Lobby Screen Action
+  if (joinStartBtn) {
+    joinStartBtn.addEventListener("click", () => {
+      const enteredName = joinNameInput.value.trim();
+      const enteredLobbyId = joinLobbyIdInput.value.trim();
+      if (!enteredName || !enteredLobbyId) {
+        alert("Please enter both your name and the Lobby ID."); // Simple validation
         return;
       }
       console.log(
-        `Sending joinLobby action with name: ${playerName}, lobbyId: ${lobbyId}`
+        `Sending joinLobby action with name: ${enteredName}, lobbyId: ${enteredLobbyId}`
       );
-      // Action to send to backend WebSocket
       sendMessageToServer({
         action: "joinLobby",
-        name: playerName,
-        lobbyId: lobbyId,
+        name: enteredName,
+        lobbyId: enteredLobbyId,
       });
-      // TODO: Optionally show a loading state here
-      // showScreen('loading-screen'); // Example
-      // We will transition to lobby-screen later based on server response
+      // Later: Show loading state, transition based on server response
     });
   }
 
+  // Back Buttons (Navigating back to welcome-screen)
+  if (createBackBtn) {
+    createBackBtn.addEventListener("click", () => showScreen("welcome-screen"));
+  }
+  if (joinBackBtn) {
+    joinBackBtn.addEventListener("click", () => showScreen("welcome-screen"));
+  }
+
   // --- Initial Screen ---
-  // Show the welcome screen when the page loads and JS is ready
-  showScreen("welcome-screen");
+  // We rely on the HTML having the 'active' class on welcome-screen initially.
+  // This ensures CSS handles the initial view correctly.
+  // If needed, we could force it here, but CSS+HTML should be sufficient:
+  // showScreen('welcome-screen');
 }); // End of DOMContentLoaded listener
