@@ -159,10 +159,15 @@ header {
 }
 
 .lobby-id-toggle-icon:hover {
-    color: #fff;
+  color: #fff;
 }
 
 /* Adjust copy button alignment if needed */
 #copy-lobby-id-btn {
-    vertical-align: middle;
+  vertical-align: middle;
+}
+
+/* Add this rule to hide ready buttons by default */
+.player-ready-btn {
+  display: none;
 }

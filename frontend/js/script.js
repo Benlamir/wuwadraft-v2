@@ -10,6 +10,7 @@ console.log("Attempting to connect WebSocket to:", WEBSOCKET_URL);
 let currentLobbyId = null;
 let currentUserName = null;
 let isCurrentUserHost = false;
+let myAssignedSlot = null; // Track which player slot this client is assigned to
 let screens = null;
 let lobbyIdDisplay = null;
 let hostNameDisplay = null;
@@ -22,6 +23,8 @@ let player2StatusElement = null;
 // Global variables for DOM elements
 let hostControls = null;
 let playerControls = null;
+let player1ReadyBtn = null;
+let player2ReadyBtn = null;
 
 // Create WebSocket connection.
 const socket = new WebSocket(WEBSOCKET_URL);
@@ -92,6 +95,7 @@ socket.addEventListener("message", (event) => {
         console.log("Processing lobbyJoined message:", message);
         currentLobbyId = message.lobbyId;
         isCurrentUserHost = message.isHost; // Will be false for joining player
+        myAssignedSlot = message.assignedSlot; // Store P1 or P2
 
         // --- Get references to lobby elements ---
         const joinedLobbyIdDisplay =
@@ -251,58 +255,49 @@ function updatePlayerList(players) {
 function updateLobbyState(state) {
   console.log("Updating lobby state:", state);
 
-  // Update lobby status
-  if (lobbyStatusDisplay) {
-    lobbyStatusDisplay.textContent =
-      state.lobbyState || "Waiting for players to join...";
-  }
-
-  // Update host name
-  if (hostNameDisplay) {
-    hostNameDisplay.textContent = state.hostName || "[Host Name]";
-  }
-
-  // Update player names and status
+  // Update player names and status text
   if (player1NameDisplay) {
     player1NameDisplay.textContent = state.player1Name || "Waiting...";
   }
   if (player2NameDisplay) {
     player2NameDisplay.textContent = state.player2Name || "Waiting...";
   }
-
-  // Update player readiness status
   if (player1StatusElement) {
     player1StatusElement.textContent = state.player1Ready
-      ? "(Ready)"
-      : "(Not Ready)";
-    player1StatusElement.classList.toggle(
-      "text-success",
-      state.player1Ready === true
-    );
-    player1StatusElement.classList.toggle(
-      "text-muted",
-      state.player1Ready !== true
-    );
+      ? "Ready"
+      : "Not Ready";
   }
   if (player2StatusElement) {
     player2StatusElement.textContent = state.player2Ready
-      ? "(Ready)"
-      : "(Not Ready)";
-    player2StatusElement.classList.toggle(
-      "text-success",
-      state.player2Ready === true
-    );
-    player2StatusElement.classList.toggle(
-      "text-muted",
-      state.player2Ready !== true
-    );
+      ? "Ready"
+      : "Not Ready";
   }
 
-  // Update player list
-  updatePlayerList({
-    player1Name: state.player1Name,
-    player2Name: state.player2Name,
-  });
+  // Handle Ready Buttons visibility/state
+  if (player1ReadyBtn) {
+    // Show P1 button only if current user is P1 AND P1 is not ready yet
+    const showP1Btn = myAssignedSlot === "P1" && state.player1Ready !== true;
+    player1ReadyBtn.style.display = showP1Btn ? "inline-block" : "none"; // Show/hide
+    player1ReadyBtn.disabled = !showP1Btn; // Ensure it's enabled only when shown
+  }
+  if (player2ReadyBtn) {
+    // Show P2 button only if current user is P2 AND P2 is not ready yet
+    const showP2Btn = myAssignedSlot === "P2" && state.player2Ready !== true;
+    player2ReadyBtn.style.display = showP2Btn ? "inline-block" : "none"; // Show/hide
+    player2ReadyBtn.disabled = !showP2Btn; // Ensure it's enabled only when shown
+  }
+
+  // Update lobby status
+  if (lobbyStatusDisplay) {
+    lobbyStatusDisplay.textContent =
+      state.lobbyState || "Waiting for players...";
+  }
+
+  // Check if draft has started
+  if (state.lobbyState === "DRAFTING") {
+    console.log("Draft has started, transitioning to draft screen");
+    showScreen("draft-screen");
+  }
 }
 
 console.log("WebSocket script loaded.");
@@ -332,6 +327,8 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   player1StatusElement = document.getElementById("player1-status");
   player2StatusElement = document.getElementById("player2-status");
+  player1ReadyBtn = document.getElementById("player1-ready-btn");
+  player2ReadyBtn = document.getElementById("player2-ready-btn");
 
   // --- Button Elements (Using Correct IDs) ---
   const actionCreateBtn = document.getElementById("action-create-btn");
@@ -480,6 +477,34 @@ document.addEventListener("DOMContentLoaded", () => {
   if (lobbyBackBtn) {
     lobbyBackBtn.addEventListener("click", () => {
       showScreen("welcome-screen");
+    });
+  }
+
+  // Add event listeners for ready buttons
+  function handleReadyClick() {
+    console.log(`Sending playerReady action (My Slot: ${myAssignedSlot})`);
+    sendMessageToServer({ action: "playerReady" });
+    // Disable button immediately after clicking to prevent spam
+    if (myAssignedSlot === "P1" && player1ReadyBtn)
+      player1ReadyBtn.disabled = true;
+    if (myAssignedSlot === "P2" && player2ReadyBtn)
+      player2ReadyBtn.disabled = true;
+  }
+
+  if (player1ReadyBtn) {
+    player1ReadyBtn.addEventListener("click", () => {
+      // Only process click if this client is Player 1
+      if (myAssignedSlot === "P1") {
+        handleReadyClick();
+      }
+    });
+  }
+  if (player2ReadyBtn) {
+    player2ReadyBtn.addEventListener("click", () => {
+      // Only process click if this client is Player 2
+      if (myAssignedSlot === "P2") {
+        handleReadyClick();
+      }
     });
   }
 
