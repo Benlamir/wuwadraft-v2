@@ -8,16 +8,18 @@ console.log("Attempting to connect WebSocket to:", WEBSOCKET_URL);
 
 // Global variables for lobby state
 let currentLobbyId = null;
-let isCurrentUserHost = false;
 let currentUserName = null;
+let isCurrentUserHost = false;
 let screens = null;
-
-// Global variables for DOM elements
 let lobbyIdDisplay = null;
 let hostNameDisplay = null;
 let player1NameDisplay = null;
 let player2NameDisplay = null;
 let lobbyStatusDisplay = null;
+let player1StatusElement = null;
+let player2StatusElement = null;
+
+// Global variables for DOM elements
 let hostControls = null;
 let playerControls = null;
 
@@ -140,8 +142,14 @@ socket.addEventListener("message", (event) => {
         updatePlayerList(message.players);
         break;
       case "lobbyStateUpdate":
-        console.log("Processing lobbyStateUpdate message:", message);
+        console.log("Received lobby state update:", message);
         updateLobbyState(message);
+
+        // Check if draft has started
+        if (message.lobbyState === "DRAFT_STARTED") {
+          console.log("Draft has started, transitioning to draft screen");
+          showScreen("draft-screen");
+        }
         break;
       case "error":
         console.error("Server error:", message.error);
@@ -241,13 +249,56 @@ function updatePlayerList(players) {
 }
 
 function updateLobbyState(state) {
+  console.log("Updating lobby state:", state);
+
+  // Update lobby status
   if (lobbyStatusDisplay) {
     lobbyStatusDisplay.textContent =
       state.lobbyState || "Waiting for players to join...";
   }
+
+  // Update host name
   if (hostNameDisplay) {
-    hostNameDisplay.textContent = state.hostName || "[Host]";
+    hostNameDisplay.textContent = state.hostName || "[Host Name]";
   }
+
+  // Update player names and status
+  if (player1NameDisplay) {
+    player1NameDisplay.textContent = state.player1Name || "Waiting...";
+  }
+  if (player2NameDisplay) {
+    player2NameDisplay.textContent = state.player2Name || "Waiting...";
+  }
+
+  // Update player readiness status
+  if (player1StatusElement) {
+    player1StatusElement.textContent = state.player1Ready
+      ? "(Ready)"
+      : "(Not Ready)";
+    player1StatusElement.classList.toggle(
+      "text-success",
+      state.player1Ready === true
+    );
+    player1StatusElement.classList.toggle(
+      "text-muted",
+      state.player1Ready !== true
+    );
+  }
+  if (player2StatusElement) {
+    player2StatusElement.textContent = state.player2Ready
+      ? "(Ready)"
+      : "(Not Ready)";
+    player2StatusElement.classList.toggle(
+      "text-success",
+      state.player2Ready === true
+    );
+    player2StatusElement.classList.toggle(
+      "text-muted",
+      state.player2Ready !== true
+    );
+  }
+
+  // Update player list
   updatePlayerList({
     player1Name: state.player1Name,
     player2Name: state.player2Name,
@@ -279,6 +330,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggleLobbyIdDisplayBtn = document.getElementById(
     "toggle-lobby-id-display"
   );
+  player1StatusElement = document.getElementById("player1-status");
+  player2StatusElement = document.getElementById("player2-status");
 
   // --- Button Elements (Using Correct IDs) ---
   const actionCreateBtn = document.getElementById("action-create-btn");

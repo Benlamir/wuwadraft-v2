@@ -287,6 +287,135 @@ def handler(event, context):
                 })
                 return {'statusCode': 500, 'body': 'Failed to join lobby.'}
 
+        elif action == 'playerReady':
+            logger.info(f"Processing 'playerReady' action for {connection_id}")
+
+            # 1. Find which lobby the sender is in from Connections table
+            try:
+                connection_item = connections_table.get_item(Key={'connectionId': connection_id}).get('Item')
+                if not connection_item or 'currentLobbyId' not in connection_item:
+                    logger.warning(f"Connection {connection_id} not found or not in a lobby.")
+                    # Optional: Send error back to client?
+                    return {'statusCode': 404, 'body': 'Connection not associated with a lobby.'}
+                lobby_id = connection_item['currentLobbyId']
+                player_name = connection_item.get('playerName', 'Unknown') # Get name from connection record
+                logger.info(f"Found lobby {lobby_id} for connection {connection_id}")
+            except Exception as e:
+                 logger.error(f"Failed to get connection details for {connection_id}: {str(e)}")
+                 return {'statusCode': 500, 'body': 'Error finding connection details.'}
+
+            # 2. Get the current lobby state
+            try:
+                response = lobbies_table.get_item(Key={'lobbyId': lobby_id})
+                lobby_item = response.get('Item')
+                if not lobby_item:
+                    logger.warning(f"Lobby {lobby_id} not found (though connection table referenced it).")
+                    # Optional: Send error back to client?
+                    return {'statusCode': 404, 'body': 'Lobby data not found.'}
+                logger.info(f"Found lobby item: {lobby_item}")
+            except Exception as e:
+                 logger.error(f"Failed to get lobby {lobby_id}: {str(e)}")
+                 return {'statusCode': 500, 'body': 'Error fetching lobby data.'}
+
+            # 3. Determine player slot and prepare update
+            player_slot_key = None
+            ready_flag_key = None
+            if lobby_item.get('player1ConnectionId') == connection_id:
+                player_slot_key = 'player1'
+                ready_flag_key = 'player1Ready'
+            elif lobby_item.get('player2ConnectionId') == connection_id:
+                player_slot_key = 'player2'
+                ready_flag_key = 'player2Ready'
+            else:
+                # Sender is not P1 or P2 (maybe Host?) - Ignore ready signal? Or handle host readiness?
+                logger.warning(f"Connection {connection_id} sent 'playerReady' but is not P1 or P2 in lobby {lobby_id}.")
+                return {'statusCode': 200, 'body': 'Ready signal ignored (not P1 or P2).'}
+
+            # 4. Update the player's ready status in WuwaDraftLobbies
+            try:
+                logger.info(f"Updating {player_slot_key} ready status to True in lobby {lobby_id}")
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=f"SET {ready_flag_key} = :true", # Use f-string for dynamic key
+                    ExpressionAttributeValues={':true': True}
+                    # Optional: ConditionExpression=f"attribute_not_exists({ready_flag_key}) OR {ready_flag_key} = :false"
+                    # with ExpressionAttributeValues={':true': True, ':false': False}
+                )
+                logger.info(f"Updated {player_slot_key} ready status in lobby {lobby_id}")
+            except Exception as e:
+                 logger.error(f"Failed to update ready status for {player_slot_key} in {lobby_id}: {str(e)}")
+                 return {'statusCode': 500, 'body': 'Failed to update ready status.'}
+
+
+            # --- CRITICAL FIX: Re-fetch the LATEST lobby state AFTER the update ---
+            try:
+                logger.info(f"Re-fetching lobby state for {lobby_id}")
+                updated_response = lobbies_table.get_item(Key={'lobbyId': lobby_id})
+                updated_lobby_item = updated_response.get('Item')
+                if not updated_lobby_item:
+                    logger.error(f"Could not re-fetch lobby {lobby_id} after ready update.")
+                    return {'statusCode': 500, 'body': 'Failed to fetch updated lobby state.'}
+                logger.info(f"Successfully re-fetched lobby state: {updated_lobby_item}")
+            except Exception as e:
+                 logger.error(f"Failed to re-fetch lobby {lobby_id} after ready update: {str(e)}")
+                 return {'statusCode': 500, 'body': 'Error fetching updated lobby state.'}
+            # ---------------------------------------------------------
+
+
+            # 5. Check if both players are now ready using the UPDATED item
+            p1_ready = updated_lobby_item.get('player1Ready', False)
+            p2_ready = updated_lobby_item.get('player2Ready', False)
+            logger.info(f"Checking readiness after update. P1 Ready: {p1_ready}, P2 Ready: {p2_ready}")
+
+            current_lobby_state = updated_lobby_item.get('lobbyState', 'WAITING')
+
+            # 6. If both ready, update lobby state to start draft (only if not already started)
+            if p1_ready and p2_ready and current_lobby_state == 'WAITING': # Check specific state
+                logger.info(f"Both players ready! Updating lobby state to DRAFTING for {lobby_id}")
+                current_lobby_state = 'DRAFTING' # Or 'BAN_PHASE_1' etc.
+                # TODO: Add logic to determine first turn, initialize draft fields?
+                try:
+                    lobbies_table.update_item(
+                        Key={'lobbyId': lobby_id},
+                        UpdateExpression="SET lobbyState = :newState", # Add other fields later
+                        ExpressionAttributeValues={':newState': current_lobby_state}
+                    )
+                    updated_lobby_item['lobbyState'] = current_lobby_state # Reflect change for broadcast
+                    logger.info(f"Lobby {lobby_id} state updated to {current_lobby_state}")
+                except Exception as state_update_err:
+                     logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id}: {str(state_update_err)}")
+                     # Continue with broadcast, state will show as WAITING
+
+            # 7. Construct the broadcast payload using the LATEST fetched state
+            state_payload = {
+                "type": "lobbyStateUpdate",
+                "lobbyId": lobby_id,
+                "hostName": updated_lobby_item.get('hostName'),
+                "player1Name": updated_lobby_item.get('player1Name'),
+                "player2Name": updated_lobby_item.get('player2Name'),
+                "lobbyState": current_lobby_state, # Use potentially updated state
+                "player1Ready": p1_ready, # Use value checked from LATEST state
+                "player2Ready": p2_ready # Use value checked from LATEST state
+                # Add other state info later
+            }
+            logger.info(f"Broadcasting lobby state update: {state_payload}")
+
+            # 8. Broadcast to all participants
+            participants = [
+                updated_lobby_item.get('hostConnectionId'),
+                updated_lobby_item.get('player1ConnectionId'),
+                updated_lobby_item.get('player2ConnectionId')
+            ]
+            valid_connection_ids = [pid for pid in participants if pid]
+            failed_sends = []
+            for recipient_id in valid_connection_ids:
+                if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
+                     failed_sends.append(recipient_id)
+            if failed_sends:
+                 logger.warning(f"Failed to send state update to some connections: {failed_sends}")
+
+            return {'statusCode': 200, 'body': 'Player readiness updated.'}
+
         else:
             # Unknown action - echo back or send error/info
             logger.info(f"Received unknown action '{action}' or no action from {connection_id}. Echoing.")
