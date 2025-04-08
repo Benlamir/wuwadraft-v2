@@ -12,6 +12,15 @@ let isCurrentUserHost = false;
 let currentUserName = null;
 let screens = null;
 
+// Global variables for DOM elements
+let lobbyIdDisplay = null;
+let hostNameDisplay = null;
+let player1NameDisplay = null;
+let player2NameDisplay = null;
+let lobbyStatusDisplay = null;
+let hostControls = null;
+let playerControls = null;
+
 // Create WebSocket connection.
 const socket = new WebSocket(WEBSOCKET_URL);
 
@@ -130,8 +139,9 @@ socket.addEventListener("message", (event) => {
       case "playerJoined":
         updatePlayerList(message.players);
         break;
-      case "updateState":
-        updateLobbyState(message.state);
+      case "lobbyStateUpdate":
+        console.log("Processing lobbyStateUpdate message:", message);
+        updateLobbyState(message);
         break;
       case "error":
         console.error("Server error:", message.error);
@@ -206,6 +216,44 @@ function showScreen(screenIdToShow) {
   }
 }
 
+function updateLobbyWaitScreen() {
+  if (lobbyIdDisplay) {
+    lobbyIdDisplay.textContent = currentLobbyId || "[ID Loading...]";
+  }
+  if (hostNameDisplay && currentUserName) {
+    hostNameDisplay.textContent = currentUserName;
+  }
+  if (hostControls) {
+    hostControls.style.display = isCurrentUserHost ? "block" : "none";
+  }
+  if (playerControls) {
+    playerControls.style.display = isCurrentUserHost ? "none" : "block";
+  }
+}
+
+function updatePlayerList(players) {
+  if (player1NameDisplay) {
+    player1NameDisplay.textContent = players.player1Name || "Waiting...";
+  }
+  if (player2NameDisplay) {
+    player2NameDisplay.textContent = players.player2Name || "Waiting...";
+  }
+}
+
+function updateLobbyState(state) {
+  if (lobbyStatusDisplay) {
+    lobbyStatusDisplay.textContent =
+      state.lobbyState || "Waiting for players to join...";
+  }
+  if (hostNameDisplay) {
+    hostNameDisplay.textContent = state.hostName || "[Host]";
+  }
+  updatePlayerList({
+    player1Name: state.player1Name,
+    player2Name: state.player2Name,
+  });
+}
+
 console.log("WebSocket script loaded.");
 
 // --- UI Navigation and Interaction ---
@@ -219,15 +267,15 @@ document.addEventListener("DOMContentLoaded", () => {
   screens = document.querySelectorAll(".screen"); // Get all screen divs via common class
 
   // --- Lobby Wait Screen Elements ---
-  const lobbyIdDisplay = document.getElementById("lobby-id-display");
+  lobbyIdDisplay = document.getElementById("lobby-id-display");
   const copyLobbyIdBtn = document.getElementById("copy-lobby-id-btn");
-  const hostControls = document.getElementById("host-controls");
-  const playerControls = document.getElementById("player-controls");
+  hostControls = document.getElementById("host-controls");
+  playerControls = document.getElementById("player-controls");
   const lobbyBackBtn = document.getElementById("lobby-back-btn");
-  const hostNameDisplay = document.getElementById("host-name");
-  const player1NameDisplay = document.getElementById("player1-name");
-  const player2NameDisplay = document.getElementById("player2-name");
-  const lobbyStatusDisplay = document.getElementById("lobby-status");
+  hostNameDisplay = document.getElementById("host-name");
+  player1NameDisplay = document.getElementById("player1-name");
+  player2NameDisplay = document.getElementById("player2-name");
+  lobbyStatusDisplay = document.getElementById("lobby-status");
   const toggleLobbyIdDisplayBtn = document.getElementById(
     "toggle-lobby-id-display"
   );
@@ -250,38 +298,6 @@ document.addEventListener("DOMContentLoaded", () => {
   );
 
   // --- Helper Function to Switch Screens (Using 'active' class) ---
-
-  function updateLobbyWaitScreen() {
-    if (lobbyIdDisplay) {
-      lobbyIdDisplay.textContent = currentLobbyId || "[ID Loading...]";
-    }
-    if (hostNameDisplay && currentUserName) {
-      hostNameDisplay.textContent = currentUserName;
-    }
-    if (hostControls) {
-      hostControls.style.display = isCurrentUserHost ? "block" : "none";
-    }
-    if (playerControls) {
-      playerControls.style.display = isCurrentUserHost ? "none" : "block";
-    }
-  }
-
-  function updatePlayerList(players) {
-    if (player1NameDisplay) {
-      player1NameDisplay.textContent = players.player1 || "Waiting...";
-    }
-    if (player2NameDisplay) {
-      player2NameDisplay.textContent = players.player2 || "Waiting...";
-    }
-  }
-
-  function updateLobbyState(state) {
-    if (lobbyStatusDisplay) {
-      lobbyStatusDisplay.textContent =
-        state.status || "Waiting for players to join...";
-    }
-    updatePlayerList(state.players || {});
-  }
 
   // --- Button Event Listeners ---
 

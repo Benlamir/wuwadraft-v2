@@ -232,7 +232,51 @@ def handler(event, context):
                 }
                 send_message_to_client(apigw_management_client, connection_id, response_payload)
 
-                # --- TODO Later: Notify Host and other player ---
+                # --- BEGIN NOTIFICATION BLOCK ---
+                # Fetch the latest lobby state again to ensure we have player names/IDs
+                try:
+                    updated_response = lobbies_table.get_item(Key={'lobbyId': lobby_id})
+                    updated_lobby_item = updated_response.get('Item')
+                    if not updated_lobby_item:
+                        logger.error(f"Could not re-fetch lobby {lobby_id} for state update broadcast.")
+                        # Don't fail the whole join, just log error and return
+                        return {'statusCode': 200, 'body': 'Player joined lobby, but failed to broadcast update.'}
+
+                    # Prepare the state update payload
+                    state_payload = {
+                        "type": "lobbyStateUpdate",
+                        "lobbyId": lobby_id,
+                        "hostName": updated_lobby_item.get('hostName'),
+                        "player1Name": updated_lobby_item.get('player1Name'),
+                        "player2Name": updated_lobby_item.get('player2Name'),
+                        "lobbyState": updated_lobby_item.get('lobbyState', 'WAITING')
+                        # Add other state info here later (picks, bans, turn etc)
+                    }
+                    logger.info(f"Broadcasting lobby state update: {state_payload}")
+
+                    # Get all current participant connection IDs
+                    participants = [
+                        updated_lobby_item.get('hostConnectionId'),
+                        updated_lobby_item.get('player1ConnectionId'),
+                        updated_lobby_item.get('player2ConnectionId')
+                    ]
+                    # Filter out any None values (e.g., if P2 hasn't joined yet)
+                    valid_connection_ids = [pid for pid in participants if pid]
+
+                    # Send the update to ALL participants
+                    failed_sends = []
+                    for recipient_id in valid_connection_ids:
+                        if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
+                             # Track failures (e.g., if someone disconnected just now)
+                             failed_sends.append(recipient_id)
+
+                    if failed_sends:
+                         logger.warning(f"Failed to send state update to some connections: {failed_sends}")
+
+                except Exception as broadcast_err:
+                     # Log error during broadcast but don't fail the join operation itself
+                     logger.error(f"Error broadcasting lobby state update for {lobby_id}: {str(broadcast_err)}", exc_info=True)
+                # --- END NOTIFICATION BLOCK ---
 
                 return {'statusCode': 200, 'body': 'Player joined lobby.'}
 
