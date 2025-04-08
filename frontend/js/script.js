@@ -253,7 +253,20 @@ function updatePlayerList(players) {
 }
 
 function updateLobbyState(state) {
-  console.log("Updating lobby state:", state);
+  console.log("Inside updateLobbyState. Received state:", state);
+
+
+  if (hostNameDisplay) {
+    hostNameDisplay.textContent = state.hostName || "[Host Name Error]";
+    console.log(
+      "Set hostNameDisplay textContent to:",
+      hostNameDisplay.textContent
+    );
+  } else {
+    console.warn(
+      "hostNameDisplay element reference not found when trying to update."
+    );
+  }
 
   // Update player names and status text
   if (player1NameDisplay) {
