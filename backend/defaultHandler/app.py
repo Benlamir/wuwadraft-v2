@@ -137,13 +137,111 @@ def handler(event, context):
             return {'statusCode': 200, 'body': 'Lobby created.'}
 
         elif action == 'joinLobby':
-             # --- TODO: Implement joinLobby logic here ---
-            logger.warning(f"'joinLobby' action received but not implemented yet.")
-            send_message_to_client(apigw_management_client, connection_id, {
-                "type": "info",
-                "message": "Join lobby functionality coming soon!"
-            })
-            return {'statusCode': 200, 'body': 'Join lobby not implemented.'}
+            lobby_id = message_data.get('lobbyId')
+            player_name = message_data.get('name', 'Player') # Use provided name
+
+            if not lobby_id:
+                logger.error(f"Join request from {connection_id} missing lobbyId.")
+                send_message_to_client(apigw_management_client, connection_id, {
+                    "type": "error", "message": "Lobby ID is required to join."
+                })
+                return {'statusCode': 400, 'body': 'Missing lobbyId.'}
+
+            logger.info(f"Processing 'joinLobby' for {connection_id} ({player_name}) into lobby {lobby_id}")
+
+            # 1. Get the current lobby state
+            try:
+                response = lobbies_table.get_item(Key={'lobbyId': lobby_id})
+                lobby_item = response.get('Item')
+
+                if not lobby_item:
+                    logger.warning(f"Lobby {lobby_id} not found for connection {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {
+                        "type": "error", "message": f"Lobby {lobby_id} not found."
+                    })
+                    return {'statusCode': 404, 'body': 'Lobby not found.'}
+
+                logger.info(f"Found lobby item: {lobby_item}")
+
+                # 2. Check if lobby is full and assign slot
+                assigned_slot = None
+                update_expression_parts = []
+                expression_attribute_values = {}
+                expression_attribute_names = {} # Needed if attributes conflict with reserved words
+
+                # Check Player 1 slot
+                # Use .get() which returns None if key doesn't exist or value is explicitly None
+                if lobby_item.get('player1ConnectionId') is None:
+                    assigned_slot = 'P1'
+                    update_expression_parts.append("#p1ConnId = :connId")
+                    update_expression_parts.append("#p1Name = :pName")
+                    expression_attribute_names["#p1ConnId"] = "player1ConnectionId"
+                    expression_attribute_names["#p1Name"] = "player1Name"
+                    expression_attribute_values[":connId"] = connection_id
+                    expression_attribute_values[":pName"] = player_name
+                # Check Player 2 slot
+                elif lobby_item.get('player2ConnectionId') is None:
+                    assigned_slot = 'P2'
+                    update_expression_parts.append("#p2ConnId = :connId")
+                    update_expression_parts.append("#p2Name = :pName")
+                    expression_attribute_names["#p2ConnId"] = "player2ConnectionId"
+                    expression_attribute_names["#p2Name"] = "player2Name"
+                    expression_attribute_values[":connId"] = connection_id
+                    expression_attribute_values[":pName"] = player_name
+                else:
+                    # Lobby is full
+                    logger.warning(f"Lobby {lobby_id} is full. Cannot add {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {
+                        "type": "error", "message": f"Lobby {lobby_id} is full."
+                    })
+                    return {'statusCode': 400, 'body': 'Lobby is full.'}
+
+                # TODO: Add check if connection_id is already hostConnectionId, P1, or P2
+
+                # 3. Update the lobby item in WuwaDraftLobbies
+                update_expression = "SET " + ", ".join(update_expression_parts)
+                logger.info(f"Updating lobby {lobby_id} with UpdateExpression: {update_expression}, Values: {expression_attribute_values}")
+
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=update_expression,
+                    ExpressionAttributeNames=expression_attribute_names,
+                    ExpressionAttributeValues=expression_attribute_values
+                )
+                logger.info(f"Lobby {lobby_id} updated successfully with {connection_id} as {assigned_slot}")
+
+                # 4. Update the connection item for the joining player in WuwaDraftConnections
+                connections_table.update_item(
+                    Key={'connectionId': connection_id},
+                    UpdateExpression="SET currentLobbyId = :lid, playerName = :pn",
+                    ExpressionAttributeValues={
+                        ':lid': lobby_id,
+                        ':pn': player_name
+                    }
+                )
+                logger.info(f"Connection item updated for {connection_id}")
+
+                # 5. Send confirmation back to the joining player
+                response_payload = {
+                    "type": "lobbyJoined",
+                    "lobbyId": lobby_id,
+                    "assignedSlot": assigned_slot,
+                    "isHost": False, # Joining player is not the host
+                    "message": f"Successfully joined lobby {lobby_id} as {assigned_slot}."
+                    # TODO: Send current full lobby state?
+                }
+                send_message_to_client(apigw_management_client, connection_id, response_payload)
+
+                # --- TODO Later: Notify Host and other player ---
+
+                return {'statusCode': 200, 'body': 'Player joined lobby.'}
+
+            except Exception as e:
+                logger.error(f"Error joining lobby {lobby_id} for {connection_id}: {str(e)}", exc_info=True)
+                send_message_to_client(apigw_management_client, connection_id, {
+                    "type": "error", "message": f"Failed to join lobby: {str(e)}"
+                })
+                return {'statusCode': 500, 'body': 'Failed to join lobby.'}
 
         else:
             # Unknown action - echo back or send error/info

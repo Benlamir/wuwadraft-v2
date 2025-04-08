@@ -76,6 +76,57 @@ socket.addEventListener("message", (event) => {
         // Call the global showScreen function
         showScreen("lobby-wait-screen");
         break;
+
+      case "lobbyJoined":
+        console.log("Processing lobbyJoined message:", message);
+        currentLobbyId = message.lobbyId;
+        isCurrentUserHost = message.isHost; // Will be false for joining player
+
+        // --- Get references to lobby elements ---
+        const joinedLobbyIdDisplay =
+          document.getElementById("lobby-id-display");
+        const joinedToggleBtn = document.getElementById(
+          "toggle-lobby-id-display"
+        );
+        const joinedHostNameDisplay = document.getElementById("host-name");
+        const joinedPlayer1Name = document.getElementById("player1-name");
+        const joinedPlayer2Name = document.getElementById("player2-name");
+        const joinedHostControls = document.getElementById("host-controls");
+        const joinedPlayerControls = document.getElementById("player-controls");
+
+        // Set Lobby ID display (hidden initially)
+        if (joinedLobbyIdDisplay) {
+          joinedLobbyIdDisplay.textContent = "••••••••";
+          const icon = joinedToggleBtn?.querySelector("i");
+          if (icon) {
+            // Reset icon
+            icon.classList.remove("bi-eye-slash-fill");
+            icon.classList.add("bi-eye-fill");
+          }
+        }
+
+        // Update player list with the joining player's name
+        // (currentUserName should be set when they clicked Join)
+        if (message.assignedSlot === "P1" && joinedPlayer1Name) {
+          joinedPlayer1Name.textContent = currentUserName + " (You)";
+        } else if (message.assignedSlot === "P2" && joinedPlayer2Name) {
+          joinedPlayer2Name.textContent = currentUserName + " (You)";
+        }
+        // TODO: We need a way to get the *other* player's name and host name here.
+        // This likely requires the backend to send the full current lobby state
+        // in the lobbyJoined message, or send separate updateState messages.
+        // For now, host/other player names might remain blank or "Waiting...".
+        if (joinedHostNameDisplay)
+          joinedHostNameDisplay.textContent = "[Host Name]"; // Placeholder
+
+        // Show/Hide Controls
+        if (joinedHostControls) joinedHostControls.style.display = "none"; // Joining player is not host
+        if (joinedPlayerControls) joinedPlayerControls.style.display = "block"; // Show player controls (e.g., Leave button)
+
+        // Switch view
+        showScreen("lobby-wait-screen");
+        break;
+
       case "playerJoined":
         updatePlayerList(message.players);
         break;
