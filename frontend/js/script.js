@@ -255,7 +255,6 @@ function updatePlayerList(players) {
 function updateLobbyState(state) {
   console.log("Inside updateLobbyState. Received state:", state);
 
-
   if (hostNameDisplay) {
     hostNameDisplay.textContent = state.hostName || "[Host Name Error]";
     console.log(
@@ -434,6 +433,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (joinBackBtn) {
     joinBackBtn.addEventListener("click", () => showScreen("welcome-screen"));
+  }
+
+  // Draft Screen Back Button
+  const draftBackBtn = document.getElementById("draft-back-btn");
+  if (draftBackBtn) {
+    draftBackBtn.addEventListener("click", () => showScreen("welcome-screen"));
   }
 
   // --- Password Toggle Functionality ---
