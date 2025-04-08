@@ -262,15 +262,31 @@ function updateLobbyState(state) {
   if (player2NameDisplay) {
     player2NameDisplay.textContent = state.player2Name || "Waiting...";
   }
+
+  // Define icon HTML for ready/not ready states
+  const readyIconHTML = '<i class="bi bi-check-circle-fill"></i>';
+  const notReadyIconHTML = '<i class="bi bi-hourglass-split"></i>';
+
+  // Update player status indicators with icons
   if (player1StatusElement) {
-    player1StatusElement.textContent = state.player1Ready
-      ? "Ready"
-      : "Not Ready";
+    player1StatusElement.innerHTML = state.player1Ready
+      ? readyIconHTML
+      : notReadyIconHTML;
+    // Reset classes first, then add appropriate color
+    player1StatusElement.className = "player-status ms-2";
+    player1StatusElement.classList.add(
+      state.player1Ready ? "text-success" : "text-light"
+    );
   }
   if (player2StatusElement) {
-    player2StatusElement.textContent = state.player2Ready
-      ? "Ready"
-      : "Not Ready";
+    player2StatusElement.innerHTML = state.player2Ready
+      ? readyIconHTML
+      : notReadyIconHTML;
+    // Reset classes first, then add appropriate color
+    player2StatusElement.className = "player-status ms-2";
+    player2StatusElement.classList.add(
+      state.player2Ready ? "text-success" : "text-light"
+    );
   }
 
   // Handle Ready Buttons visibility/state
