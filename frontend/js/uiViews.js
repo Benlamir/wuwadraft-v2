@@ -1,6 +1,7 @@
 // frontend/js/uiViews.js
 import { elements } from "./uiElements.js";
 import * as state from "./state.js"; // Use state variables
+import { ALL_RESONATORS_DATA } from "./resonatorData.js";
 
 // --- Screen Navigation ---
 export function showScreen(screenIdToShow) {
@@ -135,6 +136,94 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
       : "none"; // Show if not host
 }
 
+export function updateDraftScreenUI(draftState) {
+  console.log("UI: Updating draft screen UI with state:", draftState);
+  // Ensure elements object and draftScreen element itself are available
+  if (!elements || !elements.draftScreen) {
+    console.error(
+      "UI Update Error: elements object or draftScreen element not initialized!"
+    );
+    return;
+  }
+
+  // --- Update Phase and Turn Status ---
+  if (elements.draftPhaseStatus) {
+    const turnPlayerName =
+      draftState.currentTurn === "P1"
+        ? draftState.player1Name || "Player 1"
+        : draftState.player2Name || "Player 2";
+    elements.draftPhaseStatus.textContent = `Phase: ${
+      draftState.currentPhase || "N/A"
+    } (${turnPlayerName}'s Turn)`;
+  } else {
+    console.warn("UI Update Warning: Draft phase status element not found");
+  }
+
+  // --- Update Player Names ---
+  if (elements.draftP1Name) {
+    elements.draftP1Name.textContent = draftState.player1Name || "[P1 Name]";
+  } else {
+    console.warn("UI Update Warning: Draft P1 Name element not found");
+  }
+  if (elements.draftP2Name) {
+    elements.draftP2Name.textContent = draftState.player2Name || "[P2 Name]";
+  } else {
+    console.warn("UI Update Warning: Draft P2 Name element not found");
+  }
+
+  // --- Update Timer (Placeholder - Check if element exists first) ---
+  // if (elements.draftTimer) {
+  //      // elements.draftTimer.textContent = ... // Add later when timer logic exists
+  // }
+
+  // --- Clear/Update Pick/Ban Lists (Check if elements exist first) ---
+  if (elements.draftP1PicksList) {
+    elements.draftP1PicksList.innerHTML = ""; // Clear previous picks
+    (draftState.player1Picks || []).forEach((pick) => {
+      // Loop through picks received from state
+      const li = document.createElement("li");
+      li.textContent = pick; // Assuming pick is just the name/ID
+      elements.draftP1PicksList.appendChild(li);
+    });
+  } else {
+    // console.warn("UI Update Warning: Draft P1 picks list element not found"); // Reduce noise
+  }
+  if (elements.draftP2PicksList) {
+    elements.draftP2PicksList.innerHTML = ""; // Clear previous picks
+    (draftState.player2Picks || []).forEach((pick) => {
+      const li = document.createElement("li");
+      li.textContent = pick;
+      elements.draftP2PicksList.appendChild(li);
+    });
+  } else {
+    // console.warn("UI Update Warning: Draft P2 picks list element not found");
+  }
+  if (elements.draftBansList) {
+    elements.draftBansList.innerHTML = ""; // Clear previous bans
+    (draftState.bans || []).forEach((ban) => {
+      const li = document.createElement("li");
+      li.textContent = ban;
+      elements.draftBansList.appendChild(li);
+    });
+  } else {
+    // console.warn("UI Update Warning: Draft bans list element not found");
+  }
+
+  // --- Render Character Grid ---
+  try {
+    // Check if renderCharacterGrid exists before calling (should be defined in this file)
+    if (typeof renderCharacterGrid === "function") {
+      renderCharacterGrid(draftState); // Call the function to draw/update the grid
+    } else {
+      console.error(
+        "renderCharacterGrid function is not defined correctly in uiViews.js."
+      );
+    }
+  } catch (gridError) {
+    console.error("Error calling renderCharacterGrid:", gridError);
+  }
+}
+
 // --- UI Initializers run from main.js after DOMContentLoaded ---
 
 export function initializePasswordToggle() {
@@ -217,6 +306,63 @@ export function initializeCopyButton() {
       "UI: Could not attach copy button listener (elements missing)."
     );
   }
+}
+
+function renderCharacterGrid(draftState) {
+  if (!elements.characterGridContainer) return; // Exit if container not found
+
+  console.log(
+    "UI: Rendering character grid. Available:",
+    draftState.availableResonators
+  );
+  elements.characterGridContainer.innerHTML = ""; // Clear previous grid
+
+  const availableSet = new Set(draftState.availableResonators || []);
+  // Combine picks and bans for easy checking (using IDs if available, else names)
+  const unavailableSet = new Set([
+    ...(draftState.bans || []),
+    ...(draftState.player1Picks || []),
+    ...(draftState.player2Picks || []),
+  ]);
+  // TODO: Determine if it's the current player's turn (e.g., check draftState.currentTurn vs state.myAssignedSlot)
+  const isMyTurn = false; // Placeholder for turn logic
+
+  ALL_RESONATORS_DATA.forEach((resonator) => {
+    const button = document.createElement("button");
+    button.classList.add("character-button", "stylish-button"); // Add base classes
+    button.dataset.resonatorId = resonator.id; // Store ID or name on button
+    button.dataset.resonatorName = resonator.name;
+
+    // Basic content: Image Button
+    button.innerHTML = `<img src="${resonator.image_button}" alt="${resonator.name}" title="${resonator.name}" />`;
+    // Maybe add name below image later: += `<span class="char-name">${resonator.name}</span>`;
+
+    let isAvailable = availableSet.has(resonator.name); // Check availability based on name (or ID)
+    let isUnavailable = unavailableSet.has(resonator.name); // Check if picked/banned
+
+    if (isUnavailable) {
+      button.classList.add("unavailable", "picked-banned"); // General unavailable class
+      button.disabled = true;
+    } else if (!isAvailable) {
+      // This case might indicate data inconsistency, treat as unavailable
+      button.classList.add("unavailable");
+      button.disabled = true;
+      console.warn(
+        `Resonator ${resonator.name} not in available list but not picked/banned?`
+      );
+    } else {
+      // It's available!
+      button.classList.add("available");
+      // Only enable if it's this player's turn (implement later)
+      button.disabled = !isMyTurn; // Disable if not my turn (placeholder)
+      if (isMyTurn) {
+        // Add click listener only if it's my turn and available
+        // button.addEventListener('click', handleCharacterSelection); // Define this later
+      }
+    }
+
+    elements.characterGridContainer.appendChild(button);
+  });
 }
 
 // Add other UI specific functions here (e.g., renderCharacterGrid later)

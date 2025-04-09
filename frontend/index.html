@@ -133,8 +133,28 @@
         </button>
       </div>
       </div> <div id="draft-screen" class="screen">
-          <h2>Drafting Phase</h2>
-          <p><i>(Character grid, picks, bans, timer will go here)</i></p>
+          <h2 id="draft-phase-status">[Phase - Turn Loading...]</h2>
+          <p id="draft-timer">Time Remaining: --:--</p>
+
+          <div class="draft-container row">
+              <div class="player-picks col-md-2">
+                  <h4><span id="draft-p1-name">[P1 Name]</span>'s Picks:</h4>
+                  <ul id="draft-p1-picks-list" class="list-unstyled"></ul>
+              </div>
+
+              <div class="character-grid col-md-8">
+                  <h4>Available Resonators</h4>
+                  <div id="character-grid-container" class="grid-container"></div>
+              </div>
+
+              <div class="player-picks col-md-2">
+                  <h4><span id="draft-p2-name">[P2 Name]</span>'s Picks:</h4>
+                  <ul id="draft-p2-picks-list" class="list-unstyled"></ul>
+                  <hr>
+                  <h4>Bans:</h4>
+                  <ul id="draft-bans-list" class="list-unstyled"></ul>
+              </div>
+          </div>
           <button id="draft-back-btn" class="stylish-button mt-3">Back to Welcome (TEMP)</button>
       </div>
     </div>

@@ -1,6 +1,10 @@
 // frontend/js/messageHandler.js
 import * as state from "./state.js";
-import { showScreen, updateLobbyWaitScreenUI } from "./uiViews.js";
+import {
+  showScreen,
+  updateLobbyWaitScreenUI,
+  updateDraftScreenUI,
+} from "./uiViews.js";
 
 export function handleWebSocketMessage(jsonData) {
   console.log("MessageHandler: Received data:", jsonData);
@@ -40,21 +44,49 @@ export function handleWebSocketMessage(jsonData) {
 
       case "lobbyStateUpdate":
         console.log("MessageHandler: Processing lobbyStateUpdate");
-        // Assuming message contains the full state needed by updateLobbyWaitScreenUI
-        updateLobbyWaitScreenUI(message);
+        console.log("MessageHandler: Received state:", message); // Log the received state
 
-        // Check if draft started AFTER updating UI
+        // Decide which UI to update based on the lobbyState
         if (
           message.lobbyState &&
           (message.lobbyState.startsWith("DRAFTING") ||
             message.lobbyState.startsWith("BAN_PHASE"))
         ) {
+          // --- Draft is Active ---
           console.log(
-            "MessageHandler: Draft starting! Transitioning screen..."
+            "MessageHandler: State is DRAFTING/BAN, updating draft screen."
           );
-          showScreen("draft-screen");
+          updateDraftScreenUI(message); // Update the content of the draft screen elements
+
+          // Ensure the draft screen is visible
+          const activeScreen = document.querySelector(".screen.active");
+          if (!activeScreen || activeScreen.id !== "draft-screen") {
+            console.log("MessageHandler: Switching view to draft-screen.");
+            showScreen("draft-screen");
+          } else {
+            console.log(
+              "MessageHandler: Already on draft-screen, only updated content."
+            );
+          }
+        } else {
+          // --- Lobby is likely still in WAITING or READY_CHECK state ---
+          console.log(
+            "MessageHandler: State is NOT DRAFTING, updating wait screen."
+          );
+          updateLobbyWaitScreenUI(message); // Update the content of the waiting screen elements
+
+          // Ensure the waiting screen is visible
+          const activeScreen = document.querySelector(".screen.active");
+          if (!activeScreen || activeScreen.id !== "lobby-wait-screen") {
+            console.log("MessageHandler: Switching view to lobby-wait-screen.");
+            showScreen("lobby-wait-screen");
+          } else {
+            console.log(
+              "MessageHandler: Already on lobby-wait-screen, only updated content."
+            );
+          }
         }
-        break;
+        break; // End of case "lobbyStateUpdate"
 
       case "error":
         console.error("MessageHandler: Server error:", message.message);

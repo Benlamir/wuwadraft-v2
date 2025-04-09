@@ -11,6 +11,40 @@ from datetime import datetime, timezone # For timestamps
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# List of all draftable resonators
+ALL_RESONATOR_NAMES = sorted([
+    'Jiyan',
+    'Lingyang',
+    'Rover',
+    'Yangyang',
+    'Chixia',
+    'Baizhi',
+    'Sanhua',
+    'Yuanwu',
+    'Aalto',
+    'Danjin',
+    'Mortefi',
+    'Taoqi',
+    'Calcharo',
+    'Encore',
+    'Jianxin',
+    'Verina',
+    'Yinlin',
+    'Jinhsi',
+    'Changli',
+    'Zhezhi',
+    'Xiangli Yao',
+    'The Shorekeeper',
+    'Youhu',
+    'Camellya',
+    'Lumi',
+    'Carlotta',
+    'Roccia',
+    'Brant',
+    'Cantarella',
+    'Phoebe'
+])
+
 # --- Configuration ---
 CONNECTIONS_TABLE_NAME = 'WuwaDraftConnections'
 LOBBIES_TABLE_NAME = 'WuwaDraftLobbies' # Use your exact table name
@@ -373,15 +407,42 @@ def handler(event, context):
             if p1_ready and p2_ready and current_lobby_state == 'WAITING': # Check specific state
                 logger.info(f"Both players ready! Updating lobby state to DRAFTING for {lobby_id}")
                 current_lobby_state = 'DRAFTING' # Or 'BAN_PHASE_1' etc.
-                # TODO: Add logic to determine first turn, initialize draft fields?
+                
+                # Initialize draft state
+                next_phase = 'BAN1'
+                next_turn = 'P1'
+                
                 try:
                     lobbies_table.update_item(
                         Key={'lobbyId': lobby_id},
-                        UpdateExpression="SET lobbyState = :newState", # Add other fields later
-                        ExpressionAttributeValues={':newState': current_lobby_state}
+                        UpdateExpression="""
+                            SET lobbyState = :newState,
+                                currentPhase = :phase,
+                                currentTurn = :turn,
+                                bans = :emptyList,
+                                player1Picks = :emptyList,
+                                player2Picks = :emptyList,
+                                availableResonators = :allRes
+                        """,
+                        ExpressionAttributeValues={
+                            ':newState': current_lobby_state,
+                            ':phase': next_phase,
+                            ':turn': next_turn,
+                            ':emptyList': [],
+                            ':allRes': ALL_RESONATOR_NAMES
+                        }
                     )
-                    updated_lobby_item['lobbyState'] = current_lobby_state # Reflect change for broadcast
-                    logger.info(f"Lobby {lobby_id} state updated to {current_lobby_state}")
+                    # Update the local state for broadcast
+                    updated_lobby_item.update({
+                        'lobbyState': current_lobby_state,
+                        'currentPhase': next_phase,
+                        'currentTurn': next_turn,
+                        'bans': [],
+                        'player1Picks': [],
+                        'player2Picks': [],
+                        'availableResonators': ALL_RESONATOR_NAMES
+                    })
+                    logger.info(f"Lobby {lobby_id} state updated to {current_lobby_state} with draft initialization")
                 except Exception as state_update_err:
                      logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id}: {str(state_update_err)}")
                      # Continue with broadcast, state will show as WAITING
@@ -395,8 +456,13 @@ def handler(event, context):
                 "player2Name": updated_lobby_item.get('player2Name'),
                 "lobbyState": current_lobby_state, # Use potentially updated state
                 "player1Ready": p1_ready, # Use value checked from LATEST state
-                "player2Ready": p2_ready # Use value checked from LATEST state
-                # Add other state info later
+                "player2Ready": p2_ready, # Use value checked from LATEST state
+                "currentPhase": updated_lobby_item.get('currentPhase'),
+                "currentTurn": updated_lobby_item.get('currentTurn'),
+                "bans": updated_lobby_item.get('bans', []),
+                "player1Picks": updated_lobby_item.get('player1Picks', []),
+                "player2Picks": updated_lobby_item.get('player2Picks', []),
+                "availableResonators": updated_lobby_item.get('availableResonators', ALL_RESONATOR_NAMES)
             }
             logger.info(f"Broadcasting lobby state update: {state_payload}")
 

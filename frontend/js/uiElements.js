@@ -51,6 +51,19 @@ export function initializeElements() {
 
   // Draft Screen Elements (Add more as needed)
   elements.draftBackBtn = document.getElementById("draft-back-btn");
+  elements.draftPhaseStatus = document.getElementById("draft-phase-status");
+  elements.draftP1Name = document.getElementById("draft-p1-name");
+  elements.draftP2Name = document.getElementById("draft-p2-name");
+  elements.draftP1PicksList = document.getElementById("draft-p1-picks-list");
+  elements.draftP2PicksList = document.getElementById("draft-p2-picks-list");
+  elements.draftBansList = document.getElementById("draft-bans-list");
+  elements.characterGridContainer = document.getElementById(
+    "character-grid-container"
+  );
+
+  // Optional: Add logs to verify
+  console.log("Check element - draftP1Name:", elements.draftP1Name);
+  console.log("Check element - draftP2Name:", elements.draftP2Name);
 
   console.log("UI: Elements initialized.", elements);
 
