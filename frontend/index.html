@@ -136,23 +136,37 @@
           <h2 id="draft-phase-status">[Phase - Turn Loading...]</h2>
           <p id="draft-timer">Time Remaining: --:--</p>
 
-          <div class="draft-container row">
-              <div class="player-picks col-md-2">
+          <div id="top-ban-area" class="global-bans mb-3">
+              <h4>Global Bans</h4>
+              <div id="top-bans-slots" class="bans-container"></div>
+          </div>
+
+          <div id="draft-filter-controls" class="filter-container mb-3">
+              <span class="filter-item filter-text active" data-element="All">All</span>
+              <img src="images/elements/Aero.png" alt="Aero" class="filter-item filter-icon" data-element="Aero">
+              <img src="images/elements/Spectro.png" alt="Spectro" class="filter-item filter-icon" data-element="Spectro">
+              <img src="images/elements/Havoc.png" alt="Havoc" class="filter-item filter-icon" data-element="Havoc">
+              <img src="images/elements/Glacio.png" alt="Glacio" class="filter-item filter-icon" data-element="Glacio">
+              <img src="images/elements/Fusion.png" alt="Fusion" class="filter-item filter-icon" data-element="Fusion">
+              <img src="images/elements/Electro.png" alt="Electro" class="filter-item filter-icon" data-element="Electro">
+          </div>
+
+          <div class="draft-main-area row">
+              <div class="player-area col-md-3">
                   <h4><span id="draft-p1-name">[P1 Name]</span>'s Picks:</h4>
-                  <ul id="draft-p1-picks-list" class="list-unstyled"></ul>
+                  <div class="pick-slots" id="draft-p1-picks-list"></div>
               </div>
 
-              <div class="character-grid col-md-8">
-                  <h4>Available Resonators</h4>
+              <div class="center-area col-md-6">
                   <div id="character-grid-container" class="grid-container"></div>
               </div>
 
-              <div class="player-picks col-md-2">
+              <div class="player-area col-md-3">
                   <h4><span id="draft-p2-name">[P2 Name]</span>'s Picks:</h4>
-                  <ul id="draft-p2-picks-list" class="list-unstyled"></ul>
+                  <div class="pick-slots" id="draft-p2-picks-list"></div>
                   <hr>
                   <h4>Bans:</h4>
-                  <ul id="draft-bans-list" class="list-unstyled"></ul>
+                  <div class="pick-slots" id="draft-bans-list"></div>
               </div>
           </div>
           <button id="draft-back-btn" class="stylish-button mt-3">Back to Welcome (TEMP)</button>
