@@ -171,3 +171,45 @@ header {
 .player-ready-btn {
   display: none;
 }
+
+/* --- Draft Screen Styles --- */
+
+/* Container for bans above grid */
+#draft-bans-slots {
+  display: flex;
+  gap: 5px;
+  min-height: 55px;
+}
+
+/* Individual Ban Slot Styling */
+.ban-slot {
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ban-slot img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+/* Filter Controls */
+#draft-filter-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Grid Header */
+.grid-header {
+  padding: 0.5rem 0;
+}

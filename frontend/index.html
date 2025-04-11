@@ -136,21 +136,6 @@
           <h2 id="draft-phase-status">[Phase - Turn Loading...]</h2>
           <p id="draft-timer">Time Remaining: --:--</p>
 
-          <div id="top-ban-area" class="global-bans mb-3">
-              <h4>Global Bans</h4>
-              <div id="top-bans-slots" class="bans-container"></div>
-          </div>
-
-          <div id="draft-filter-controls" class="filter-container mb-3">
-              <span class="filter-item filter-text active" data-element="All">All</span>
-              <img src="images/elements/Aero.png" alt="Aero" class="filter-item filter-icon" data-element="Aero">
-              <img src="images/elements/Spectro.png" alt="Spectro" class="filter-item filter-icon" data-element="Spectro">
-              <img src="images/elements/Havoc.png" alt="Havoc" class="filter-item filter-icon" data-element="Havoc">
-              <img src="images/elements/Glacio.png" alt="Glacio" class="filter-item filter-icon" data-element="Glacio">
-              <img src="images/elements/Fusion.png" alt="Fusion" class="filter-item filter-icon" data-element="Fusion">
-              <img src="images/elements/Electro.png" alt="Electro" class="filter-item filter-icon" data-element="Electro">
-          </div>
-
           <div class="draft-main-area row">
               <div class="player-area col-md-3">
                   <h4><span id="draft-p1-name">[P1 Name]</span>'s Picks:</h4>
@@ -158,15 +143,34 @@
               </div>
 
               <div class="center-area col-md-6">
-                  <div id="character-grid-container" class="grid-container"></div>
+                  <div class="grid-header d-flex justify-content-between align-items-center mb-2">
+                      <div id="draft-bans-area">
+                          <h6 class="text-muted mb-1 text-center">Bans</h6>
+                          <div id="draft-bans-slots" class="d-flex justify-content-center gap-1">
+                              <div class="ban-slot"></div>
+                              <div class="ban-slot"></div>
+                              <div class="ban-slot"></div>
+                              <div class="ban-slot"></div>
+                          </div>
+                      </div>
+
+                      <div id="draft-filter-controls" class="filter-controls">
+                          <span class="text-muted me-1 small">Filter:</span>
+                          <button class="btn btn-sm btn-outline-secondary filter-btn active" data-element="All">All</button>
+                          <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/aero.webp" alt="Aero" title="Aero" class="element-filter-icon ms-1" data-element="Aero">
+                          <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/electro.webp" alt="Electro" title="Electro" class="element-filter-icon ms-1" data-element="Electro">
+                          <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/fusion.webp" alt="Fusion" title="Fusion" class="element-filter-icon ms-1" data-element="Fusion">
+                          <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/glacio.webp" alt="Glacio" title="Glacio" class="element-filter-icon ms-1" data-element="Glacio">
+                          <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/havoc.webp" alt="Havoc" title="Havoc" class="element-filter-icon ms-1" data-element="Havoc">
+                          <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/spectro.webp" alt="Spectro" title="Spectro" class="element-filter-icon ms-1" data-element="Spectro">
+                      </div>
+                  </div>
+                  <div id="character-grid-container" class="character-grid-container"></div>
               </div>
 
               <div class="player-area col-md-3">
                   <h4><span id="draft-p2-name">[P2 Name]</span>'s Picks:</h4>
                   <div class="pick-slots" id="draft-p2-picks-list"></div>
-                  <hr>
-                  <h4>Bans:</h4>
-                  <div class="pick-slots" id="draft-bans-list"></div>
               </div>
           </div>
           <button id="draft-back-btn" class="stylish-button mt-3">Back to Welcome (TEMP)</button>
