@@ -6,6 +6,9 @@ export const elements = {};
 // Function to populate the elements object
 export function initializeElements() {
   console.log("UI: Initializing elements...");
+  // Get the header element
+  elements.header = document.querySelector("header");
+
   // Screens
   elements.welcomeScreen = document.getElementById("welcome-screen");
   elements.createLobbyScreen = document.getElementById("create-lobby-screen");

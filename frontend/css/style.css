@@ -276,3 +276,8 @@ header {
     gap: 2px;
   }
 }
+
+/* Utility class to hide elements */
+.visually-hidden {
+  display: none !important;
+}

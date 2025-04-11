@@ -10,10 +10,24 @@ export function showScreen(screenIdToShow) {
     return;
   }
   console.log(`UI: Navigating to screen: ${screenIdToShow}`);
+
+  // Handle header visibility
+  if (elements.header) {
+    if (screenIdToShow === "draft-screen") {
+      console.log("UI: Hiding header for draft screen.");
+      elements.header.classList.add("visually-hidden");
+    } else {
+      console.log("UI: Showing header for non-draft screen.");
+      elements.header.classList.remove("visually-hidden");
+    }
+  } else {
+    console.warn("UI: Header element not found, cannot toggle visibility.");
+  }
+
   elements.screensNodeList.forEach((screen) => {
     if (screen) screen.classList.remove("active");
   });
-  const screenToShow = document.getElementById(screenIdToShow); // Get element directly here
+  const screenToShow = document.getElementById(screenIdToShow);
   if (screenToShow && screenToShow.classList.contains("screen")) {
     screenToShow.classList.add("active");
   } else {
