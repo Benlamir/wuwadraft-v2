@@ -217,7 +217,7 @@ header {
 /* Character Grid Container */
 .character-grid-container {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 5px;
   padding: 5px;
   background-color: rgba(255, 255, 255, 0.05);
@@ -250,6 +250,21 @@ header {
 }
 
 /* --- Media Queries for Responsive Grid --- */
+
+/* Medium devices (tablets, less than 1400px) */
+@media (max-width: 1399.98px) {
+  .character-grid-container {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+/* Medium devices (tablets, less than 1200px) */
+@media (max-width: 1199.98px) {
+  .character-grid-container {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
 
 /* Medium devices (tablets, less than 992px) */
 @media (max-width: 991.98px) {
