@@ -12,6 +12,29 @@ body {
   justify-content: center;
 }
 
+/* Background Effect - Always visible */
+body::before {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: -1;
+
+  background: linear-gradient(rgba(26, 28, 46, 0.9), rgba(42, 45, 74, 0.95)),
+    url("https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/other/thumb-1920-1355318+(1).webp")
+      center center/cover no-repeat fixed;
+
+  transform: scale(1.05);
+  transition: filter 0.3s ease-in-out;
+}
+
+/* Blur Effect - Only active when draft screen is shown */
+body.draft-active-background::before {
+  filter: blur(5px);
+}
+
 /* Persistent Header Styling */
 header {
   text-align: center;
@@ -264,7 +287,6 @@ header {
     grid-template-columns: repeat(6, 1fr);
   }
 }
-
 
 /* Medium devices (tablets, less than 992px) */
 @media (max-width: 991.98px) {
