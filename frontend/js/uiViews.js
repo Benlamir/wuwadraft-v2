@@ -200,7 +200,7 @@ export function updateDraftScreenUI(draftState) {
 
   // --- Clear/Update Pick/Ban Lists (Check if elements exist first) ---
   if (elements.draftP1PicksList) {
-    elements.draftP1PicksList.innerHTML = ""; // Clear previous picks
+    //elements.draftP1PicksList.innerHTML = ""; // Clear previous picks
     (draftState.player1Picks || []).forEach((pick) => {
       // Loop through picks received from state
       const li = document.createElement("li");
@@ -211,7 +211,7 @@ export function updateDraftScreenUI(draftState) {
     // console.warn("UI Update Warning: Draft P1 picks list element not found"); // Reduce noise
   }
   if (elements.draftP2PicksList) {
-    elements.draftP2PicksList.innerHTML = ""; // Clear previous picks
+    //elements.draftP2PicksList.innerHTML = ""; // Clear previous picks
     (draftState.player2Picks || []).forEach((pick) => {
       const li = document.createElement("li");
       li.textContent = pick;
