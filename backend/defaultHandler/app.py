@@ -110,12 +110,13 @@ def send_message_to_client(apigw_client, connection_id, payload):
 
 
 def handler(event, context):
-    """
-    Handles $default route messages. Routes based on 'action' in message body.
-    """
-    logger.info(f"Received event: {json.dumps(event, indent=2)}")
+    # --- ADD THIS LINE AS THE VERY FIRST LINE OF THE HANDLER ---
+    logger.info(f"Raw event received: {json.dumps(event)}")
+    # --- END ADDITION ---
+
     connection_id = event.get('requestContext', {}).get('connectionId')
     message_body_str = event.get('body', '{}')
+    logger.info(f"Extracted connectionId: {connection_id}, Body string: {message_body_str}") # Existing log might be here or similar
 
     if not connection_id:
         logger.error("Cannot process message without connectionId")
@@ -535,8 +536,12 @@ def handler(event, context):
 
         # --- ADD makeBan HANDLER ---
         elif action == 'makeBan':
+            # --- ADD THIS LINE AS THE VERY FIRST LINE INSIDE THE BLOCK ---
+            logger.info(f"--- Entered 'makeBan' action block ---")
+            # --- END ADDITION ---
+
             connection_id = event.get('requestContext', {}).get('connectionId')
-            logger.info(f"Processing 'makeBan' action for {connection_id}")
+            logger.info(f"Processing 'makeBan' action for {connection_id}") # This existing log is now second
 
             # 1. Get Resonator Name from message
             resonator_name_to_ban = message_data.get('resonatorName')

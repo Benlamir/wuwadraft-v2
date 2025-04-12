@@ -484,6 +484,18 @@ function renderCharacterGrid(draftState) {
     let isBanned = bansSet.has(resonator.name);
     let isUnavailable = isPickedByP1 || isPickedByP2 || isBanned;
 
+    // --- ADD DEBUG LOG ---
+    if (resonator.name === "Yuanwu") {
+      // Or the name you are testing with
+      console.log(
+        `DEBUG (${resonator.name}): isBanned=${isBanned}, isPickedP1=${isPickedByP1}, isPickedP2=${isPickedByP2}, isAvailable=${isAvailable}, availableSet:`,
+        availableSet,
+        "bansSet:",
+        bansSet
+      );
+    }
+    // --- END DEBUG LOG ---
+
     // Remove previous state classes
     button.classList.remove(
       "available",
@@ -493,30 +505,19 @@ function renderCharacterGrid(draftState) {
       "banned",
       "just-selected"
     );
-    button.style.border = ""; // Reset border styles if any were applied dynamically
-    button.style.opacity = "1"; // Reset opacity
 
-    // Apply new state classes/styles for styling
+    // Apply new state classes for styling
     if (isPickedByP1) {
       button.classList.add("unavailable", "picked-p1");
-      button.style.border = "2px solid blue"; // Example style
-      button.style.opacity = "0.5";
     } else if (isPickedByP2) {
       button.classList.add("unavailable", "picked-p2");
-      button.style.border = "2px solid red"; // Example style
-      button.style.opacity = "0.5";
     } else if (isBanned) {
       button.classList.add("unavailable", "banned");
-      button.style.border = "2px solid grey"; // Example style
-      button.style.opacity = "0.3";
     } else if (isAvailable) {
       button.classList.add("available");
-      // Maybe add a subtle border for available ones if needed
-      // button.style.border = "1px solid #ccc";
     } else {
       // If not available, and not picked/banned (shouldn't happen with correct availableResonators list)
       button.classList.add("unavailable");
-      button.style.opacity = "0.5"; // Treat as unavailable visually
     }
 
     // Determine if this specific button should be clickable
@@ -581,6 +582,15 @@ function handleCharacterSelection(event) {
   };
   console.log(`UI: Sending action: ${action}, Resonator: ${resonatorName}`);
   sendMessageToServer(message);
+
+  // --- ADD FOLLOW-UP TEST MESSAGE ---
+  console.log("UI: Sending follow-up test message");
+  sendMessageToServer({
+    action: "testAfterAction",
+    originalAction: action,
+    resonator: resonatorName,
+  });
+  // --- END ADD ---
 
   // Note: The button state (disabled, class) will be fully updated
   // when the lobbyStateUpdate message comes back from the server.

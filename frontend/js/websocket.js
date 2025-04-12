@@ -35,37 +35,37 @@ export function initializeWebSocket() {
     // clearLobbyState(); // Clear potentially invalid state
     // showScreen('welcome-screen');
   });
-// --- Ping Logic ---
+  // --- Ping Logic ---
   // Inside initializeWebSocket() in websocket.js, after connection 'open'
-let pingIntervalId = null; // Keep track of the interval
+  let pingIntervalId = null; // Keep track of the interval
 
-socket.addEventListener('open', (event) => {
-    console.log('WS: WebSocket connection established successfully!', event);
+  socket.addEventListener("open", (event) => {
+    console.log("WS: WebSocket connection established successfully!", event);
     // Start sending pings
     if (pingIntervalId) clearInterval(pingIntervalId); // Clear previous interval if any
     pingIntervalId = setInterval(() => {
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            console.log("WS: Sending ping");
-            sendMessageToServer({ action: 'ping' }); // Use existing send function
-        } else {
-             console.log("WS: Skipping ping, socket not open.");
-             if(pingIntervalId) clearInterval(pingIntervalId); // Stop if socket closed
-        }
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        console.log("WS: Sending ping");
+        sendMessageToServer({ action: "ping" }); // Use existing send function
+      } else {
+        console.log("WS: Skipping ping, socket not open.");
+        if (pingIntervalId) clearInterval(pingIntervalId); // Stop if socket closed
+      }
     }, 5 * 60 * 1000); // Send ping every 5 minutes (300,000 ms)
-});
+  });
 
-// Make sure to clear the interval on close or error too
- socket.addEventListener('close', (event) => {
+  // Make sure to clear the interval on close or error too
+  socket.addEventListener("close", (event) => {
     // ... existing close logic ...
-     if (pingIntervalId) clearInterval(pingIntervalId); // Stop pings on close
-     pingIntervalId = null;
-     // ... rest of close logic ...
- });
- socket.addEventListener('error', (event) => {
-     // ... existing error logic ...
-      if (pingIntervalId) clearInterval(pingIntervalId); // Stop pings on error
-      pingIntervalId = null;
-      // ... rest of error logic ...
+    if (pingIntervalId) clearInterval(pingIntervalId); // Stop pings on close
+    pingIntervalId = null;
+    // ... rest of close logic ...
+  });
+  socket.addEventListener("error", (event) => {
+    // ... existing error logic ...
+    if (pingIntervalId) clearInterval(pingIntervalId); // Stop pings on error
+    pingIntervalId = null;
+    // ... rest of error logic ...
   });
   // End of ping logic
 
@@ -88,13 +88,32 @@ socket.addEventListener('open', (event) => {
 }
 
 export function sendMessageToServer(messageObject) {
-  if (socket && socket.readyState === WebSocket.OPEN) {
+  if (!socket) {
+    console.error("WS Error: Attempted to send message, but socket is null!");
+    alert("Cannot send message: Not connected (socket is null).");
+    return; // Stop execution
+  }
+  console.log(
+    `WS Check: Socket readyState before sending: ${socket.readyState} (OPEN is ${WebSocket.OPEN})`
+  ); // Log the state
+  if (socket.readyState === WebSocket.OPEN) {
     const messageString = JSON.stringify(messageObject);
-    socket.send(messageString);
-    console.log("WS: Sent message:", messageObject);
+    try {
+      socket.send(messageString);
+      console.log("WS: Sent message:", messageObject); // This log runs
+    } catch (sendError) {
+      // This would catch an error happening *during* the send attempt
+      console.error("WS Error during socket.send():", sendError);
+      alert(`Error sending message: ${sendError.message}`);
+    }
   } else {
-    console.error("WS: WebSocket is not open. ReadyState:", socket?.readyState);
+    console.error(
+      "WS Error: WebSocket is not open. ReadyState:",
+      socket.readyState
+    );
     alert("Cannot send message: Not connected to server.");
+    // Optional: Try to re-initialize? Or prompt refresh?
+    // initializeWebSocket(); // Be careful with potential loops here
   }
 }
 

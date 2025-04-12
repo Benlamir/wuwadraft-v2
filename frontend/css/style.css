@@ -339,16 +339,17 @@ header {
 
 /* Character Button */
 .character-button {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  padding: 2px;
+  aspect-ratio: 1;
+  padding: 0;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background-color: transparent;
-  border: 1px solid #555;
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 1px solid #555; /* Example base border */
+  transition: opacity 0.2s ease-in-out, border-color 0.2s ease-in-out,
+    transform 0.2s ease-in-out; /* Smooth transitions */
 }
 
 .character-button img {
@@ -357,6 +358,66 @@ header {
   object-fit: contain;
   display: block;
   border-radius: 3px;
+}
+
+/* Style for AVAILABLE characters (optional, for contrast) */
+.character-button.available:not(:disabled):hover {
+  border-color: #fff; /* White border on hover if available and clickable */
+  transform: scale(1.05);
+}
+
+/* Style for UNAVAILABLE characters (general dimming) */
+.character-button.unavailable {
+  opacity: 0.4; /* Dim significantly */
+  cursor: not-allowed;
+}
+
+/* Style for BANNED characters (overrides some unavailable styles) */
+.character-button.banned {
+  opacity: 0.3; /* Even more dim? */
+  border: 2px solid #dc3545; /* Red border */
+  /* Add maybe a grayscale filter or cross-out effect? */
+  filter: grayscale(80%);
+  position: relative; /* Needed for pseudo-element */
+}
+
+/* Optional: Add a cross-out line for banned characters */
+.character-button.banned::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 5%;
+  right: 5%;
+  border-top: 2px solid rgba(220, 53, 69, 0.8); /* Semi-transparent red line */
+  transform: rotate(-10deg); /* Slight angle */
+}
+
+/* Style for P1 PICKS */
+.character-button.picked-p1 {
+  opacity: 0.6; /* Less dim than banned */
+  border: 2px solid #0d6efd; /* Blue border */
+  filter: grayscale(30%); /* Slight grayscale */
+}
+
+/* Style for P2 PICKS */
+.character-button.picked-p2 {
+  opacity: 0.6; /* Less dim than banned */
+  border: 2px solid #ffc107; /* Yellow/Orange border */
+  filter: grayscale(30%); /* Slight grayscale */
+}
+
+/* Style for buttons that are disabled because it's not your turn (if needed) */
+/* This might overlap with unavailable styles, manage specificity carefully */
+.character-button:disabled:not(.unavailable) {
+  /* Maybe slightly dimmer than fully available? */
+  /* opacity: 0.8; */
+  /* cursor: default; */ /* Different cursor? */
+}
+
+/* Style for the button just clicked (temporary feedback) */
+.character-button.just-selected {
+  outline: 3px solid limegreen;
+  outline-offset: -3px;
 }
 
 /* --- Media Queries for Responsive Grid --- */
