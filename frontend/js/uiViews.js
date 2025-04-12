@@ -1,6 +1,7 @@
 // frontend/js/uiViews.js
 import { elements } from "./uiElements.js";
 import * as state from "./state.js"; // Use state variables
+import { sendMessageToServer } from "./websocket.js"; // Import function to send messages
 import { ALL_RESONATORS_DATA } from "./resonatorData.js";
 
 // --- Screen Navigation ---
@@ -158,9 +159,100 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
       : "none"; // Show if not host
 }
 
+// --- ADD HELPER FUNCTION ---
+function findResonatorByName(name) {
+  return ALL_RESONATORS_DATA.find((resonator) => resonator.name === name);
+}
+// --- END HELPER FUNCTION ---
+
+// --- ADD NEW FUNCTION for Pick Slots ---
+function updatePickSlots(draftState) {
+  const p1Picks = draftState.player1Picks || [];
+  const p2Picks = draftState.player2Picks || [];
+
+  // Assuming 3 pick slots per player for now
+  const p1SlotElements = [elements.p1Pick1, elements.p1Pick2, elements.p1Pick3];
+  const p2SlotElements = [elements.p2Pick1, elements.p2Pick2, elements.p2Pick3];
+
+  // Update Player 1 slots
+  p1SlotElements.forEach((slot, index) => {
+    if (!slot) return; // Skip if element wasn't found
+    const pickName = p1Picks[index];
+    if (pickName) {
+      const resonator = findResonatorByName(pickName);
+      if (resonator && resonator.image_pick) {
+        slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`; // Use contain for portrait picks
+        slot.style.border = "1px solid #66f"; // Example: Add border to filled slot
+      } else {
+        slot.innerHTML = `<span>?</span>`; // Fallback if image not found
+        slot.style.border = "1px dashed rgba(255, 255, 255, 0.3)";
+      }
+    } else {
+      slot.innerHTML = ""; // Clear slot if no pick for this index
+      slot.style.border = "1px dashed rgba(255, 255, 255, 0.3)"; // Reset border
+    }
+  });
+
+  // Update Player 2 slots
+  p2SlotElements.forEach((slot, index) => {
+    if (!slot) return;
+    const pickName = p2Picks[index];
+    if (pickName) {
+      const resonator = findResonatorByName(pickName);
+      if (resonator && resonator.image_pick) {
+        slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
+        slot.style.border = "1px solid #f66"; // Example: Add border to filled slot
+      } else {
+        slot.innerHTML = `<span>?</span>`;
+        slot.style.border = "1px dashed rgba(255, 255, 255, 0.3)";
+      }
+    } else {
+      slot.innerHTML = "";
+      slot.style.border = "1px dashed rgba(255, 255, 255, 0.3)";
+    }
+  });
+}
+// --- END Pick Slot Function ---
+
+// --- ADD NEW FUNCTION for Ban Slots ---
+function updateBanSlots(draftState) {
+  const bans = draftState.bans || [];
+  // Use the NodeList directly if using querySelectorAll, or build array from IDs
+  const banSlotElements = elements.banSlots || [
+    elements.banSlot1,
+    elements.banSlot2,
+    elements.banSlot3,
+    elements.banSlot4,
+  ]; // Use querySelectorAll result or array of IDs
+
+  banSlotElements.forEach((slot, index) => {
+    if (!slot) return; // Skip if element somehow null/undefined
+    const banName = bans[index];
+    if (banName) {
+      const resonator = findResonatorByName(banName);
+      // Use smaller button image for bans? Or pick image? Let's use button image.
+      if (resonator && resonator.image_button) {
+        slot.innerHTML = `<img src="${resonator.image_button}" alt="${banName}" title="${banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`;
+        slot.style.borderColor = "#888"; // Example style change
+        slot.style.backgroundColor = "rgba(255, 50, 50, 0.2)";
+      } else {
+        slot.innerHTML = `<span>X</span>`; // Fallback
+        slot.style.borderColor = "rgba(255, 255, 255, 0.3)";
+        slot.style.backgroundColor = "rgba(255, 255, 255, 0.08)";
+      }
+    } else {
+      slot.innerHTML = ""; // Clear slot
+      // Reset styles if needed
+      slot.style.borderColor = "rgba(255, 255, 255, 0.3)";
+      slot.style.backgroundColor = "rgba(255, 255, 255, 0.08)";
+    }
+  });
+}
+// --- END Ban Slot Function ---
+
+// --- MODIFY updateDraftScreenUI FUNCTION ---
 export function updateDraftScreenUI(draftState) {
   console.log("UI: Updating draft screen UI with state:", draftState);
-  // Ensure elements object and draftScreen element itself are available
   if (!elements || !elements.draftScreen) {
     console.error(
       "UI Update Error: elements object or draftScreen element not initialized!"
@@ -171,12 +263,14 @@ export function updateDraftScreenUI(draftState) {
   // --- Update Phase and Turn Status ---
   if (elements.draftPhaseStatus) {
     const turnPlayerName =
-      draftState.currentTurn === "P1"
+      state.currentTurn === "P1" // Use state for names too? Or passed draftState? Use draftState for consistency here.
         ? draftState.player1Name || "Player 1"
         : draftState.player2Name || "Player 2";
+    const turnIndicator =
+      state.myAssignedSlot === state.currentTurn ? " (Your Turn)" : ""; // Add indicator if it's my turn
     elements.draftPhaseStatus.textContent = `Phase: ${
-      draftState.currentPhase || "N/A"
-    } (${turnPlayerName}'s Turn)`;
+      state.currentPhase || "N/A"
+    } (${turnPlayerName}'s Turn)${turnIndicator}`;
   } else {
     console.warn("UI Update Warning: Draft phase status element not found");
   }
@@ -184,67 +278,41 @@ export function updateDraftScreenUI(draftState) {
   // --- Update Player Names ---
   if (elements.draftP1Name) {
     elements.draftP1Name.textContent = draftState.player1Name || "[P1 Name]";
-  } else {
-    console.warn("UI Update Warning: Draft P1 Name element not found");
   }
   if (elements.draftP2Name) {
     elements.draftP2Name.textContent = draftState.player2Name || "[P2 Name]";
-  } else {
-    console.warn("UI Update Warning: Draft P2 Name element not found");
   }
 
-  // --- Update Timer (Placeholder - Check if element exists first) ---
-  // if (elements.draftTimer) {
-  //      // elements.draftTimer.textContent = ... // Add later when timer logic exists
-  // }
+  // --- Update Timer --- (Keep existing logic - placeholder)
+  // if (elements.draftTimer) { ... }
 
-  // --- Clear/Update Pick/Ban Lists (Check if elements exist first) ---
-  if (elements.draftP1PicksList) {
-    //elements.draftP1PicksList.innerHTML = ""; // Clear previous picks
-    (draftState.player1Picks || []).forEach((pick) => {
-      // Loop through picks received from state
-      const li = document.createElement("li");
-      li.textContent = pick; // Assuming pick is just the name/ID
-      elements.draftP1PicksList.appendChild(li);
-    });
-  } else {
-    // console.warn("UI Update Warning: Draft P1 picks list element not found"); // Reduce noise
-  }
-  if (elements.draftP2PicksList) {
-    //elements.draftP2PicksList.innerHTML = ""; // Clear previous picks
-    (draftState.player2Picks || []).forEach((pick) => {
-      const li = document.createElement("li");
-      li.textContent = pick;
-      elements.draftP2PicksList.appendChild(li);
-    });
-  } else {
-    // console.warn("UI Update Warning: Draft P2 picks list element not found");
-  }
-  if (elements.draftBansList) {
-    elements.draftBansList.innerHTML = ""; // Clear previous bans
-    (draftState.bans || []).forEach((ban) => {
-      const li = document.createElement("li");
-      li.textContent = ban;
-      elements.draftBansList.appendChild(li);
-    });
-  } else {
-    // console.warn("UI Update Warning: Draft bans list element not found");
-  }
+  // --- CALL NEW UPDATE FUNCTIONS ---
+  updatePickSlots(draftState); // Update P1/P2 pick slots
+  updateBanSlots(draftState); // Update ban slots
+  // --- END CALLS ---
 
-  // --- Render Character Grid ---
+  // --- Render Character Grid --- (Keep existing logic)
+  // This already uses draftState to update button availability and styles
   try {
-    // Check if renderCharacterGrid exists before calling (should be defined in this file)
     if (typeof renderCharacterGrid === "function") {
-      renderCharacterGrid(draftState); // Call the function to draw/update the grid
+      renderCharacterGrid(draftState);
     } else {
-      console.error(
-        "renderCharacterGrid function is not defined correctly in uiViews.js."
-      );
+      console.error("renderCharacterGrid function is not defined correctly.");
     }
   } catch (gridError) {
     console.error("Error calling renderCharacterGrid:", gridError);
   }
+
+  // Added check for draft completion (simple example)
+  if (state.currentPhase === "DRAFT_COMPLETE") {
+    // Optionally display a draft complete message
+    if (elements.draftPhaseStatus) {
+      elements.draftPhaseStatus.textContent = "Draft Complete!";
+    }
+    // Disable remaining buttons in the grid? renderCharacterGrid should handle this if availableResonators is empty/state changes.
+  }
 }
+// --- END FUNCTION MODIFICATION ---
 
 // --- UI Initializers run from main.js after DOMContentLoaded ---
 
@@ -339,48 +407,71 @@ function renderCharacterGrid(draftState) {
   );
   elements.characterGridContainer.innerHTML = ""; // Clear previous grid
 
+  // Determine whose turn it is based on state module
+  const isMyTurn = state.myAssignedSlot === state.currentTurn; // Compare state vars
+  console.log(
+    `UI: Rendering grid. Is it my turn? ${isMyTurn} (MySlot: ${state.myAssignedSlot}, CurrentTurn: ${state.currentTurn})`
+  );
+
   const availableSet = new Set(draftState.availableResonators || []);
-  // Combine picks and bans for easy checking (using IDs if available, else names)
-  const unavailableSet = new Set([
-    ...(draftState.bans || []),
-    ...(draftState.player1Picks || []),
-    ...(draftState.player2Picks || []),
-  ]);
-  // TODO: Determine if it's the current player's turn (e.g., check draftState.currentTurn vs state.myAssignedSlot)
-  const isMyTurn = false; // Placeholder for turn logic
+  const p1PicksSet = new Set(draftState.player1Picks || []); // Get picks/bans from draftState
+  const p2PicksSet = new Set(draftState.player2Picks || []);
+  const bansSet = new Set(draftState.bans || []);
 
   ALL_RESONATORS_DATA.forEach((resonator) => {
     const button = document.createElement("button");
-    button.classList.add("character-button", "stylish-button"); // Add base classes
-    button.dataset.resonatorId = resonator.id; // Store ID or name on button
+    button.classList.add("character-button", "stylish-button");
+    button.dataset.resonatorId = resonator.id;
     button.dataset.resonatorName = resonator.name;
-
-    // Basic content: Image Button
     button.innerHTML = `<img src="${resonator.image_button}" alt="${resonator.name}" title="${resonator.name}" />`;
-    // Maybe add name below image later: += `<span class="char-name">${resonator.name}</span>`;
 
-    let isAvailable = availableSet.has(resonator.name); // Check availability based on name (or ID)
-    let isUnavailable = unavailableSet.has(resonator.name); // Check if picked/banned
+    // Determine button state based on draftState
+    let isAvailable = availableSet.has(resonator.name);
+    let isPickedByP1 = p1PicksSet.has(resonator.name);
+    let isPickedByP2 = p2PicksSet.has(resonator.name);
+    let isBanned = bansSet.has(resonator.name);
+    let isUnavailable = isPickedByP1 || isPickedByP2 || isBanned;
 
-    if (isUnavailable) {
-      button.classList.add("unavailable", "picked-banned"); // General unavailable class
-      button.disabled = true;
-    } else if (!isAvailable) {
-      // This case might indicate data inconsistency, treat as unavailable
-      button.classList.add("unavailable");
-      button.disabled = true;
-      console.warn(
-        `Resonator ${resonator.name} not in available list but not picked/banned?`
-      );
-    } else {
-      // It's available!
+    // Remove previous state classes
+    button.classList.remove(
+      "available",
+      "unavailable",
+      "picked-p1",
+      "picked-p2",
+      "banned",
+      "just-selected"
+    );
+
+    // Apply new state classes for styling
+    if (isPickedByP1) {
+      button.classList.add("unavailable", "picked-p1");
+    } else if (isPickedByP2) {
+      button.classList.add("unavailable", "picked-p2");
+    } else if (isBanned) {
+      button.classList.add("unavailable", "banned");
+    } else if (isAvailable) {
       button.classList.add("available");
-      // Only enable if it's this player's turn (implement later)
-      button.disabled = !isMyTurn; // Disable if not my turn (placeholder)
-      if (isMyTurn) {
-        // Add click listener only if it's my turn and available
-        // button.addEventListener('click', handleCharacterSelection); // Define this later
-      }
+    } else {
+      // Should not happen if availableResonators list is correct, but treat as unavailable
+      button.classList.add("unavailable");
+      console.warn(
+        `Resonator ${resonator.name} not available but not picked/banned?`
+      );
+    }
+
+    // Determine if this specific button should be clickable
+    const isClickable = isMyTurn && isAvailable && !isUnavailable;
+
+    // Set disabled state
+    button.disabled = !isClickable;
+
+    // Remove previous listener to prevent duplicates if grid re-renders often
+    // (Not strictly necessary with innerHTML='', but good practice if re-rendering differently)
+    button.removeEventListener("click", handleCharacterSelection); // Optional cleanup
+
+    // Add listener ONLY if clickable
+    if (isClickable) {
+      button.addEventListener("click", handleCharacterSelection);
     }
 
     elements.characterGridContainer.appendChild(button);
@@ -388,3 +479,48 @@ function renderCharacterGrid(draftState) {
 }
 
 // Add other UI specific functions here (e.g., renderCharacterGrid later)
+
+function handleCharacterSelection(event) {
+  const button = event.currentTarget;
+  const resonatorName = button.dataset.resonatorName;
+
+  if (!resonatorName) {
+    console.error(
+      "Character button clicked, but missing resonator name dataset!"
+    );
+    return;
+  }
+
+  // Disable button immediately to prevent double clicks
+  button.disabled = true;
+  button.classList.add("just-selected"); // Optional: temporary visual feedback
+
+  // Determine action based on current phase from state
+  let action = null;
+  const phase = state.currentPhase; // Get phase from state.js module
+
+  if (phase?.startsWith("BAN")) {
+    action = "makeBan";
+  } else if (phase?.startsWith("PICK")) {
+    action = "makePick";
+  } else {
+    console.error(`Unknown phase (${phase}) - cannot determine action.`);
+    // Re-enable button if phase is unknown? Or leave disabled?
+    button.disabled = false; // Let's re-enable for now
+    button.classList.remove("just-selected");
+    return; // Don't send message
+  }
+
+  // Construct and send message
+  const message = {
+    action: action,
+    resonatorName: resonatorName,
+    // Lobby ID is not needed, backend gets it from connectionId
+  };
+  console.log(`UI: Sending action: ${action}, Resonator: ${resonatorName}`);
+  sendMessageToServer(message);
+
+  // Note: The button state (disabled, class) will be fully updated
+  // when the lobbyStateUpdate message comes back from the server.
+  // The immediate disabling is just for quick feedback.
+}

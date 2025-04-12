@@ -6,6 +6,11 @@ export let isCurrentUserHost = false;
 export let currentUserName = null;
 export let myAssignedSlot = null; // 'P1' or 'P2'
 
+// --- ADD NEW STATE VARIABLES BELOW THIS LINE ---
+export let currentPhase = null; // e.g., 'BAN1', 'PICK1'
+export let currentTurn = null; // e.g., 'P1', 'P2'
+// --- END ADD ---
+
 // Functions to update state
 export function setLobbyInfo(lobbyId, isHost) {
   console.log(`State: Setting lobbyId=${lobbyId}, isHost=${isHost}`);
@@ -23,11 +28,39 @@ export function setAssignedSlot(slot) {
   myAssignedSlot = slot;
 }
 
+// --- ADD NEW UPDATE FUNCTIONS BELOW THIS LINE ---
+export function setDraftPhase(phase) {
+  if (phase !== currentPhase) {
+    // Optional: Only log if changed
+    console.log(`State: Setting currentPhase=${phase}`);
+    currentPhase = phase;
+  } else {
+    currentPhase = phase; // Ensure state is always current even if not logging
+  }
+}
+
+export function setDraftTurn(turn) {
+  if (turn !== currentTurn) {
+    // Optional: Only log if changed
+    console.log(`State: Setting currentTurn=${turn}`);
+    currentTurn = turn;
+  } else {
+    currentTurn = turn; // Ensure state is always current even if not logging
+  }
+}
+// --- END ADD ---
+
 export function clearLobbyState() {
   console.log("State: Clearing lobby state");
   currentLobbyId = null;
   isCurrentUserHost = false;
   myAssignedSlot = null;
+
+  // --- MODIFY clearLobbyState TO INCLUDE THESE LINES ---
+  currentPhase = null;
+  currentTurn = null;
+  // --- END MODIFY ---
+
   // Keep currentUserName? Or clear it too? Let's keep it for now.
 }
 

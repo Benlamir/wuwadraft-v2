@@ -6,10 +6,33 @@ import logging
 import os
 import uuid # Import uuid library for generating unique IDs
 from datetime import datetime, timezone # For timestamps
+from boto3.dynamodb.conditions import Key, Attr # Keep this if needed elsewhere
+from botocore.exceptions import ClientError # Remove ConditionalCheckFailedException from import
 
 # Set up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+# --- ADD HELPER FUNCTION FOR TURN LOGIC ---
+def determine_next_state(current_phase, current_turn):
+    """Calculates the next phase and turn based on current state. Simple initial logic."""
+    # TODO: Implement full draft phase progression logic (BAN1->BAN1->PICK1->PICK1->BAN2->...)
+    if current_phase == 'BAN1' and current_turn == 'P1':
+        return 'BAN1', 'P2'
+    elif current_phase == 'BAN1' and current_turn == 'P2':
+        return 'PICK1', 'P1'
+    elif current_phase == 'PICK1' and current_turn == 'P1':
+        return 'PICK1', 'P2'
+    elif current_phase == 'PICK1' and current_turn == 'P2':
+        # Example: Loop back to bans for simplicity, replace with BAN2 etc later
+        logger.warning("Reached end of simple phase logic, looping back. Implement full draft sequence.")
+        # return 'BAN2', 'P1' # Example for next phase
+        return 'DRAFT_COMPLETE', None # Or mark as complete? For now, loop might be okay for testing.
+    else:
+        # Default / Error case - should not happen with validation
+        logger.error(f"Unexpected state for progression: Phase={current_phase}, Turn={current_turn}")
+        return current_phase, current_turn # Return current state on error
+# --- END HELPER FUNCTION ---
 
 # List of all draftable resonators
 ALL_RESONATOR_NAMES = sorted([
@@ -401,17 +424,23 @@ def handler(event, context):
             p2_ready = updated_lobby_item.get('player2Ready', False)
             logger.info(f"Checking readiness after update. P1 Ready: {p1_ready}, P2 Ready: {p2_ready}")
 
+            # Explicitly get current state values into local variables BEFORE the 'if'
             current_lobby_state = updated_lobby_item.get('lobbyState', 'WAITING')
+            current_phase = updated_lobby_item.get('currentPhase')
+            current_turn = updated_lobby_item.get('currentTurn')
+
+            draft_started = False # Flag to know if we updated DDB
 
             # 6. If both ready, update lobby state to start draft (only if not already started)
-            if p1_ready and p2_ready and current_lobby_state == 'WAITING': # Check specific state
+            if p1_ready and p2_ready and current_lobby_state == 'WAITING':
                 logger.info(f"Both players ready! Updating lobby state to DRAFTING for {lobby_id}")
-                current_lobby_state = 'DRAFTING' # Or 'BAN_PHASE_1' etc.
-                
-                # Initialize draft state
-                next_phase = 'BAN1'
-                next_turn = 'P1'
-                
+                # Update local variables INSIDE the 'if'
+                current_lobby_state = 'DRAFTING'
+                current_phase = 'BAN1'
+                current_turn = 'P1'
+                draft_started = True # Mark that draft state was initialized
+
+                # Initialize draft state in DDB
                 try:
                     lobbies_table.update_item(
                         Key={'lobbyId': lobby_id},
@@ -426,51 +455,73 @@ def handler(event, context):
                         """,
                         ExpressionAttributeValues={
                             ':newState': current_lobby_state,
-                            ':phase': next_phase,
-                            ':turn': next_turn,
+                            ':phase': current_phase,
+                            ':turn': current_turn,
                             ':emptyList': [],
                             ':allRes': ALL_RESONATOR_NAMES
                         }
                     )
-                    # Update the local state for broadcast
-                    updated_lobby_item.update({
-                        'lobbyState': current_lobby_state,
-                        'currentPhase': next_phase,
-                        'currentTurn': next_turn,
-                        'bans': [],
-                        'player1Picks': [],
-                        'player2Picks': [],
-                        'availableResonators': ALL_RESONATOR_NAMES
-                    })
                     logger.info(f"Lobby {lobby_id} state updated to {current_lobby_state} with draft initialization")
+
                 except Exception as state_update_err:
                      logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id}: {str(state_update_err)}")
-                     # Continue with broadcast, state will show as WAITING
+                     # Handle error: maybe reset flag or return error?
+                     draft_started = False # Revert flag on error?
 
-            # 7. Construct the broadcast payload using the LATEST fetched state
+            # --- MODIFICATION START: Re-fetch AFTER potential DDB update ---
+            # 7. Fetch the absolute latest state FOR BROADCASTING
+            final_lobby_item_for_broadcast = None
+            if draft_started: # Only refetch if we actually tried to update DDB
+                try:
+                    logger.info(f"Re-fetching latest lobby state for broadcast after draft start. Lobby: {lobby_id}")
+                    # Use ConsistentRead=True to get the state immediately after update
+                    final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                    final_lobby_item_for_broadcast = final_response.get('Item')
+                    if not final_lobby_item_for_broadcast:
+                         logger.error(f"Critical error: Failed to re-fetch lobby {lobby_id} IMMEDIATELY after DDB update.")
+                         # Fallback or error handling needed? For now, maybe use the previously fetched item.
+                         final_lobby_item_for_broadcast = updated_lobby_item # Fallback, might be slightly stale if error above
+                except Exception as final_fetch_err:
+                     logger.error(f"Error re-fetching final lobby state for broadcast: {str(final_fetch_err)}")
+                     final_lobby_item_for_broadcast = updated_lobby_item # Fallback
+            else:
+                 # If draft didn't start, the state we fetched after ready update is still current
+                 final_lobby_item_for_broadcast = updated_lobby_item
+                 logger.info("Draft did not start, using previously fetched state for broadcast.")
+
+            if not final_lobby_item_for_broadcast:
+                 # Should not happen if logic above is correct, but handle defensively
+                 logger.error(f"Failed to determine final lobby state for broadcast. Lobby {lobby_id}")
+                 return {'statusCode': 500, 'body': 'Internal error preparing broadcast state.'}
+
+            # --- END MODIFICATION ---
+
+            # 8. Construct the broadcast payload using the FINAL fetched item
             state_payload = {
                 "type": "lobbyStateUpdate",
                 "lobbyId": lobby_id,
-                "hostName": updated_lobby_item.get('hostName'),
-                "player1Name": updated_lobby_item.get('player1Name'),
-                "player2Name": updated_lobby_item.get('player2Name'),
-                "lobbyState": current_lobby_state, # Use potentially updated state
-                "player1Ready": p1_ready, # Use value checked from LATEST state
-                "player2Ready": p2_ready, # Use value checked from LATEST state
-                "currentPhase": updated_lobby_item.get('currentPhase'),
-                "currentTurn": updated_lobby_item.get('currentTurn'),
-                "bans": updated_lobby_item.get('bans', []),
-                "player1Picks": updated_lobby_item.get('player1Picks', []),
-                "player2Picks": updated_lobby_item.get('player2Picks', []),
-                "availableResonators": updated_lobby_item.get('availableResonators', ALL_RESONATOR_NAMES)
+                # --- MODIFICATION: Use final_lobby_item_for_broadcast consistently ---
+                "hostName": final_lobby_item_for_broadcast.get('hostName'),
+                "player1Name": final_lobby_item_for_broadcast.get('player1Name'),
+                "player2Name": final_lobby_item_for_broadcast.get('player2Name'),
+                "lobbyState": final_lobby_item_for_broadcast.get('lobbyState'), # Read final state
+                "player1Ready": final_lobby_item_for_broadcast.get('player1Ready', False), # Read final state
+                "player2Ready": final_lobby_item_for_broadcast.get('player2Ready', False), # Read final state
+                "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'), # Read final state
+                "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),   # Read final state
+                "bans": final_lobby_item_for_broadcast.get('bans', []),
+                "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
+                "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
+                "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []) # Read final state
+                # --- END MODIFICATION ---
             }
-            logger.info(f"Broadcasting lobby state update: {state_payload}")
+            logger.info(f"Broadcasting FINAL lobby state update: {state_payload}")
 
-            # 8. Broadcast to all participants
+            # 9. Broadcast to all participants
             participants = [
-                updated_lobby_item.get('hostConnectionId'),
-                updated_lobby_item.get('player1ConnectionId'),
-                updated_lobby_item.get('player2ConnectionId')
+                final_lobby_item_for_broadcast.get('hostConnectionId'),
+                final_lobby_item_for_broadcast.get('player1ConnectionId'),
+                final_lobby_item_for_broadcast.get('player2ConnectionId')
             ]
             valid_connection_ids = [pid for pid in participants if pid]
             failed_sends = []
@@ -481,6 +532,200 @@ def handler(event, context):
                  logger.warning(f"Failed to send state update to some connections: {failed_sends}")
 
             return {'statusCode': 200, 'body': 'Player readiness updated.'}
+
+        # --- ADD makeBan HANDLER ---
+        elif action == 'makeBan':
+            # Validate ban action
+            if not all(key in message_data for key in ['gameId', 'playerId', 'resonatorId']):
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': 'Missing required fields for ban action'})
+                }
+
+            game_id = message_data['gameId']
+            player_id = message_data['playerId']
+            resonator_id = message_data['resonatorId']
+
+            try:
+                # Get current game state
+                response = connections_table.get_item(
+                    Key={'gameId': game_id}
+                )
+                if 'Item' not in response:
+                    return {
+                        'statusCode': 404,
+                        'body': json.dumps({'error': 'Game not found'})
+                    }
+
+                game_state = response['Item']
+                current_phase = game_state.get('currentPhase')
+                current_turn = game_state.get('currentTurn')
+
+                # Validate it's the correct player's turn
+                if current_turn != player_id:
+                    return {
+                        'statusCode': 400,
+                        'body': json.dumps({'error': 'Not your turn to ban'})
+                    }
+
+                # Validate the resonator hasn't been banned or picked
+                if resonator_id in game_state.get('bans', []) or resonator_id in game_state.get('picks', []):
+                    return {
+                        'statusCode': 400,
+                        'body': json.dumps({'error': 'Resonator already banned or picked'})
+                    }
+
+                # Calculate next state
+                next_phase, next_turn = determine_next_state(current_phase, current_turn)
+
+                # Update game state with ban
+                connections_table.update_item(
+                    Key={'gameId': game_id},
+                    UpdateExpression='SET bans = list_append(if_not_exists(bans, :empty_list), :new_ban), currentPhase = :next_phase, currentTurn = :next_turn',
+                    ExpressionAttributeValues={
+                        ':empty_list': [],
+                        ':new_ban': [resonator_id],
+                        ':next_phase': next_phase,
+                        ':next_turn': next_turn
+                    },
+                    ConditionExpression=Attr('currentPhase').eq(current_phase) & Attr('currentTurn').eq(current_turn)
+                )
+
+                # Broadcast state update to all connections
+                broadcast_message = {
+                    'action': 'stateUpdate',
+                    'gameId': game_id,
+                    'phase': next_phase,
+                    'turn': next_turn,
+                    'bans': game_state.get('bans', []) + [resonator_id],
+                    'picks': game_state.get('picks', [])
+                }
+
+                # Get all connections for this game
+                connections = connections_table.query(
+                    IndexName='gameId-index',
+                    KeyConditionExpression=Key('gameId').eq(game_id)
+                )
+
+                # Send update to each connection
+                for connection in connections.get('Items', []):
+                    connection_id = connection['connectionId']
+                    try:
+                        apigw_management_client.post_to_connection(
+                            ConnectionId=connection_id,
+                            Data=json.dumps(broadcast_message)
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send message to connection {connection_id}: {str(e)}")
+
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({'message': 'Ban successful'})
+                }
+
+            except Exception as e:
+                logger.error(f"Error processing ban: {str(e)}")
+                return {
+                    'statusCode': 500,
+                    'body': json.dumps({'error': 'Internal server error'})
+                }
+
+        # --- ADD makePick HANDLER ---
+        elif action == 'makePick':
+            # Validate pick action
+            if not all(key in message_data for key in ['gameId', 'playerId', 'resonatorId']):
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': 'Missing required fields for pick action'})
+                }
+
+            game_id = message_data['gameId']
+            player_id = message_data['playerId']
+            resonator_id = message_data['resonatorId']
+
+            try:
+                # Get current game state
+                response = connections_table.get_item(
+                    Key={'gameId': game_id}
+                )
+                if 'Item' not in response:
+                    return {
+                        'statusCode': 404,
+                        'body': json.dumps({'error': 'Game not found'})
+                    }
+
+                game_state = response['Item']
+                current_phase = game_state.get('currentPhase')
+                current_turn = game_state.get('currentTurn')
+
+                # Validate it's the correct player's turn
+                if current_turn != player_id:
+                    return {
+                        'statusCode': 400,
+                        'body': json.dumps({'error': 'Not your turn to pick'})
+                    }
+
+                # Validate the resonator hasn't been banned or picked
+                if resonator_id in game_state.get('bans', []) or resonator_id in game_state.get('picks', []):
+                    return {
+                        'statusCode': 400,
+                        'body': json.dumps({'error': 'Resonator already banned or picked'})
+                    }
+
+                # Calculate next state
+                next_phase, next_turn = determine_next_state(current_phase, current_turn)
+
+                # Update game state with pick
+                connections_table.update_item(
+                    Key={'gameId': game_id},
+                    UpdateExpression='SET picks = list_append(if_not_exists(picks, :empty_list), :new_pick), currentPhase = :next_phase, currentTurn = :next_turn',
+                    ExpressionAttributeValues={
+                        ':empty_list': [],
+                        ':new_pick': [resonator_id],
+                        ':next_phase': next_phase,
+                        ':next_turn': next_turn
+                    },
+                    ConditionExpression=Attr('currentPhase').eq(current_phase) & Attr('currentTurn').eq(current_turn)
+                )
+
+                # Broadcast state update to all connections
+                broadcast_message = {
+                    'action': 'stateUpdate',
+                    'gameId': game_id,
+                    'phase': next_phase,
+                    'turn': next_turn,
+                    'bans': game_state.get('bans', []),
+                    'picks': game_state.get('picks', []) + [resonator_id]
+                }
+
+                # Get all connections for this game
+                connections = connections_table.query(
+                    IndexName='gameId-index',
+                    KeyConditionExpression=Key('gameId').eq(game_id)
+                )
+
+                # Send update to each connection
+                for connection in connections.get('Items', []):
+                    connection_id = connection['connectionId']
+                    try:
+                        apigw_management_client.post_to_connection(
+                            ConnectionId=connection_id,
+                            Data=json.dumps(broadcast_message)
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send message to connection {connection_id}: {str(e)}")
+
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({'message': 'Pick successful'})
+                }
+
+            except Exception as e:
+                logger.error(f"Error processing pick: {str(e)}")
+                return {
+                    'statusCode': 500,
+                    'body': json.dumps({'error': 'Internal server error'})
+                }
 
         else:
             # Unknown action - echo back or send error/info

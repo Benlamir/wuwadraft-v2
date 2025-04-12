@@ -55,14 +55,34 @@ export function initializeElements() {
   // Draft Screen Elements (Add more as needed)
   elements.draftBackBtn = document.getElementById("draft-back-btn");
   elements.draftPhaseStatus = document.getElementById("draft-phase-status");
+  elements.draftTimer = document.getElementById("draft-timer");
   elements.draftP1Name = document.getElementById("draft-p1-name");
   elements.draftP2Name = document.getElementById("draft-p2-name");
-  elements.draftP1PicksList = document.getElementById("draft-p1-picks-list");
-  elements.draftP2PicksList = document.getElementById("draft-p2-picks-list");
-  elements.draftBansList = document.getElementById("draft-bans-list");
   elements.characterGridContainer = document.getElementById(
     "character-grid-container"
   );
+  elements.draftBansSlotsContainer =
+    document.getElementById("draft-bans-slots");
+
+  // Player 1 Pick Slots
+  elements.draftP1PicksList = document.getElementById("draft-p1-picks-list");
+  elements.p1Pick1 = document.getElementById("p1-pick-1");
+  elements.p1Pick2 = document.getElementById("p1-pick-2");
+  elements.p1Pick3 = document.getElementById("p1-pick-3");
+
+  // Player 2 Pick Slots
+  elements.draftP2PicksList = document.getElementById("draft-p2-picks-list");
+  elements.p2Pick1 = document.getElementById("p2-pick-1");
+  elements.p2Pick2 = document.getElementById("p2-pick-2");
+  elements.p2Pick3 = document.getElementById("p2-pick-3");
+
+  // Ban Slots
+  elements.banSlots =
+    elements.draftBansSlotsContainer?.querySelectorAll(".ban-slot");
+  elements.banSlot1 = document.getElementById("ban-slot-1");
+  elements.banSlot2 = document.getElementById("ban-slot-2");
+  elements.banSlot3 = document.getElementById("ban-slot-3");
+  elements.banSlot4 = document.getElementById("ban-slot-4");
 
   // Optional: Add logs to verify
   console.log("Check element - draftP1Name:", elements.draftP1Name);
