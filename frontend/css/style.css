@@ -62,6 +62,15 @@ header {
   text-align: center;
 }
 
+/* Draft Label */
+.draft-label {
+  color: #cfcdc4; /* A nice light grey */
+  /* Or try: color: #e0e0e0; */
+  /* Or: color: rgba(255, 255, 255, 0.85); /* Slightly transparent white */
+  font-weight: 600; /* Make it slightly bolder */
+  font-size: 0.9rem; /* Optional: Adjust size if needed */
+}
+
 /* Ensure label and input take consistent width */
 .screen label,
 .screen input.form-control {
