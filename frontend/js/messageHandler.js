@@ -48,6 +48,24 @@ export function handleWebSocketMessage(jsonData) {
 
         state.setCurrentDraftState(message); // Store the latest state object
 
+        // Explicitly update the specific phase and turn state variables
+        if (message.hasOwnProperty("currentPhase")) {
+          // Check if the property exists
+          state.setDraftPhase(message.currentPhase);
+        } else {
+          // Optional: Log a warning if phase is missing from update message
+          // console.warn("MessageHandler: lobbyStateUpdate message missing currentPhase");
+          // state.setDraftPhase(null); // Or set to null if missing? Decide handling.
+        }
+        if (message.hasOwnProperty("currentTurn")) {
+          // Check if the property exists
+          state.setDraftTurn(message.currentTurn);
+        } else {
+          // Optional: Log a warning if turn is missing from update message
+          // console.warn("MessageHandler: lobbyStateUpdate message missing currentTurn");
+          // state.setDraftTurn(null); // Or set to null if missing? Decide handling.
+        }
+
         // Decide which UI to update based on the lobbyState
         if (
           message.lobbyState &&

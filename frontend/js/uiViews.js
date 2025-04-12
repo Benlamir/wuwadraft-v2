@@ -585,4 +585,17 @@ function handleCharacterSelection(event) {
   // Note: The button state (disabled, class) will be fully updated
   // when the lobbyStateUpdate message comes back from the server.
   // The immediate disabling is just for quick feedback.
+
+  // --- ADDITION: Disable ALL character buttons immediately ---
+  console.log("UI: Disabling all character buttons pending state update.");
+  const allCharacterButtons =
+    elements.characterGridContainer?.querySelectorAll(".character-button");
+  if (allCharacterButtons) {
+    allCharacterButtons.forEach((btn) => {
+      btn.disabled = true;
+      // Optional: Add a visual style to indicate they are waiting for update
+      // btn.style.opacity = '0.5';
+    });
+  }
+  // --- END ADDITION ---
 }
