@@ -12,6 +12,7 @@ import {
   initializeCopyButton,
 } from "./uiViews.js";
 import * as state from "./state.js"; // Import all state functions/vars
+import * as uiViews from "./uiViews.js"; // Or specific functions like applyCharacterFilter if using named exports
 
 console.log("Main script loading...");
 
@@ -142,6 +143,62 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  // --- Attach Event Listeners for Filter Controls ---
+  const filterControls = document.querySelectorAll(
+    "#draft-filter-controls .filter-btn, #draft-filter-controls .element-filter-icon"
+  );
+  if (filterControls.length > 0) {
+    filterControls.forEach((control) => {
+      control.addEventListener("click", (event) => {
+        const filterElement = event.currentTarget.dataset.element; // 'All', 'Aero', 'Electro', etc.
+        if (filterElement) {
+          console.log(`UI: Filter clicked - ${filterElement}`);
+          try {
+            // Call the function from uiViews to handle filtering
+            if (typeof uiViews.applyCharacterFilter === "function") {
+              uiViews.applyCharacterFilter(filterElement);
+            } else {
+              console.error(
+                "applyCharacterFilter function not found in uiViews"
+              );
+            }
+
+            // Update active class on buttons/icons for visual feedback
+            filterControls.forEach((btn) => {
+              // Check if it's the button or the image icon for class handling
+              if (
+                btn.classList.contains("filter-btn") ||
+                btn.tagName === "IMG"
+              ) {
+                btn.classList.remove("active");
+              }
+            });
+            // Add active class to the specific clicked element
+            event.currentTarget.classList.add("active");
+          } catch (e) {
+            console.error("Error applying filter:", e);
+          }
+        } else {
+          console.warn(
+            "Clicked filter control missing data-element attribute."
+          );
+        }
+      });
+    });
+    console.log("UI: Filter control listeners attached.");
+
+    // Ensure 'All' filter is active by default visually if needed
+    const allButton = document.querySelector(
+      '#draft-filter-controls .filter-btn[data-element="All"]'
+    );
+    if (allButton) {
+      allButton.classList.add("active"); // Set 'All' as active initially
+    }
+  } else {
+    console.warn("UI: Could not find filter controls to attach listeners.");
+  }
+  // --- End of Filter Control Listeners ---
 
   // --- Show Initial Screen ---
   showScreen("welcome-screen");

@@ -398,32 +398,84 @@ export function initializeCopyButton() {
   }
 }
 
+export function applyCharacterFilter(filterElement) {
+  console.log(`UI: Applying filter: ${filterElement}`);
+  state.setActiveElementFilter(filterElement); // Update state
+
+  // Re-render the grid using the latest stored draft state
+  if (state.currentDraftState) {
+    renderCharacterGrid(state.currentDraftState); // Re-render with the new filter active
+  } else {
+    console.warn("Cannot re-render grid, current draft state unknown.");
+    if (elements.characterGridContainer)
+      elements.characterGridContainer.innerHTML =
+        '<p class="text-warning">Cannot display characters: draft state not loaded yet.</p>';
+  }
+}
+
 function renderCharacterGrid(draftState) {
-  if (!elements.characterGridContainer) return; // Exit if container not found
+  if (!elements.characterGridContainer) {
+    console.error("UI Error: characterGridContainer element not found!");
+    return;
+  }
+
+  // Get active filter from state
+  const activeFilter = state.activeElementFilter || "All";
+  console.log(`UI: Rendering grid with filter: ${activeFilter}`);
 
   console.log(
-    "UI: Rendering character grid. Available:",
-    draftState.availableResonators
+    "UI: Rendering character grid. Raw draftState:",
+    draftState // Log the full state for debugging
   );
   elements.characterGridContainer.innerHTML = ""; // Clear previous grid
 
-  // Determine whose turn it is based on state module
-  const isMyTurn = state.myAssignedSlot === state.currentTurn; // Compare state vars
+  // Ensure draftState has the necessary fields, provide defaults if missing
+  const availableResonators = draftState.availableResonators || [];
+  const player1Picks = draftState.player1Picks || [];
+  const player2Picks = draftState.player2Picks || [];
+  const bans = draftState.bans || [];
+  const currentTurn = draftState.currentTurn || state.currentTurn; // Use state from message if available, else local state
+
+  const isMyTurn = state.myAssignedSlot === currentTurn;
   console.log(
-    `UI: Rendering grid. Is it my turn? ${isMyTurn} (MySlot: ${state.myAssignedSlot}, CurrentTurn: ${state.currentTurn})`
+    `UI: Rendering grid. Is it my turn? ${isMyTurn} (MySlot: ${state.myAssignedSlot}, CurrentTurn: ${currentTurn})`
   );
 
-  const availableSet = new Set(draftState.availableResonators || []);
-  const p1PicksSet = new Set(draftState.player1Picks || []); // Get picks/bans from draftState
-  const p2PicksSet = new Set(draftState.player2Picks || []);
-  const bansSet = new Set(draftState.bans || []);
+  const availableSet = new Set(availableResonators);
+  const p1PicksSet = new Set(player1Picks);
+  const p2PicksSet = new Set(player2Picks);
+  const bansSet = new Set(bans);
 
-  ALL_RESONATORS_DATA.forEach((resonator) => {
+  // Filter ALL_RESONATORS_DATA based on the activeFilter
+  const resonatorsToDisplay =
+    activeFilter === "All"
+      ? ALL_RESONATORS_DATA
+      : ALL_RESONATORS_DATA.filter(
+          (resonator) =>
+            Array.isArray(resonator.element) &&
+            resonator.element.includes(activeFilter) // Check element is array and includes filter
+        );
+
+  if (resonatorsToDisplay.length === 0 && activeFilter !== "All") {
+    elements.characterGridContainer.innerHTML = `<p class="text-center text-muted fst-italic">No resonators match the '${activeFilter}' filter.</p>`;
+  } else if (
+    resonatorsToDisplay.length === 0 &&
+    ALL_RESONATORS_DATA.length > 0
+  ) {
+    // Should not happen unless ALL_RESONATORS_DATA is empty
+    elements.characterGridContainer.innerHTML = `<p class="text-center text-danger">Error: No resonators found.</p>`;
+  }
+
+  // Loop over the filtered list
+  resonatorsToDisplay.forEach((resonator) => {
     const button = document.createElement("button");
-    button.classList.add("character-button", "stylish-button");
-    button.dataset.resonatorId = resonator.id;
-    button.dataset.resonatorName = resonator.name;
-    button.innerHTML = `<img src="${resonator.image_button}" alt="${resonator.name}" title="${resonator.name}" />`;
+    button.classList.add("character-button", "stylish-button"); // Add base classes
+    button.dataset.resonatorId = resonator.id; // Use resonator.id if defined in data
+    button.dataset.resonatorName = resonator.name; // Use resonator.name
+
+    // Ensure image source exists
+    const imgSrc = resonator.image_button || ""; // Use button image, provide fallback
+    button.innerHTML = `<img src="${imgSrc}" alt="${resonator.name}" title="${resonator.name}" onerror="this.style.display='none'; this.parentElement.textContent='?';" />`; // Add basic error handling for image load
 
     // Determine button state based on draftState
     let isAvailable = availableSet.has(resonator.name);
@@ -441,37 +493,47 @@ function renderCharacterGrid(draftState) {
       "banned",
       "just-selected"
     );
+    button.style.border = ""; // Reset border styles if any were applied dynamically
+    button.style.opacity = "1"; // Reset opacity
 
-    // Apply new state classes for styling
+    // Apply new state classes/styles for styling
     if (isPickedByP1) {
       button.classList.add("unavailable", "picked-p1");
+      button.style.border = "2px solid blue"; // Example style
+      button.style.opacity = "0.5";
     } else if (isPickedByP2) {
       button.classList.add("unavailable", "picked-p2");
+      button.style.border = "2px solid red"; // Example style
+      button.style.opacity = "0.5";
     } else if (isBanned) {
       button.classList.add("unavailable", "banned");
+      button.style.border = "2px solid grey"; // Example style
+      button.style.opacity = "0.3";
     } else if (isAvailable) {
       button.classList.add("available");
+      // Maybe add a subtle border for available ones if needed
+      // button.style.border = "1px solid #ccc";
     } else {
-      // Should not happen if availableResonators list is correct, but treat as unavailable
+      // If not available, and not picked/banned (shouldn't happen with correct availableResonators list)
       button.classList.add("unavailable");
-      console.warn(
-        `Resonator ${resonator.name} not available but not picked/banned?`
-      );
+      button.style.opacity = "0.5"; // Treat as unavailable visually
     }
 
     // Determine if this specific button should be clickable
+    // Condition: Is it my turn? AND Is the character available? AND Not already picked/banned?
     const isClickable = isMyTurn && isAvailable && !isUnavailable;
 
     // Set disabled state
     button.disabled = !isClickable;
 
-    // Remove previous listener to prevent duplicates if grid re-renders often
-    // (Not strictly necessary with innerHTML='', but good practice if re-rendering differently)
-    button.removeEventListener("click", handleCharacterSelection); // Optional cleanup
-
     // Add listener ONLY if clickable
     if (isClickable) {
+      // Remove previous listener to prevent duplicates if grid re-renders often
+      // button.removeEventListener("click", handleCharacterSelection); // Not strictly needed if clearing innerHTML
       button.addEventListener("click", handleCharacterSelection);
+    } else {
+      // Optionally add a 'not-clickable' class for styling disabled buttons differently
+      button.classList.add("not-clickable");
     }
 
     elements.characterGridContainer.appendChild(button);

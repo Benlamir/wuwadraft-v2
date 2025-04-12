@@ -726,7 +726,15 @@ def handler(event, context):
                     'statusCode': 500,
                     'body': json.dumps({'error': 'Internal server error'})
                 }
-
+        # --- PING HANDLER ---
+        elif action == 'ping':
+            # API Gateway idle timeout resets upon receiving a message.
+            # No action needed usually, but we can log it or send pong.
+            logger.info(f"Received ping from {connection_id}")
+            # Optional: Send pong back
+            # send_message_to_client(apigw_management_client, connection_id, {"type": "pong"})
+            return {'statusCode': 200, 'body': 'Pong.'}
+        # --- END PING HANDLER ---
         else:
             # Unknown action - echo back or send error/info
             logger.info(f"Received unknown action '{action}' or no action from {connection_id}. Echoing.")

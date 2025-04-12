@@ -241,6 +241,73 @@ header {
   gap: 0.5rem;
 }
 
+/* Style for the active 'All' button */
+#draft-filter-controls .filter-btn.active {
+  background-color: #0d6efd; /* Example: Bootstrap primary blue */
+  color: white;
+  border-color: #0d6efd;
+  /* Add any other styles - maybe slightly bolder text */
+  font-weight: bold;
+}
+
+/* Style for the active element filter icons (images) */
+#draft-filter-controls .element-filter-icon.active {
+  /* Example styles - adjust as needed */
+  opacity: 1; /* Ensure full opacity */
+  border: 2px solid #0dcaf0; /* Example: Bright cyan border */
+  background-color: rgba(13, 202, 240, 0.2); /* Faint cyan background */
+  border-radius: 4px; /* Match border */
+  padding: 1px; /* Add slight padding so border doesn't overlap image too much */
+  box-shadow: 0 0 5px rgba(13, 202, 240, 0.5); /* Optional glow */
+  transform: scale(1.1); /* Optional: slightly enlarge active icon */
+  transition: transform 0.1s ease-in-out, border 0.1s ease-in-out; /* Smooth transition */
+}
+
+/* Optional: Slightly dim non-active icons */
+#draft-filter-controls .element-filter-icon:not(.active) {
+  opacity: 0.65; /* Make non-active icons slightly faded */
+   transition: opacity 0.1s ease-in-out;
+   border: 2px solid transparent; /* Keep space for border */
+   padding: 1px;
+   background-color: transparent;
+}
+
+/* Base style for element filter icons - add cursor pointer */
+#draft-filter-controls .element-filter-icon {
+  cursor: pointer; /* Indicates the icon is clickable */
+  transition: transform 0.15s ease-in-out, opacity 0.15s ease-in-out; /* Smooth transition for hover effect */
+  /* Keep existing styles like border, padding, opacity from previous step */
+  border: 2px solid transparent; /* Ensure space for border on hover/active */
+  padding: 1px;
+  opacity: 0.65; /* Dim non-active icons slightly */
+  vertical-align: middle; /* Align icons better with the 'Filter:' text/button */
+}
+
+/* Hover effect for element filter icons */
+#draft-filter-controls .element-filter-icon:hover {
+  opacity: 1; /* Bring to full opacity on hover */
+  transform: scale(1.1); /* Slightly enlarge the icon on hover */
+  /* You could add other effects like a subtle shadow if desired */
+  /* box-shadow: 0 0 3px rgba(255, 255, 255, 0.5); */
+}
+
+/* Ensure the active state overrides the base opacity */
+#draft-filter-controls .element-filter-icon.active {
+  opacity: 1;
+  transform: scale(1.1); /* Keep scale if you want active icons slightly larger */
+  /* Keep other active styles (border, background, etc.) */
+   border: 2px solid #0dcaf0;
+   background-color: rgba(13, 202, 240, 0.2);
+   border-radius: 4px;
+   padding: 1px;
+   box-shadow: 0 0 5px rgba(13, 202, 240, 0.5);
+}
+
+/* Optional: Ensure the 'All' button also has a smooth transition if desired */
+#draft-filter-controls .filter-btn {
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
 /* Grid Header */
 .grid-header {
   padding: 0.5rem 0;
