@@ -810,8 +810,7 @@ def handler(event, context):
             logger.info(f"Validation passed for pick of '{resonator_name_to_pick}' by {current_turn} in lobby {lobby_id}, phase {current_phase}.")
             # --- End of Step 2 ---
 
-            # --- ADD Step 3: State Calculation & DB Update for makePick ---
-
+            # --- Step 3: State Calculation & DB Update (Keep uncommented) ---
             # 5. *** Calculate Next State (Hardcoded for now) ***
             # TODO: Replace this with call to determine_next_state(current_phase, current_turn) later
             next_phase = current_phase
@@ -900,17 +899,60 @@ def handler(event, context):
                  return {'statusCode': 500, 'body': 'Internal server error during update.'}
             # --- End of Step 3 ---
 
-            # --- Keep Broadcast commented out ---
-            """
-            # 7. *** Fetch Final State and Broadcast ***
-            # ... (keep commented) ...
-            """
-            # --- END COMMENT OUT ---
+            # --- Step 4: Fetch Final State and Broadcast ---
+            try:
+                # Fetch the absolute latest state FOR BROADCASTING using ConsistentRead
+                logger.info(f"Fetching final lobby state for broadcast after pick. Lobby: {lobby_id}")
+                final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                final_lobby_item_for_broadcast = final_response.get('Item')
 
-            # --- ADD new temporary return after DB update attempt (Pick) ---
-            logger.info("DB update attempted (Pick - check logs/DB console). No broadcast yet.")
-            return {'statusCode': 200, 'body': 'DB update attempted (Pick).'}
-            # --- END ADD ---
+                if not final_lobby_item_for_broadcast:
+                     logger.error(f"Critical error: Failed to re-fetch lobby {lobby_id} for broadcast after pick.")
+                     return {'statusCode': 500, 'body': 'Internal error preparing broadcast state.'}
+
+                # Construct the broadcast payload (Ensure all relevant fields are included)
+                state_payload = {
+                    "type": "lobbyStateUpdate",
+                    "lobbyId": lobby_id,
+                    "hostName": final_lobby_item_for_broadcast.get('hostName'),
+                    "player1Name": final_lobby_item_for_broadcast.get('player1Name'),
+                    "player2Name": final_lobby_item_for_broadcast.get('player2Name'),
+                    "lobbyState": final_lobby_item_for_broadcast.get('lobbyState'),
+                    "player1Ready": final_lobby_item_for_broadcast.get('player1Ready', False),
+                    "player2Ready": final_lobby_item_for_broadcast.get('player2Ready', False),
+                    "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'), # Use final state
+                    "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),   # Use final state
+                    "bans": final_lobby_item_for_broadcast.get('bans', []), # Use final state
+                    "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []), # Use final state
+                    "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []), # Use final state
+                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []) # Use final state
+                }
+                logger.info(f"Broadcasting FINAL lobby state update after pick: {json.dumps(state_payload)}") # Log full payload
+
+                # Broadcast to all participants
+                participants = [
+                    final_lobby_item_for_broadcast.get('hostConnectionId'),
+                    final_lobby_item_for_broadcast.get('player1ConnectionId'),
+                    final_lobby_item_for_broadcast.get('player2ConnectionId')
+                ]
+                valid_connection_ids = [pid for pid in participants if pid]
+                failed_sends = []
+                # Ensure apigw_management_client is initialized before this loop
+                for recipient_id in valid_connection_ids:
+                    if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
+                         failed_sends.append(recipient_id)
+                if failed_sends:
+                     logger.warning(f"Failed to send state update to some connections: {failed_sends}")
+
+            except Exception as broadcast_err:
+                 logger.error(f"Error broadcasting lobby state update after pick for {lobby_id}: {str(broadcast_err)}")
+                 # Don't necessarily fail the operation, but log the error. DB update succeeded.
+
+            # --- End of Step 4 ---
+
+            # --- Final Success Return ---
+            return {'statusCode': 200, 'body': 'Pick processed successfully.'}
+            # --- END Final Return ---
         # --- END makePick HANDLER ---
         # --- PING HANDLER ---
         elif action == 'ping':
