@@ -44,52 +44,48 @@ export function handleWebSocketMessage(jsonData) {
 
       case "lobbyStateUpdate":
         console.log("MessageHandler: Processing lobbyStateUpdate");
-        console.log("MessageHandler: Received state:", message); // Log the received state
+        console.log("MessageHandler: Received state:", message);
 
         state.setCurrentDraftState(message); // Store the latest state object
 
         // Explicitly update the specific phase and turn state variables
         if (message.hasOwnProperty("currentPhase")) {
-          // Check if the property exists
           state.setDraftPhase(message.currentPhase);
-        } else {
-          // Optional: Log a warning if phase is missing from update message
-          // console.warn("MessageHandler: lobbyStateUpdate message missing currentPhase");
-          // state.setDraftPhase(null); // Or set to null if missing? Decide handling.
         }
         if (message.hasOwnProperty("currentTurn")) {
-          // Check if the property exists
           state.setDraftTurn(message.currentTurn);
-        } else {
-          // Optional: Log a warning if turn is missing from update message
-          // console.warn("MessageHandler: lobbyStateUpdate message missing currentTurn");
-          // state.setDraftTurn(null); // Or set to null if missing? Decide handling.
         }
 
-        // Decide which UI to update based on the lobbyState
-        if (
-          message.lobbyState &&
-          (message.lobbyState === "DRAFTING" ||
-            message.lobbyState === "BAN_PHASE" ||
-            message.lobbyState === "PICK_PHASE" ||
-            message.lobbyState === "DRAFT_COMPLETE")
-        ) {
-          // --- Draft is Active ---
+        // --- ADD CHECK FOR DRAFT COMPLETION ---
+        if (message.currentPhase === "DRAFT_COMPLETE") {
+          console.log("MessageHandler: Draft Complete state detected.");
+          // Call a function to update UI specifically for completion
+          // Option 1: Call a new function
+          // handleDraftCompletionUI(message);
+          // Option 2: Modify updateDraftScreenUI to handle it (shown below)
+          updateDraftScreenUI(message); // Ensure this handles the complete state
+        }
+        // --- END ADDITION ---
+
+        // Original logic to decide which screen/UI to update
+        // MODIFY the condition slightly to EXCLUDE DRAFT_COMPLETE if handled above
+        else if (message.lobbyState && message.lobbyState === "DRAFTING") {
+          // Check only DRAFTING now
           console.log(
-            "MessageHandler: State is DRAFTING/BAN/PICK, updating draft screen."
+            "MessageHandler: State is DRAFTING, updating draft screen."
           );
-          updateDraftScreenUI(message); // Pass the received message directly
+          updateDraftScreenUI(message); // Update draft screen (will handle non-complete phases)
           const activeScreen = document.querySelector(".screen.active");
           if (!activeScreen || activeScreen.id !== "draft-screen") {
             console.log("MessageHandler: Switching view to draft-screen.");
             showScreen("draft-screen");
           }
         } else {
-          // --- Lobby is likely still in WAITING ---
+          // Lobby is likely still in WAITING
           console.log(
             "MessageHandler: State is WAITING, updating wait screen."
           );
-          updateLobbyWaitScreenUI(message); // Pass the received message directly
+          updateLobbyWaitScreenUI(message);
           const activeScreen = document.querySelector(".screen.active");
           if (!activeScreen || activeScreen.id !== "lobby-wait-screen") {
             console.log("MessageHandler: Switching view to lobby-wait-screen.");

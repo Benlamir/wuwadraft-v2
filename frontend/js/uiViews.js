@@ -260,22 +260,59 @@ export function updateDraftScreenUI(draftState) {
     return;
   }
 
-  // --- Update Phase and Turn Status ---
+  // --- ADD HANDLING FOR DRAFT COMPLETE STATE ---
+  if (draftState.currentPhase === "DRAFT_COMPLETE") {
+    console.log("UI: Rendering Draft Complete state.");
+    if (elements.draftPhaseStatus) {
+      elements.draftPhaseStatus.textContent = "Draft Complete!";
+      elements.draftPhaseStatus.classList.add("text-success", "fw-bold"); // Example styling
+    }
+    if (elements.draftTimer) {
+      elements.draftTimer.textContent = ""; // Clear timer text
+    }
+    // Ensure final picks/bans are rendered
+    updatePickSlots(draftState);
+    updateBanSlots(draftState);
+
+    // Disable character grid entirely
+    if (elements.characterGridContainer) {
+      elements.characterGridContainer.innerHTML =
+        '<p class="text-center text-muted fst-italic mt-4">-- Draft Finished --</p>'; // Replace grid content
+      // OR disable all buttons within it if preferred
+      // const allButtons = elements.characterGridContainer.querySelectorAll('button');
+      // allButtons.forEach(btn => btn.disabled = true);
+    }
+    // Optionally hide filter controls
+    const filterControls = document.getElementById("draft-filter-controls");
+    if (filterControls) filterControls.style.display = "none";
+
+    // Optionally add a 'Back to Lobby/Welcome' button or message here
+    // (Requires further logic)
+
+    return; // Stop further UI updates for active turn display etc.
+  }
+  // --- END DRAFT COMPLETE HANDLING ---
+
+  // --- Original UI Update Logic (for ongoing draft) ---
+  // Update Phase and Turn Status (This will now only run if draft is NOT complete)
   if (elements.draftPhaseStatus) {
+    // Reset any completion styling if somehow reapplied
+    elements.draftPhaseStatus.classList.remove("text-success", "fw-bold");
+
     const turnPlayerName =
-      state.currentTurn === "P1" // Use state for names too? Or passed draftState? Use draftState for consistency here.
+      draftState.currentTurn === "P1"
         ? draftState.player1Name || "Player 1"
         : draftState.player2Name || "Player 2";
     const turnIndicator =
-      state.myAssignedSlot === state.currentTurn ? " (Your Turn)" : ""; // Add indicator if it's my turn
+      state.myAssignedSlot === draftState.currentTurn ? " (Your Turn)" : "";
     elements.draftPhaseStatus.textContent = `Phase: ${
-      state.currentPhase || "N/A"
+      draftState.currentPhase || "N/A"
     } (${turnPlayerName}'s Turn)${turnIndicator}`;
   } else {
     console.warn("UI Update Warning: Draft phase status element not found");
   }
 
-  // --- Update Player Names ---
+  // Update Player Names (Keep)
   if (elements.draftP1Name) {
     elements.draftP1Name.textContent = draftState.player1Name || "[P1 Name]";
   }
@@ -283,33 +320,22 @@ export function updateDraftScreenUI(draftState) {
     elements.draftP2Name.textContent = draftState.player2Name || "[P2 Name]";
   }
 
-  // --- Update Timer --- (Keep existing logic - placeholder)
+  // Update Timer (Keep placeholder)
   // if (elements.draftTimer) { ... }
 
-  // --- CALL NEW UPDATE FUNCTIONS ---
-  updatePickSlots(draftState); // Update P1/P2 pick slots
-  updateBanSlots(draftState); // Update ban slots
-  // --- END CALLS ---
+  // Update Pick and Ban Slots (Keep)
+  updatePickSlots(draftState);
+  updateBanSlots(draftState);
 
-  // --- Render Character Grid --- (Keep existing logic)
-  // This already uses draftState to update button availability and styles
+  // Re-enable filter controls if they were hidden
+  const filterControls = document.getElementById("draft-filter-controls");
+  if (filterControls) filterControls.style.display = "flex"; // Or original display value
+
+  // Render Character Grid (Keep)
   try {
-    if (typeof renderCharacterGrid === "function") {
-      renderCharacterGrid(draftState);
-    } else {
-      console.error("renderCharacterGrid function is not defined correctly.");
-    }
+    renderCharacterGrid(draftState); // Render grid based on current non-complete state
   } catch (gridError) {
     console.error("Error calling renderCharacterGrid:", gridError);
-  }
-
-  // Added check for draft completion (simple example)
-  if (state.currentPhase === "DRAFT_COMPLETE") {
-    // Optionally display a draft complete message
-    if (elements.draftPhaseStatus) {
-      elements.draftPhaseStatus.textContent = "Draft Complete!";
-    }
-    // Disable remaining buttons in the grid? renderCharacterGrid should handle this if availableResonators is empty/state changes.
   }
 }
 // --- END FUNCTION MODIFICATION ---
