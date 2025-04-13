@@ -14,24 +14,18 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # --- ADD HELPER FUNCTION FOR TURN LOGIC ---
-def determine_next_state(current_phase, current_turn):
-    """Calculates the next phase and turn based on current state. Simple initial logic."""
-    # TODO: Implement full draft phase progression logic (BAN1->BAN1->PICK1->PICK1->BAN2->...)
-    if current_phase == 'BAN1' and current_turn == 'P1':
-        return 'BAN1', 'P2'
-    elif current_phase == 'BAN1' and current_turn == 'P2':
-        return 'PICK1', 'P1'
-    elif current_phase == 'PICK1' and current_turn == 'P1':
-        return 'PICK1', 'P2'
-    elif current_phase == 'PICK1' and current_turn == 'P2':
-        # Example: Loop back to bans for simplicity, replace with BAN2 etc later
-        logger.warning("Reached end of simple phase logic, looping back. Implement full draft sequence.")
-        # return 'BAN2', 'P1' # Example for next phase
-        return 'DRAFT_COMPLETE', None # Or mark as complete? For now, loop might be okay for testing.
+def determine_next_state(current_step_index):
+    """Calculates the next phase, turn, and index based on the current step index."""
+    next_index = current_step_index + 1
+    if next_index < len(DRAFT_ORDER):
+        next_phase, next_turn = DRAFT_ORDER[next_index]
+        logger.info(f"Draft progression: From index {current_step_index} -> To index {next_index} ({next_phase}, {next_turn})")
+        return next_phase, next_turn, next_index # Return next index too
     else:
-        # Default / Error case - should not happen with validation
-        logger.error(f"Unexpected state for progression: Phase={current_phase}, Turn={current_turn}")
-        return current_phase, current_turn # Return current state on error
+        # Reached the end of the defined order
+        logger.info(f"Draft progression: Reached end of DRAFT_ORDER (index {current_step_index}). Setting state to COMPLETE.")
+        # Return completion state and an index marker (e.g., -1 or None)
+        return DRAFT_COMPLETE_PHASE, None, -1 # Indicate completion with index -1 (or None)
 # --- END HELPER FUNCTION ---
 
 # List of all draftable resonators
@@ -67,6 +61,24 @@ ALL_RESONATOR_NAMES = sorted([
     'Cantarella',
     'Phoebe'
 ])
+
+# --- Define the Draft Order ---
+# Structure: (Phase Name, Player Turn)
+DRAFT_ORDER = [
+    ('BAN1', 'P1'),    # Step 0
+    ('BAN1', 'P2'),    # Step 1
+    ('PICK1', 'P1'),   # Step 2
+    ('PICK1', 'P2'),   # Step 3
+    ('PICK1', 'P1'),   # Step 4 
+    ('PICK1', 'P2'),   # Step 5 
+    ('BAN2', 'P1'),    # Step 6
+    ('BAN2', 'P2'),    # Step 7
+    ('PICK2', 'P2'),   # Step 8
+    ('PICK2', 'P1'),   # Step 9
+    # Add more steps if needed (e.g., for BAN3/PICK3 if structure changes)
+]
+DRAFT_COMPLETE_PHASE = 'DRAFT_COMPLETE' # Constant for completed state
+# --- End Draft Order Definition ---
 
 # --- Configuration ---
 CONNECTIONS_TABLE_NAME = 'WuwaDraftConnections'
@@ -452,18 +464,19 @@ def handler(event, context):
                                 bans = :emptyList,
                                 player1Picks = :emptyList,
                                 player2Picks = :emptyList,
-                                availableResonators = :allRes
+                                availableResonators = :allRes,
+                                currentStepIndex = :zero
                         """,
                         ExpressionAttributeValues={
                             ':newState': current_lobby_state,
                             ':phase': current_phase,
                             ':turn': current_turn,
                             ':emptyList': [],
-                            ':allRes': ALL_RESONATOR_NAMES
+                            ':allRes': ALL_RESONATOR_NAMES,
+                            ':zero': 0
                         }
                     )
-                    logger.info(f"Lobby {lobby_id} state updated to {current_lobby_state} with draft initialization")
-
+                    logger.info(f"Lobby {lobby_id} state updated to {current_lobby_state} with draft initialization (including step index)")
                 except Exception as state_update_err:
                      logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id}: {str(state_update_err)}")
                      # Handle error: maybe reset flag or return error?
@@ -538,7 +551,7 @@ def handler(event, context):
         elif action == 'makeBan':
             logger.info(f"--- Entered 'makeBan' action block ---")
 
-            # Step 1: Initial Data Fetching
+            # Step 1: Initial Data Fetching (Keep uncommented)
             connection_id = event.get('requestContext', {}).get('connectionId')
             logger.info(f"Processing 'makeBan' action for {connection_id}")
             # Assumes message_data is parsed earlier
@@ -561,6 +574,7 @@ def handler(event, context):
             lobby_item = None
             if lobby_id:
                 try:
+                    # Use ConsistentRead for validation
                     response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
                     lobby_item = response.get('Item')
                     if not lobby_item:
@@ -617,52 +631,60 @@ def handler(event, context):
             logger.info(f"Validation passed for ban of '{resonator_name_to_ban}' by {current_turn} in lobby {lobby_id}, phase {current_phase}.")
             # --- End of Step 2 ---
 
-            # 5. *** Calculate Next State (Baby Step - Hardcoded for now) ***
-            # TODO: Replace this with call to determine_next_state(current_phase, current_turn) later
-            next_phase = current_phase
-            next_turn = None
-            if current_phase == 'BAN1' and current_turn == 'P1':
-                next_turn = 'P2'
-            elif current_phase == 'BAN1' and current_turn == 'P2':
-                next_phase = 'PICK1' # Assuming BAN1 -> PICK1 for now
-                next_turn = 'P1'
-            # Add more hardcoded steps if needed for testing BAN2 etc.
-            else:
-                logger.error(f"Cannot determine hardcoded next state for {current_phase}, {current_turn}. Keeping current.")
-                next_phase = current_phase # Keep current phase on error
-                next_turn = current_turn   # Keep current turn on error
+            # 5. *** Calculate Next State using Index ***
+            current_step_index_decimal = lobby_item.get('currentStepIndex', -1) # Get value which might be Decimal
 
-            logger.info(f"Calculated next state for lobby {lobby_id}: Phase={next_phase}, Turn={next_turn}")
+            # --- ADD INT CONVERSION AND CHECK ---
+            try:
+                # Convert the retrieved value (Decimal or -1) to an integer
+                current_step_index = int(current_step_index_decimal)
+                # Check if conversion resulted in -1 unexpectedly (handles edge cases)
+                if current_step_index == -1 and current_step_index_decimal != -1:
+                     raise ValueError("Invalid step index (-1) after conversion.")
+            except (TypeError, ValueError) as e:
+                 # Log error if conversion fails or value is invalid
+                 logger.error(f"Invalid currentStepIndex '{current_step_index_decimal}' retrieved from lobby {lobby_id}. Error: {e}")
+                 return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index.'}
+            # --- END ADDITION ---
 
-            # 6. *** Update DynamoDB ***
+            # Check if index is valid before proceeding (it might be -1 if draft never initialized index)
+            if current_step_index < 0: # Check less than 0 to catch default -1
+                 logger.error(f"Cannot determine next state for lobby {lobby_id}: currentStepIndex is invalid ({current_step_index}).")
+                 return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index state.'}
+
+            # Now call determine_next_state with the guaranteed integer index
+            next_phase, next_turn, next_step_index = determine_next_state(current_step_index)
+
+            # 6. *** Update DynamoDB (with index) ***
             try:
                 new_available_list = [res for res in available_resonators if res != resonator_name_to_ban]
-
-                logger.info(f"Attempting to update lobby {lobby_id} state in DynamoDB.")
+                logger.info(f"Attempting to update lobby {lobby_id} state in DynamoDB (using index).")
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
                     UpdateExpression="""
                         SET bans = list_append(if_not_exists(bans, :empty_list), :new_ban),
                             availableResonators = :new_available,
                             currentPhase = :next_phase,
-                            currentTurn = :next_turn
+                            currentTurn = :next_turn,
+                            currentStepIndex = :next_index
                     """,
-                    ConditionExpression="currentTurn = :expected_turn AND currentPhase = :expected_phase", # Prevent race conditions
+                    # Condition on the step index to prevent race conditions more reliably
+                    ConditionExpression="currentStepIndex = :expected_index",
                     ExpressionAttributeValues={
                         ':empty_list': [],
                         ':new_ban': [resonator_name_to_ban],
                         ':new_available': new_available_list,
                         ':next_phase': next_phase,
                         ':next_turn': next_turn,
-                        ':expected_turn': current_turn, # Condition check value
-                        ':expected_phase': current_phase # Condition check value
+                        ':next_index': next_step_index,
+                        ':expected_index': current_step_index
                     }
                 )
-                logger.info(f"Successfully updated lobby {lobby_id} state after ban.")
+                logger.info(f"Successfully updated lobby {lobby_id} state after ban (index {next_step_index}).")
 
             except ClientError as e:
                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-                    logger.warning(f"Conditional check failed for ban update in lobby {lobby_id}. State likely changed. Turn={current_turn}, Phase={current_phase}")
+                    logger.warning(f"Conditional check failed for ban update in lobby {lobby_id}. State likely changed. Index={current_step_index}")
                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Action failed, state may have changed. Please wait for update."})
                     return {'statusCode': 409, 'body': 'Conflict, state changed during request.'} # 409 Conflict
                 else:
@@ -693,14 +715,14 @@ def handler(event, context):
                     "lobbyState": final_lobby_item_for_broadcast.get('lobbyState'),
                     "player1Ready": final_lobby_item_for_broadcast.get('player1Ready', False),
                     "player2Ready": final_lobby_item_for_broadcast.get('player2Ready', False),
-                    "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'), # Use final state
-                    "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),   # Use final state
-                    "bans": final_lobby_item_for_broadcast.get('bans', []), # Use final state
+                    "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'),
+                    "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),
+                    "bans": final_lobby_item_for_broadcast.get('bans', []),
                     "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
                     "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
-                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []) # Use final state
+                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', [])
                 }
-                logger.info(f"Broadcasting FINAL lobby state update after ban: {json.dumps(state_payload)}") # Log full payload
+                logger.info(f"Broadcasting FINAL lobby state update after ban: {json.dumps(state_payload)}")
 
                 # Broadcast to all participants
                 participants = [
@@ -710,7 +732,6 @@ def handler(event, context):
                 ]
                 valid_connection_ids = [pid for pid in participants if pid]
                 failed_sends = []
-                # Ensure apigw_management_client is initialized before this loop
                 for recipient_id in valid_connection_ids:
                     if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
                          failed_sends.append(recipient_id)
@@ -720,7 +741,6 @@ def handler(event, context):
             except Exception as broadcast_err:
                  logger.error(f"Error broadcasting lobby state update after ban for {lobby_id}: {str(broadcast_err)}")
                  # Don't necessarily fail the operation, but log the error. DB update succeeded.
-                 # Consider if a specific return code is needed here.
 
             # --- Final Success Return ---
             return {'statusCode': 200, 'body': 'Ban processed successfully.'}
@@ -810,25 +830,31 @@ def handler(event, context):
             logger.info(f"Validation passed for pick of '{resonator_name_to_pick}' by {current_turn} in lobby {lobby_id}, phase {current_phase}.")
             # --- End of Step 2 ---
 
-            # --- Step 3: State Calculation & DB Update (Keep uncommented) ---
-            # 5. *** Calculate Next State (Hardcoded for now) ***
-            # TODO: Replace this with call to determine_next_state(current_phase, current_turn) later
-            next_phase = current_phase
-            next_turn = None
-            if current_phase == 'PICK1' and current_turn == 'P1':
-                next_turn = 'P2'
-            elif current_phase == 'PICK1' and current_turn == 'P2':
-                next_phase = 'BAN2' # Assuming PICK1 -> BAN2 for now
-                next_turn = 'P1'    # Or maybe P2 starts BAN2? Adjust as needed.
-            # Add more hardcoded steps if needed for testing PICK2 etc.
-            else:
-                logger.error(f"Cannot determine hardcoded next state for {current_phase}, {current_turn}. Keeping current.")
-                next_phase = current_phase # Keep current phase on error/unknown
-                next_turn = current_turn   # Keep current turn on error/unknown
+            # 5. *** Calculate Next State using Index ***
+            current_step_index_decimal = lobby_item.get('currentStepIndex', -1) # Get value which might be Decimal
 
-            logger.info(f"Calculated next state for lobby {lobby_id}: Phase={next_phase}, Turn={next_turn}")
+            # --- ADD INT CONVERSION AND CHECK ---
+            try:
+                # Convert the retrieved value (Decimal or -1) to an integer
+                current_step_index = int(current_step_index_decimal)
+                # Check if conversion resulted in -1 unexpectedly (handles edge cases)
+                if current_step_index == -1 and current_step_index_decimal != -1:
+                     raise ValueError("Invalid step index (-1) after conversion.")
+            except (TypeError, ValueError) as e:
+                 # Log error if conversion fails or value is invalid
+                 logger.error(f"Invalid currentStepIndex '{current_step_index_decimal}' retrieved from lobby {lobby_id}. Error: {e}")
+                 return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index.'}
+            # --- END ADDITION ---
 
-            # 6. *** Update DynamoDB ***
+            # Check if index is valid before proceeding (it might be -1 if draft never initialized index)
+            if current_step_index < 0: # Check less than 0 to catch default -1
+                 logger.error(f"Cannot determine next state for lobby {lobby_id}: currentStepIndex is invalid ({current_step_index}).")
+                 return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index state.'}
+
+            # Now call determine_next_state with the guaranteed integer index
+            next_phase, next_turn, next_step_index = determine_next_state(current_step_index)
+
+            # 6. *** Update DynamoDB (with index) ***
             try:
                 new_available_list = [res for res in available_resonators if res != resonator_name_to_pick]
 
@@ -844,7 +870,8 @@ def handler(event, context):
                         SET player1Picks = list_append(if_not_exists(player1Picks, :empty_list), :new_pick_p1),
                             availableResonators = :new_available,
                             currentPhase = :next_phase,
-                            currentTurn = :next_turn
+                            currentTurn = :next_turn,
+                            currentStepIndex = :next_index
                     """
                     expression_attribute_values = {
                         ':empty_list': [],
@@ -852,8 +879,8 @@ def handler(event, context):
                         ':new_available': new_available_list,
                         ':next_phase': next_phase,
                         ':next_turn': next_turn,
-                        ':expected_turn': current_turn,
-                        ':expected_phase': current_phase
+                        ':next_index': next_step_index,
+                        ':expected_index': current_step_index
                     }
                 elif current_turn == 'P2':
                     player_pick_list_key = ":new_pick_p2"
@@ -861,7 +888,8 @@ def handler(event, context):
                         SET player2Picks = list_append(if_not_exists(player2Picks, :empty_list), :new_pick_p2),
                             availableResonators = :new_available,
                             currentPhase = :next_phase,
-                            currentTurn = :next_turn
+                            currentTurn = :next_turn,
+                            currentStepIndex = :next_index
                     """
                     expression_attribute_values = {
                         ':empty_list': [],
@@ -869,26 +897,26 @@ def handler(event, context):
                         ':new_available': new_available_list,
                         ':next_phase': next_phase,
                         ':next_turn': next_turn,
-                        ':expected_turn': current_turn,
-                        ':expected_phase': current_phase
+                        ':next_index': next_step_index,
+                        ':expected_index': current_step_index
                     }
                 else:
                     # Should not happen if validation passed, but handle defensively
                     logger.error(f"Cannot update picks for invalid turn '{current_turn}' in lobby {lobby_id}")
                     return {'statusCode': 500, 'body': f"Internal error: Invalid turn {current_turn} during pick update."}
 
-                logger.info(f"Attempting to update lobby {lobby_id} state in DynamoDB for {current_turn} pick.")
+                logger.info(f"Attempting to update lobby {lobby_id} state in DynamoDB for {current_turn} pick (using index).")
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
                     UpdateExpression=update_expression,
-                    ConditionExpression="currentTurn = :expected_turn AND currentPhase = :expected_phase",
+                    ConditionExpression="currentStepIndex = :expected_index",
                     ExpressionAttributeValues=expression_attribute_values
                 )
-                logger.info(f"Successfully updated lobby {lobby_id} state after {current_turn} pick.")
+                logger.info(f"Successfully updated lobby {lobby_id} state after {current_turn} pick (index {next_step_index}).")
 
             except ClientError as e:
                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-                    logger.warning(f"Conditional check failed for pick update in lobby {lobby_id}. State likely changed.")
+                    logger.warning(f"Conditional check failed for pick update in lobby {lobby_id}. State likely changed. Index={current_step_index}")
                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Action failed, state may have changed. Please wait for update."})
                     return {'statusCode': 409, 'body': 'Conflict, state changed during request.'}
                 else:
@@ -920,14 +948,14 @@ def handler(event, context):
                     "lobbyState": final_lobby_item_for_broadcast.get('lobbyState'),
                     "player1Ready": final_lobby_item_for_broadcast.get('player1Ready', False),
                     "player2Ready": final_lobby_item_for_broadcast.get('player2Ready', False),
-                    "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'), # Use final state
-                    "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),   # Use final state
-                    "bans": final_lobby_item_for_broadcast.get('bans', []), # Use final state
-                    "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []), # Use final state
-                    "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []), # Use final state
-                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []) # Use final state
+                    "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'),
+                    "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),
+                    "bans": final_lobby_item_for_broadcast.get('bans', []),
+                    "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
+                    "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
+                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', [])
                 }
-                logger.info(f"Broadcasting FINAL lobby state update after pick: {json.dumps(state_payload)}") # Log full payload
+                logger.info(f"Broadcasting FINAL lobby state update after pick: {json.dumps(state_payload)}")
 
                 # Broadcast to all participants
                 participants = [
@@ -937,7 +965,6 @@ def handler(event, context):
                 ]
                 valid_connection_ids = [pid for pid in participants if pid]
                 failed_sends = []
-                # Ensure apigw_management_client is initialized before this loop
                 for recipient_id in valid_connection_ids:
                     if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
                          failed_sends.append(recipient_id)
