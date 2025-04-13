@@ -583,14 +583,16 @@ function handleCharacterSelection(event) {
   console.log(`UI: Sending action: ${action}, Resonator: ${resonatorName}`);
   sendMessageToServer(message);
 
-  // --- ADD FOLLOW-UP TEST MESSAGE ---
+  // --- COMMENT OUT FOLLOW-UP TEST MESSAGE ---
+  /*
   console.log("UI: Sending follow-up test message");
   sendMessageToServer({
     action: "testAfterAction",
     originalAction: action,
     resonator: resonatorName,
   });
-  // --- END ADD ---
+  */
+  // --- END COMMENT OUT ---
 
   // Note: The button state (disabled, class) will be fully updated
   // when the lobbyStateUpdate message comes back from the server.
