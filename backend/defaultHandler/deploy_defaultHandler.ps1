@@ -9,8 +9,6 @@ $FunctionName = "wuwaDraftDefaultHandler"
 # Optional: Add your AWS Region if needed
 # $AWSRegion = "us-east-1"
 
-Write-Host "Navigating to $FunctionDir..."
-Push-Location $FunctionDir # Temporarily change directory
 
 # --- Activate Virtual Env (Important!) ---
 # Assuming venv is one level up (in backend/)
@@ -32,5 +30,4 @@ aws lambda update-function-code --function-name $FunctionName --zip-file "fileb:
 
 Write-Host "Deployment script finished."
 
-Pop-Location # Return to original directory
 # Remember to deactivate manually after script if needed: deactivate

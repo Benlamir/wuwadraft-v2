@@ -1,0 +1,10 @@
+# Ignore everything in this directory by default...
+*
+
+# ... But DO track these essential files:
+!app.py
+!requirements.txt
+!deploy_defaultHandler.ps1
+
+# And don't ignore this .gitignore file itself!
+!.gitignore

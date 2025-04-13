@@ -728,100 +728,190 @@ def handler(event, context):
 
         # --- ADD makePick HANDLER ---
         elif action == 'makePick':
-            # Validate pick action
-            if not all(key in message_data for key in ['gameId', 'playerId', 'resonatorId']):
-                return {
-                    'statusCode': 400,
-                    'body': json.dumps({'error': 'Missing required fields for pick action'})
-                }
+            logger.info(f"--- Entered 'makePick' action block ---")
 
-            game_id = message_data['gameId']
-            player_id = message_data['playerId']
-            resonator_id = message_data['resonatorId']
-
+            # Step 1: Initial Data Fetching (Keep uncommented)
+            connection_id = event.get('requestContext', {}).get('connectionId')
+            logger.info(f"Processing 'makePick' action for {connection_id}")
+            # Assumes message_data is parsed earlier
+            resonator_name_to_pick = message_data.get('resonatorName')
+            if not resonator_name_to_pick:
+                logger.error(f"'makePick' request from {connection_id} missing 'resonatorName'.")
+                return {'statusCode': 400, 'body': 'Missing resonatorName in request.'}
+            logger.info(f"Received resonatorName: {resonator_name_to_pick}")
+            lobby_id = None
             try:
-                # Get current game state
-                response = connections_table.get_item(
-                    Key={'gameId': game_id}
-                )
-                if 'Item' not in response:
-                    return {
-                        'statusCode': 404,
-                        'body': json.dumps({'error': 'Game not found'})
-                    }
-
-                game_state = response['Item']
-                current_phase = game_state.get('currentPhase')
-                current_turn = game_state.get('currentTurn')
-
-                # Validate it's the correct player's turn
-                if current_turn != player_id:
-                    return {
-                        'statusCode': 400,
-                        'body': json.dumps({'error': 'Not your turn to pick'})
-                    }
-
-                # Validate the resonator hasn't been banned or picked
-                if resonator_id in game_state.get('bans', []) or resonator_id in game_state.get('picks', []):
-                    return {
-                        'statusCode': 400,
-                        'body': json.dumps({'error': 'Resonator already banned or picked'})
-                    }
-
-                # Calculate next state
-                next_phase, next_turn = determine_next_state(current_phase, current_turn)
-
-                # Update game state with pick
-                connections_table.update_item(
-                    Key={'gameId': game_id},
-                    UpdateExpression='SET picks = list_append(if_not_exists(picks, :empty_list), :new_pick), currentPhase = :next_phase, currentTurn = :next_turn',
-                    ExpressionAttributeValues={
-                        ':empty_list': [],
-                        ':new_pick': [resonator_id],
-                        ':next_phase': next_phase,
-                        ':next_turn': next_turn
-                    },
-                    ConditionExpression=Attr('currentPhase').eq(current_phase) & Attr('currentTurn').eq(current_turn)
-                )
-
-                # Broadcast state update to all connections
-                broadcast_message = {
-                    'action': 'stateUpdate',
-                    'gameId': game_id,
-                    'phase': next_phase,
-                    'turn': next_turn,
-                    'bans': game_state.get('bans', []),
-                    'picks': game_state.get('picks', []) + [resonator_id]
-                }
-
-                # Get all connections for this game
-                connections = connections_table.query(
-                    IndexName='gameId-index',
-                    KeyConditionExpression=Key('gameId').eq(game_id)
-                )
-
-                # Send update to each connection
-                for connection in connections.get('Items', []):
-                    connection_id = connection['connectionId']
-                    try:
-                        apigw_management_client.post_to_connection(
-                            ConnectionId=connection_id,
-                            Data=json.dumps(broadcast_message)
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to send message to connection {connection_id}: {str(e)}")
-
-                return {
-                    'statusCode': 200,
-                    'body': json.dumps({'message': 'Pick successful'})
-                }
-
+                connection_item = connections_table.get_item(Key={'connectionId': connection_id}).get('Item')
+                if not connection_item or 'currentLobbyId' not in connection_item:
+                    logger.warning(f"Connection {connection_id} not found or not in a lobby for makePick.")
+                    return {'statusCode': 404, 'body': 'Connection not associated with a lobby.'}
+                lobby_id = connection_item['currentLobbyId']
+                logger.info(f"Found lobbyId: {lobby_id} for connection {connection_id}")
             except Exception as e:
-                logger.error(f"Error processing pick: {str(e)}")
-                return {
-                    'statusCode': 500,
-                    'body': json.dumps({'error': 'Internal server error'})
-                }
+                 logger.error(f"Failed to get connection details for {connection_id}: {str(e)}")
+                 return {'statusCode': 500, 'body': 'Error finding connection details.'}
+            lobby_item = None
+            if lobby_id:
+                try:
+                    # Use ConsistentRead for validation
+                    response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                    lobby_item = response.get('Item')
+                    if not lobby_item:
+                        logger.warning(f"Lobby {lobby_id} not found for makePick.")
+                        return {'statusCode': 404, 'body': 'Lobby data not found.'}
+                    logger.info(f"Fetched lobby_item for {lobby_id}. Current turn: {lobby_item.get('currentTurn')}")
+                except Exception as e:
+                     logger.error(f"Failed to get lobby {lobby_id}: {str(e)}")
+                     return {'statusCode': 500, 'body': 'Error fetching lobby data.'}
+            else:
+                 logger.error(f"Cannot fetch lobby item because lobby_id is missing for connection {connection_id}")
+                 return {'statusCode': 500, 'body': 'Internal error: lobby_id missing.'}
+            # --- End of Step 1 ---
+
+            # --- Step 2: Validation (Keep uncommented) ---
+            current_phase = lobby_item.get('currentPhase')
+            current_turn = lobby_item.get('currentTurn')
+            lobby_state = lobby_item.get('lobbyState')
+            available_resonators = lobby_item.get('availableResonators', [])
+            player1_conn_id = lobby_item.get('player1ConnectionId')
+            player2_conn_id = lobby_item.get('player2ConnectionId')
+
+            # a) Check if drafting is in progress
+            if lobby_state != 'DRAFTING':
+                logger.warning(f"Pick attempt in lobby {lobby_id} which is not in DRAFTING state ({lobby_state}).")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Draft is not active."})
+                return {'statusCode': 400, 'body': 'Draft not active.'}
+
+            # b) Check if it's a PICKING phase
+            if not current_phase or not current_phase.startswith('PICK'):
+                logger.warning(f"Pick attempt in lobby {lobby_id} during non-pick phase ({current_phase}).")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Cannot pick during phase: {current_phase}."})
+                return {'statusCode': 400, 'body': 'Not a picking phase.'}
+
+            # c) Check if it's the sender's turn
+            player_making_pick = None
+            if connection_id == player1_conn_id:
+                player_making_pick = 'P1'
+            elif connection_id == player2_conn_id:
+                player_making_pick = 'P2'
+
+            if player_making_pick != current_turn:
+                logger.warning(f"Pick attempt in lobby {lobby_id} by {player_making_pick} ({connection_id}) but it's {current_turn}'s turn.")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Not your turn."})
+                return {'statusCode': 400, 'body': 'Not your turn.'}
+
+            # d) Check if the resonator is available
+            if resonator_name_to_pick not in available_resonators:
+                logger.warning(f"Pick attempt in lobby {lobby_id} for unavailable resonator '{resonator_name_to_pick}'. Available: {available_resonators}")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Resonator '{resonator_name_to_pick}' is not available."})
+                return {'statusCode': 400, 'body': 'Resonator not available.'}
+
+            # --- Validation Passed ---
+            logger.info(f"Validation passed for pick of '{resonator_name_to_pick}' by {current_turn} in lobby {lobby_id}, phase {current_phase}.")
+            # --- End of Step 2 ---
+
+            # --- ADD Step 3: State Calculation & DB Update for makePick ---
+
+            # 5. *** Calculate Next State (Hardcoded for now) ***
+            # TODO: Replace this with call to determine_next_state(current_phase, current_turn) later
+            next_phase = current_phase
+            next_turn = None
+            if current_phase == 'PICK1' and current_turn == 'P1':
+                next_turn = 'P2'
+            elif current_phase == 'PICK1' and current_turn == 'P2':
+                next_phase = 'BAN2' # Assuming PICK1 -> BAN2 for now
+                next_turn = 'P1'    # Or maybe P2 starts BAN2? Adjust as needed.
+            # Add more hardcoded steps if needed for testing PICK2 etc.
+            else:
+                logger.error(f"Cannot determine hardcoded next state for {current_phase}, {current_turn}. Keeping current.")
+                next_phase = current_phase # Keep current phase on error/unknown
+                next_turn = current_turn   # Keep current turn on error/unknown
+
+            logger.info(f"Calculated next state for lobby {lobby_id}: Phase={next_phase}, Turn={next_turn}")
+
+            # 6. *** Update DynamoDB ***
+            try:
+                new_available_list = [res for res in available_resonators if res != resonator_name_to_pick]
+
+                # Determine which player's pick list to update
+                update_expression = ""
+                expression_attribute_values = {}
+                player_pick_list_key = ""
+
+                if current_turn == 'P1':
+                    player_pick_list_key = ":new_pick_p1"
+                    # Use list_append for the player's pick list
+                    update_expression = """
+                        SET player1Picks = list_append(if_not_exists(player1Picks, :empty_list), :new_pick_p1),
+                            availableResonators = :new_available,
+                            currentPhase = :next_phase,
+                            currentTurn = :next_turn
+                    """
+                    expression_attribute_values = {
+                        ':empty_list': [],
+                        ':new_pick_p1': [resonator_name_to_pick],
+                        ':new_available': new_available_list,
+                        ':next_phase': next_phase,
+                        ':next_turn': next_turn,
+                        ':expected_turn': current_turn,
+                        ':expected_phase': current_phase
+                    }
+                elif current_turn == 'P2':
+                    player_pick_list_key = ":new_pick_p2"
+                    update_expression = """
+                        SET player2Picks = list_append(if_not_exists(player2Picks, :empty_list), :new_pick_p2),
+                            availableResonators = :new_available,
+                            currentPhase = :next_phase,
+                            currentTurn = :next_turn
+                    """
+                    expression_attribute_values = {
+                        ':empty_list': [],
+                        ':new_pick_p2': [resonator_name_to_pick],
+                        ':new_available': new_available_list,
+                        ':next_phase': next_phase,
+                        ':next_turn': next_turn,
+                        ':expected_turn': current_turn,
+                        ':expected_phase': current_phase
+                    }
+                else:
+                    # Should not happen if validation passed, but handle defensively
+                    logger.error(f"Cannot update picks for invalid turn '{current_turn}' in lobby {lobby_id}")
+                    return {'statusCode': 500, 'body': f"Internal error: Invalid turn {current_turn} during pick update."}
+
+                logger.info(f"Attempting to update lobby {lobby_id} state in DynamoDB for {current_turn} pick.")
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=update_expression,
+                    ConditionExpression="currentTurn = :expected_turn AND currentPhase = :expected_phase",
+                    ExpressionAttributeValues=expression_attribute_values
+                )
+                logger.info(f"Successfully updated lobby {lobby_id} state after {current_turn} pick.")
+
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                    logger.warning(f"Conditional check failed for pick update in lobby {lobby_id}. State likely changed.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Action failed, state may have changed. Please wait for update."})
+                    return {'statusCode': 409, 'body': 'Conflict, state changed during request.'}
+                else:
+                    logger.error(f"Failed to update lobby {lobby_id} after pick: {str(e)}")
+                    return {'statusCode': 500, 'body': 'Failed to update lobby state.'}
+            except Exception as e:
+                 logger.error(f"Unexpected error updating lobby {lobby_id} after pick: {str(e)}")
+                 return {'statusCode': 500, 'body': 'Internal server error during update.'}
+            # --- End of Step 3 ---
+
+            # --- Keep Broadcast commented out ---
+            """
+            # 7. *** Fetch Final State and Broadcast ***
+            # ... (keep commented) ...
+            """
+            # --- END COMMENT OUT ---
+
+            # --- ADD new temporary return after DB update attempt (Pick) ---
+            logger.info("DB update attempted (Pick - check logs/DB console). No broadcast yet.")
+            return {'statusCode': 200, 'body': 'DB update attempted (Pick).'}
+            # --- END ADD ---
+        # --- END makePick HANDLER ---
         # --- PING HANDLER ---
         elif action == 'ping':
             # API Gateway idle timeout resets upon receiving a message.
