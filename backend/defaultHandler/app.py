@@ -538,68 +538,109 @@ def handler(event, context):
         elif action == 'makeBan':
             logger.info(f"--- Entered 'makeBan' action block ---")
 
-            # Restore Step 1: Initial Data Fetching
+            # Step 1: Initial Data Fetching
             connection_id = event.get('requestContext', {}).get('connectionId')
             logger.info(f"Processing 'makeBan' action for {connection_id}")
-
-            # 1. Get Resonator Name from message
-            # Assumes message_data is parsed earlier in the handler (outside this elif block)
+            # Assumes message_data is parsed earlier
             resonator_name_to_ban = message_data.get('resonatorName')
             if not resonator_name_to_ban:
                 logger.error(f"'makeBan' request from {connection_id} missing 'resonatorName'.")
                 return {'statusCode': 400, 'body': 'Missing resonatorName in request.'}
             logger.info(f"Received resonatorName: {resonator_name_to_ban}")
-
-            # 2. Find lobby for the connection
-            lobby_id = None # Initialize
+            lobby_id = None
             try:
                 connection_item = connections_table.get_item(Key={'connectionId': connection_id}).get('Item')
                 if not connection_item or 'currentLobbyId' not in connection_item:
                     logger.warning(f"Connection {connection_id} not found or not in a lobby for makeBan.")
                     return {'statusCode': 404, 'body': 'Connection not associated with a lobby.'}
                 lobby_id = connection_item['currentLobbyId']
-                # Add log to verify lobby_id
                 logger.info(f"Found lobbyId: {lobby_id} for connection {connection_id}")
             except Exception as e:
                  logger.error(f"Failed to get connection details for {connection_id}: {str(e)}")
                  return {'statusCode': 500, 'body': 'Error finding connection details.'}
-
-            # 3. Get current lobby state
-            lobby_item = None # Initialize
-            if lobby_id: # Proceed only if lobby_id was found
+            lobby_item = None
+            if lobby_id:
                 try:
-                    # For this step, ConsistentRead isn't strictly necessary
-                    response = lobbies_table.get_item(Key={'lobbyId': lobby_id})
+                    # --- ADD ConsistentRead=True HERE ---
+                    response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                    # --- END CHANGE ---
                     lobby_item = response.get('Item')
                     if not lobby_item:
                         logger.warning(f"Lobby {lobby_id} not found for makeBan.")
                         return {'statusCode': 404, 'body': 'Lobby data not found.'}
-                    # Add log to verify lobby_item retrieval
                     logger.info(f"Fetched lobby_item for {lobby_id}. Current turn: {lobby_item.get('currentTurn')}")
                 except Exception as e:
                      logger.error(f"Failed to get lobby {lobby_id}: {str(e)}")
                      return {'statusCode': 500, 'body': 'Error fetching lobby data.'}
             else:
-                 # Should not happen if connection lookup worked, but handle defensively
                  logger.error(f"Cannot fetch lobby item because lobby_id is missing for connection {connection_id}")
                  return {'statusCode': 500, 'body': 'Internal error: lobby_id missing.'}
+            # --- End of Step 1 ---
 
-            # NOTE: All subsequent logic (Validation, State Calc, DB Update, Broadcast) is omitted in this step.
+            # --- Step 2: Validation (Should be uncommented) ---
+            current_phase = lobby_item.get('currentPhase')
+            current_turn = lobby_item.get('currentTurn')
+            lobby_state = lobby_item.get('lobbyState')
+            available_resonators = lobby_item.get('availableResonators', [])
+            player1_conn_id = lobby_item.get('player1ConnectionId')
+            player2_conn_id = lobby_item.get('player2ConnectionId')
 
-            # --- Simple response logic ---
-            # Send a confirmation back to the client indicating Step 1 succeeded
-            try:
-                apigw_management_client = get_apigw_management_client(event)
-                response_payload = {
-                    "type": "makeBanStep1Success", # Use a unique type for testing
-                    "message": f"Backend fetched data for ban request. Lobby: {lobby_id}, Resonator: {resonator_name_to_ban}"
-                }
-                logger.info(f"Sending Step 1 confirmation to {connection_id}")
-                send_message_to_client(apigw_management_client, connection_id, response_payload)
-                return {'statusCode': 200, 'body': 'Simple makeBan Step 1 handled.'}
-            except Exception as simple_err:
-                logger.error(f"Error during simplified makeBan Step 1 response: {str(simple_err)}")
-                return {'statusCode': 500, 'body': 'Error in simplified handler Step 1.'}
+            # Initialize client if needed (assuming it's initialized earlier in handler)
+            # try:
+            #     apigw_management_client = get_apigw_management_client(event)
+            # except ValueError as e:
+            #     return {'statusCode': 500, 'body': str(e)}
+
+            # a) Check if drafting is in progress
+            if lobby_state != 'DRAFTING':
+                logger.warning(f"Ban attempt in lobby {lobby_id} which is not in DRAFTING state ({lobby_state}).")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Draft is not active."})
+                return {'statusCode': 400, 'body': 'Draft not active.'}
+
+            # b) Check if it's a banning phase
+            if not current_phase or not current_phase.startswith('BAN'):
+                logger.warning(f"Ban attempt in lobby {lobby_id} during non-ban phase ({current_phase}).")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Cannot ban during phase: {current_phase}."})
+                return {'statusCode': 400, 'body': 'Not a banning phase.'}
+
+            # c) Check if it's the sender's turn
+            player_making_ban = None
+            if connection_id == player1_conn_id:
+                player_making_ban = 'P1'
+            elif connection_id == player2_conn_id:
+                player_making_ban = 'P2'
+
+            if player_making_ban != current_turn:
+                logger.warning(f"Ban attempt in lobby {lobby_id} by {player_making_ban} ({connection_id}) but it's {current_turn}'s turn.")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Not your turn."})
+                return {'statusCode': 400, 'body': 'Not your turn.'}
+
+            # d) Check if the resonator is available
+            if resonator_name_to_ban not in available_resonators:
+                logger.warning(f"Ban attempt in lobby {lobby_id} for unavailable resonator '{resonator_name_to_ban}'. Available: {available_resonators}")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Resonator '{resonator_name_to_ban}' is not available."})
+                return {'statusCode': 400, 'body': 'Resonator not available.'}
+
+            # --- Validation Passed ---
+            logger.info(f"Validation passed for ban of '{resonator_name_to_ban}' by {current_turn} in lobby {lobby_id}, phase {current_phase}.")
+            # --- End of Step 2 ---
+
+            # --- Keep subsequent logic commented out ---
+            """
+            # 5. *** Calculate Next State (Baby Step - Hardcoded for now) ***
+            # ... (keep commented) ...
+            # 6. *** Update DynamoDB ***
+            # ... (keep commented) ...
+            # 7. *** Fetch Final State and Broadcast ***
+            # ... (keep commented) ...
+            """
+            # --- END COMMENT OUT ---
+
+            # If validation passed, we currently don't do anything else,
+            # so we need a return statement here for now.
+            # Let's return a simple success code, but no specific message needed back to client yet.
+            logger.info("Validation passed. No further action implemented yet.")
+            return {'statusCode': 200, 'body': 'Validation passed.'}
 
         # --- ADD makePick HANDLER ---
         elif action == 'makePick':
