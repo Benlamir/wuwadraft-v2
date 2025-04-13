@@ -42,3 +42,6 @@ Thumbs.db
 # AWS
 .aws-sam/
 samconfig.toml 
+
+# Deployment artifacts
+*_deployment_package.zip
