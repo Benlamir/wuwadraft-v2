@@ -5,7 +5,7 @@ import boto3
 import logging
 import os
 import uuid # Import uuid library for generating unique IDs
-from datetime import datetime, timezone # For timestamps
+from datetime import datetime, timezone, timedelta # For timestamps and timedelta
 from boto3.dynamodb.conditions import Key, Attr # Keep this if needed elsewhere
 from botocore.exceptions import ClientError # Remove ConditionalCheckFailedException from import
 
@@ -83,6 +83,7 @@ DRAFT_COMPLETE_PHASE = 'DRAFT_COMPLETE' # Constant for completed state
 # --- Configuration ---
 CONNECTIONS_TABLE_NAME = 'WuwaDraftConnections'
 LOBBIES_TABLE_NAME = 'WuwaDraftLobbies' # Use your exact table name
+TURN_DURATION_SECONDS = 30  # 30 seconds per turn
 # -------------------
 
 # Initialize DynamoDB resource client
@@ -319,8 +320,16 @@ def handler(event, context):
                         "hostName": updated_lobby_item.get('hostName'),
                         "player1Name": updated_lobby_item.get('player1Name'),
                         "player2Name": updated_lobby_item.get('player2Name'),
-                        "lobbyState": updated_lobby_item.get('lobbyState', 'WAITING')
-                        # Add other state info here later (picks, bans, turn etc)
+                        "lobbyState": updated_lobby_item.get('lobbyState', 'WAITING'),
+                        "player1Ready": updated_lobby_item.get('player1Ready', False),
+                        "player2Ready": updated_lobby_item.get('player2Ready', False),
+                        "currentPhase": updated_lobby_item.get('currentPhase'),
+                        "currentTurn": updated_lobby_item.get('currentTurn'),
+                        "bans": updated_lobby_item.get('bans', []),
+                        "player1Picks": updated_lobby_item.get('player1Picks', []),
+                        "player2Picks": updated_lobby_item.get('player2Picks', []),
+                        "availableResonators": updated_lobby_item.get('availableResonators', []),
+                        "turnExpiresAt": updated_lobby_item.get('turnExpiresAt')
                     }
                     logger.info(f"Broadcasting lobby state update: {state_payload}")
 
@@ -453,30 +462,50 @@ def handler(event, context):
                 current_turn = 'P1'
                 draft_started = True # Mark that draft state was initialized
 
+                # --- Calculate expiry for the FIRST turn ---
+                now = datetime.now(timezone.utc)
+                expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
+                turn_expires_at_iso = expires_at_dt.isoformat()
+                logger.info(f"Setting initial turn expiry for lobby {lobby_id} to: {turn_expires_at_iso}")
+                # --- End Calculation ---
+
                 # Initialize draft state in DDB
                 try:
+                    # Define parameters for update_item
+                    update_expression_string = """
+                        SET lobbyState = :newState,
+                            currentPhase = :phase,
+                            currentTurn = :turn,
+                            bans = :emptyList,
+                            player1Picks = :emptyList,
+                            player2Picks = :emptyList,
+                            availableResonators = :allRes,
+                            currentStepIndex = :zero,
+                            turnExpiresAt = :expires
+                    """
+                    expression_attribute_values_dict = {
+                        ':newState': current_lobby_state,
+                        ':phase': current_phase,
+                        ':turn': current_turn,
+                        ':emptyList': [],
+                        ':allRes': ALL_RESONATOR_NAMES,
+                        ':zero': 0,
+                        ':expires': turn_expires_at_iso
+                    }
+
+                    # --- ADD LOGGING HERE ---
+                    logger.info(f"UpdateItem Params for lobby {lobby_id} (draft initialization):")
+                    logger.info(f"  UpdateExpression: {update_expression_string}")
+                    logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_attribute_values_dict)}")
+                    # --- END LOGGING ---
+
                     lobbies_table.update_item(
                         Key={'lobbyId': lobby_id},
-                        UpdateExpression="""
-                            SET lobbyState = :newState,
-                                currentPhase = :phase,
-                                currentTurn = :turn,
-                                bans = :emptyList,
-                                player1Picks = :emptyList,
-                                player2Picks = :emptyList,
-                                availableResonators = :allRes,
-                                currentStepIndex = :zero
-                        """,
-                        ExpressionAttributeValues={
-                            ':newState': current_lobby_state,
-                            ':phase': current_phase,
-                            ':turn': current_turn,
-                            ':emptyList': [],
-                            ':allRes': ALL_RESONATOR_NAMES,
-                            ':zero': 0
-                        }
+                        UpdateExpression=update_expression_string,
+                        ExpressionAttributeValues=expression_attribute_values_dict
                     )
-                    logger.info(f"Lobby {lobby_id} state updated to {current_lobby_state} with draft initialization (including step index)")
+                    logger.info(f"Lobby {lobby_id} state updated to {current_lobby_state} with draft initialization (including turn expiry)")
+
                 except Exception as state_update_err:
                      logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id}: {str(state_update_err)}")
                      # Handle error: maybe reset flag or return error?
@@ -526,8 +555,8 @@ def handler(event, context):
                 "bans": final_lobby_item_for_broadcast.get('bans', []),
                 "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
                 "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
-                "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []) # Read final state
-                # --- END MODIFICATION ---
+                "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []), # Read final state
+                "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt') # Add turn expiry time
             }
             logger.info(f"Broadcasting FINAL lobby state update: {state_payload}")
 
@@ -655,32 +684,54 @@ def handler(event, context):
             # Now call determine_next_state with the guaranteed integer index
             next_phase, next_turn, next_step_index = determine_next_state(current_step_index)
 
-            # 6. *** Update DynamoDB (with index) ***
+            # 6. *** Update DynamoDB (with index and timer) ***
             try:
                 new_available_list = [res for res in available_resonators if res != resonator_name_to_ban]
+
+                # --- Calculate expiry for the NEXT turn ---
+                turn_expires_at_iso = None
+                if next_turn: # Only set expiry if there is a next turn
+                    now = datetime.now(timezone.utc)
+                    expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
+                    turn_expires_at_iso = expires_at_dt.isoformat()
+                logger.info(f"Setting next turn expiry for lobby {lobby_id} to: {turn_expires_at_iso}")
+                # --- End Calculation ---
+
+                # Define parameters for update_item
+                update_expression_string = """
+                    SET bans = list_append(if_not_exists(bans, :empty_list), :new_ban),
+                        availableResonators = :new_available,
+                        currentPhase = :next_phase,
+                        currentTurn = :next_turn,
+                        currentStepIndex = :next_index,
+                        turnExpiresAt = :expires
+                """
+                expression_attribute_values_dict = {
+                    ':empty_list': [],
+                    ':new_ban': [resonator_name_to_ban],
+                    ':new_available': new_available_list,
+                    ':next_phase': next_phase,
+                    ':next_turn': next_turn,
+                    ':next_index': next_step_index,
+                    ':expected_index': current_step_index,
+                    ':expires': turn_expires_at_iso
+                }
+                condition_expression_string = "currentStepIndex = :expected_index"
+
+                # --- ADD LOGGING HERE ---
+                logger.info(f"UpdateItem Params for lobby {lobby_id} (ban):")
+                logger.info(f"  UpdateExpression: {update_expression_string}")
+                logger.info(f"  ConditionExpression: {condition_expression_string}")
+                logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_attribute_values_dict)}")
+                # --- END LOGGING ---
+
                 logger.info(f"Attempting to update lobby {lobby_id} state in DynamoDB (using index).")
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
-                    UpdateExpression="""
-                        SET bans = list_append(if_not_exists(bans, :empty_list), :new_ban),
-                            availableResonators = :new_available,
-                            currentPhase = :next_phase,
-                            currentTurn = :next_turn,
-                            currentStepIndex = :next_index
-                    """,
-                    # Condition on the step index to prevent race conditions more reliably
-                    ConditionExpression="currentStepIndex = :expected_index",
-                    ExpressionAttributeValues={
-                        ':empty_list': [],
-                        ':new_ban': [resonator_name_to_ban],
-                        ':new_available': new_available_list,
-                        ':next_phase': next_phase,
-                        ':next_turn': next_turn,
-                        ':next_index': next_step_index,
-                        ':expected_index': current_step_index
-                    }
+                    UpdateExpression=update_expression_string,
+                    ConditionExpression=condition_expression_string,
+                    ExpressionAttributeValues=expression_attribute_values_dict
                 )
-                logger.info(f"Successfully updated lobby {lobby_id} state after ban (index {next_step_index}).")
 
             except ClientError as e:
                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
@@ -720,7 +771,8 @@ def handler(event, context):
                     "bans": final_lobby_item_for_broadcast.get('bans', []),
                     "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
                     "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
-                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', [])
+                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []),
+                    "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt') # Add turn expiry time
                 }
                 logger.info(f"Broadcasting FINAL lobby state update after ban: {json.dumps(state_payload)}")
 
@@ -854,65 +906,85 @@ def handler(event, context):
             # Now call determine_next_state with the guaranteed integer index
             next_phase, next_turn, next_step_index = determine_next_state(current_step_index)
 
-            # 6. *** Update DynamoDB (with index) ***
+            # 6. *** Update DynamoDB (with index and timer) ***
             try:
                 new_available_list = [res for res in available_resonators if res != resonator_name_to_pick]
 
+                # --- Calculate expiry for the NEXT turn ---
+                turn_expires_at_iso = None
+                if next_turn: # Only set expiry if there is a next turn
+                    now = datetime.now(timezone.utc)
+                    expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
+                    turn_expires_at_iso = expires_at_dt.isoformat()
+                logger.info(f"Setting next turn expiry for lobby {lobby_id} to: {turn_expires_at_iso}")
+                # --- End Calculation ---
+
                 # Determine which player's pick list to update
-                update_expression = ""
-                expression_attribute_values = {}
+                update_expression_string = ""
+                expression_attribute_values_dict = {}
                 player_pick_list_key = ""
 
                 if current_turn == 'P1':
                     player_pick_list_key = ":new_pick_p1"
-                    # Use list_append for the player's pick list
-                    update_expression = """
+                    update_expression_string = """
                         SET player1Picks = list_append(if_not_exists(player1Picks, :empty_list), :new_pick_p1),
                             availableResonators = :new_available,
                             currentPhase = :next_phase,
                             currentTurn = :next_turn,
-                            currentStepIndex = :next_index
+                            currentStepIndex = :next_index,
+                            turnExpiresAt = :expires
                     """
-                    expression_attribute_values = {
+                    expression_attribute_values_dict = {
                         ':empty_list': [],
                         ':new_pick_p1': [resonator_name_to_pick],
                         ':new_available': new_available_list,
                         ':next_phase': next_phase,
                         ':next_turn': next_turn,
                         ':next_index': next_step_index,
-                        ':expected_index': current_step_index
+                        ':expected_index': current_step_index,
+                        ':expires': turn_expires_at_iso
                     }
                 elif current_turn == 'P2':
                     player_pick_list_key = ":new_pick_p2"
-                    update_expression = """
+                    update_expression_string = """
                         SET player2Picks = list_append(if_not_exists(player2Picks, :empty_list), :new_pick_p2),
                             availableResonators = :new_available,
                             currentPhase = :next_phase,
                             currentTurn = :next_turn,
-                            currentStepIndex = :next_index
+                            currentStepIndex = :next_index,
+                            turnExpiresAt = :expires
                     """
-                    expression_attribute_values = {
+                    expression_attribute_values_dict = {
                         ':empty_list': [],
                         ':new_pick_p2': [resonator_name_to_pick],
                         ':new_available': new_available_list,
                         ':next_phase': next_phase,
                         ':next_turn': next_turn,
                         ':next_index': next_step_index,
-                        ':expected_index': current_step_index
+                        ':expected_index': current_step_index,
+                        ':expires': turn_expires_at_iso
                     }
                 else:
                     # Should not happen if validation passed, but handle defensively
                     logger.error(f"Cannot update picks for invalid turn '{current_turn}' in lobby {lobby_id}")
                     return {'statusCode': 500, 'body': f"Internal error: Invalid turn {current_turn} during pick update."}
 
+                condition_expression_string = "currentStepIndex = :expected_index"
+
+                # --- ADD LOGGING HERE ---
+                logger.info(f"UpdateItem Params for lobby {lobby_id} (pick for {current_turn}):")
+                logger.info(f"  UpdateExpression: {update_expression_string}")
+                logger.info(f"  ConditionExpression: {condition_expression_string}")
+                logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_attribute_values_dict)}")
+                # --- END LOGGING ---
+
                 logger.info(f"Attempting to update lobby {lobby_id} state in DynamoDB for {current_turn} pick (using index).")
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
-                    UpdateExpression=update_expression,
-                    ConditionExpression="currentStepIndex = :expected_index",
-                    ExpressionAttributeValues=expression_attribute_values
+                    UpdateExpression=update_expression_string,
+                    ConditionExpression=condition_expression_string,
+                    ExpressionAttributeValues=expression_attribute_values_dict
                 )
-                logger.info(f"Successfully updated lobby {lobby_id} state after {current_turn} pick (index {next_step_index}).")
 
             except ClientError as e:
                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
@@ -953,7 +1025,8 @@ def handler(event, context):
                     "bans": final_lobby_item_for_broadcast.get('bans', []),
                     "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
                     "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
-                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', [])
+                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []),
+                    "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt') # Add turn expiry time
                 }
                 logger.info(f"Broadcasting FINAL lobby state update after pick: {json.dumps(state_payload)}")
 
