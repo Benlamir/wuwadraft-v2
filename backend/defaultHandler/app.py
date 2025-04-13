@@ -672,17 +672,59 @@ def handler(event, context):
                  logger.error(f"Unexpected error updating lobby {lobby_id} after ban: {str(e)}")
                  return {'statusCode': 500, 'body': 'Internal server error during update.'}
 
-            # --- Keep Broadcast commented out ---
-            """
             # 7. *** Fetch Final State and Broadcast ***
-            # ... (keep commented) ...
-            """
-            # --- END COMMENT OUT ---
+            try:
+                # Fetch the absolute latest state FOR BROADCASTING using ConsistentRead
+                logger.info(f"Fetching final lobby state for broadcast after ban. Lobby: {lobby_id}")
+                final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                final_lobby_item_for_broadcast = final_response.get('Item')
 
-            # --- ADD new temporary return after DB update attempt ---
-            logger.info("DB update attempted (check logs/DB console). No broadcast yet.")
-            return {'statusCode': 200, 'body': 'DB update attempted.'}
-            # --- END ADD ---
+                if not final_lobby_item_for_broadcast:
+                     logger.error(f"Critical error: Failed to re-fetch lobby {lobby_id} for broadcast after ban.")
+                     return {'statusCode': 500, 'body': 'Internal error preparing broadcast state.'}
+
+                # Construct the broadcast payload (Ensure all relevant fields are included)
+                state_payload = {
+                    "type": "lobbyStateUpdate",
+                    "lobbyId": lobby_id,
+                    "hostName": final_lobby_item_for_broadcast.get('hostName'),
+                    "player1Name": final_lobby_item_for_broadcast.get('player1Name'),
+                    "player2Name": final_lobby_item_for_broadcast.get('player2Name'),
+                    "lobbyState": final_lobby_item_for_broadcast.get('lobbyState'),
+                    "player1Ready": final_lobby_item_for_broadcast.get('player1Ready', False),
+                    "player2Ready": final_lobby_item_for_broadcast.get('player2Ready', False),
+                    "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'), # Use final state
+                    "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),   # Use final state
+                    "bans": final_lobby_item_for_broadcast.get('bans', []), # Use final state
+                    "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
+                    "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
+                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []) # Use final state
+                }
+                logger.info(f"Broadcasting FINAL lobby state update after ban: {json.dumps(state_payload)}") # Log full payload
+
+                # Broadcast to all participants
+                participants = [
+                    final_lobby_item_for_broadcast.get('hostConnectionId'),
+                    final_lobby_item_for_broadcast.get('player1ConnectionId'),
+                    final_lobby_item_for_broadcast.get('player2ConnectionId')
+                ]
+                valid_connection_ids = [pid for pid in participants if pid]
+                failed_sends = []
+                # Ensure apigw_management_client is initialized before this loop
+                for recipient_id in valid_connection_ids:
+                    if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
+                         failed_sends.append(recipient_id)
+                if failed_sends:
+                     logger.warning(f"Failed to send state update to some connections: {failed_sends}")
+
+            except Exception as broadcast_err:
+                 logger.error(f"Error broadcasting lobby state update after ban for {lobby_id}: {str(broadcast_err)}")
+                 # Don't necessarily fail the operation, but log the error. DB update succeeded.
+                 # Consider if a specific return code is needed here.
+
+            # --- Final Success Return ---
+            return {'statusCode': 200, 'body': 'Ban processed successfully.'}
+            # --- END Final Return ---
 
         # --- ADD makePick HANDLER ---
         elif action == 'makePick':
