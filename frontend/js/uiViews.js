@@ -250,13 +250,152 @@ function updateBanSlots(draftState) {
 }
 // --- END Ban Slot Function ---
 
+// --- ADD TIMER DISPLAY FUNCTIONS ---
+
+export function stopTimerDisplay() {
+  //console.log(
+  //  `UI DEBUG: stopTimerDisplay START. Current state interval ID: ${state.timerIntervalId}`
+  //);
+  // Call the state function which now handles both clearing and nulling
+  state.clearTimerInterval();
+
+  // Reset display text immediately
+  if (elements.draftTimer) {
+    elements.draftTimer.textContent = "Time Remaining: --:--";
+    elements.draftTimer.classList.remove("text-danger", "fw-bold");
+    // console.log("UI DEBUG: stopTimerDisplay reset timer text.");
+  }
+}
+
+// This internal function updates the clock display
+function updateCountdown(expiryTime, intervalId) {
+  //console.log(
+  //  `UI DEBUG: updateCountdown TICK for interval ID ${intervalId}. Active state ID: ${state.timerIntervalId}`
+  //);
+
+  if (intervalId !== state.timerIntervalId) {
+    //console.log(
+    //  `UI DEBUG: Stale timer callback DETECTED (ID ${intervalId}, Active ID ${state.timerIntervalId}). Clearing ${intervalId} and exiting.`
+    //);
+    clearInterval(intervalId);
+    return;
+  }
+
+  const now = Date.now();
+  const remainingMs = expiryTime - now;
+
+  if (remainingMs <= 0) {
+    if (elements.draftTimer) {
+      elements.draftTimer.textContent = "Time Remaining: 00:00";
+      elements.draftTimer.classList.add("text-danger", "fw-bold");
+    }
+    //  console.log(
+    //  `UI DEBUG: Timer expired (ID ${intervalId}). Clearing interval ${intervalId}.`
+    //);
+    clearInterval(intervalId); // Clear this interval
+    // Ensure state.timerIntervalId is NOT set to null here
+  } else {
+    const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    const displayString = `Time Remaining: ${String(minutes).padStart(
+      2,
+      "0"
+    )}:${String(seconds).padStart(2, "0")}`;
+
+    if (elements.draftTimer) {
+      elements.draftTimer.textContent = displayString;
+      if (remainingSeconds <= 10) {
+        elements.draftTimer.classList.add("text-danger", "fw-bold");
+      } else {
+        elements.draftTimer.classList.remove("text-danger", "fw-bold");
+      }
+    } else {
+      console.warn(
+        `UI DEBUG: updateCountdown (ID ${intervalId}) - elements.draftTimer is null/undefined!`
+      );
+    }
+  }
+}
+
+// This function starts a new timer cycle
+export function startOrUpdateTimerDisplay() {
+  //console.log("UI DEBUG: startOrUpdateTimerDisplay START.");
+  stopTimerDisplay(); // Ensure previous timer is stopped & state ID is nulled
+
+  //console.log(
+  //  `UI DEBUG: Reading state.currentTurnExpiresAt: ${state.currentTurnExpiresAt}`
+  //);
+
+  if (!state.currentTurnExpiresAt) {
+    //console.log("UI DEBUG: No expiry time set in state, timer not starting.");
+    return;
+  }
+
+  try {
+    const expiryTimestamp = new Date(state.currentTurnExpiresAt).getTime();
+    //console.log(
+    //  `UI DEBUG: Parsed expiryTimestamp: ${expiryTimestamp} (isNaN: ${isNaN(
+    //    expiryTimestamp
+    //  )})`
+    //);
+
+    if (isNaN(expiryTimestamp)) {
+      //console.error(
+      //  "UI DEBUG: Invalid expiry timestamp received from state:",
+      //  state.currentTurnExpiresAt
+      //);
+      return;
+    }
+
+    const now = Date.now();
+    //console.log(
+    //  `UI DEBUG: Comparing expiry ${expiryTimestamp} with now ${now}`
+    //);
+
+    if (expiryTimestamp <= now) {
+      //console.log(
+      //  "UI DEBUG: Expiry time is in the past. Setting timer to 00:00."
+      //);
+      if (elements.draftTimer) {
+        elements.draftTimer.textContent = "Time Remaining: 00:00";
+        elements.draftTimer.classList.add("text-danger", "fw-bold");
+      }
+      return;
+    }
+
+    //console.log(`UI DEBUG: Starting new timer interval...`);
+
+    const newIntervalId = setInterval(() => {
+      // Pass expiryTimestamp (parsed time) and newIntervalId
+      updateCountdown(expiryTimestamp, newIntervalId);
+    }, 1000);
+
+    //console.log(
+    //  `UI DEBUG: New interval created with ID: ${newIntervalId}. Storing in state via function.`
+    //);
+    state.setTimerIntervalId(newIntervalId); // Call the function in state.js instead
+
+    //console.log(
+    //  `UI DEBUG: Calling updateCountdown immediately once for ID ${newIntervalId}.`
+    //);
+    updateCountdown(expiryTimestamp, newIntervalId); // Run immediately
+  } catch (e) {
+    // Log the error WITH the stack trace
+    //console.error("UI DEBUG: Error during timer start:", e);
+    stopTimerDisplay();
+  }
+}
+
+// --- END TIMER DISPLAY FUNCTIONS ---
+
 // --- MODIFY updateDraftScreenUI FUNCTION ---
 export function updateDraftScreenUI(draftState) {
-  console.log("UI: Updating draft screen UI with state:", draftState);
+  //console.log("UI: Updating draft screen UI with state:", draftState);
   if (!elements || !elements.draftScreen) {
-    console.error(
-      "UI Update Error: elements object or draftScreen element not initialized!"
-    );
+    //console.error(
+    //  "UI Update Error: elements object or draftScreen element not initialized!"
+    //);
     return;
   }
 
@@ -289,6 +428,7 @@ export function updateDraftScreenUI(draftState) {
     // Optionally add a 'Back to Lobby/Welcome' button or message here
     // (Requires further logic)
 
+    stopTimerDisplay(); // Explicitly stop timer on completion
     return; // Stop further UI updates for active turn display etc.
   }
   // --- END DRAFT COMPLETE HANDLING ---

@@ -11,6 +11,8 @@ export let currentPhase = null; // e.g., 'BAN1', 'PICK1'
 export let currentTurn = null; // e.g., 'P1', 'P2'
 export let activeElementFilter = "All"; // Track the active element filter ('All', 'Aero', etc.)
 export let currentDraftState = null; // Store the latest full draft state object
+export let currentTurnExpiresAt = null; // Holds the ISO timestamp string or null
+export let timerIntervalId = null; // Holds the ID returned by setInterval
 // --- END ADD ---
 
 // Functions to update state
@@ -62,6 +64,19 @@ export function setCurrentDraftState(newState) {
   currentDraftState = newState;
   console.log("State: Stored latest draft state", currentDraftState);
 }
+
+export function setTurnExpiry(isoTimestamp) {
+  // --- ADD LOG ---
+  console.log(
+    `State DEBUG: Setting currentTurnExpiresAt to: ${isoTimestamp} (Type: ${typeof isoTimestamp})`
+  );
+  // --- END ADD ---
+  if (currentTurnExpiresAt !== isoTimestamp) {
+    currentTurnExpiresAt = isoTimestamp;
+  } else {
+    currentTurnExpiresAt = isoTimestamp;
+  }
+}
 // --- END ADD ---
 
 export function clearLobbyState() {
@@ -75,10 +90,43 @@ export function clearLobbyState() {
   currentTurn = null;
   activeElementFilter = "All"; // Reset filter
   currentDraftState = null; // Clear stored state
+  currentTurnExpiresAt = null; // Clear expiry
+  if (timerIntervalId) {
+    // Clear any active timer interval
+    clearInterval(timerIntervalId);
+    timerIntervalId = null;
+  }
   // --- END MODIFY ---
 
   // Keep currentUserName? Or clear it too? Let's keep it for now.
 }
+
+// --- NEW FUNCTION ---
+// Function to set the timer interval ID from other modules
+export function setTimerIntervalId(newId) {
+  console.log(`State DEBUG: Setting timerIntervalId to: ${newId}`);
+  timerIntervalId = newId; // Update the internal variable
+}
+// --- END NEW FUNCTION ---
+
+// --- MODIFIED FUNCTION ---
+// Modify clearTimerInterval to also nullify the state variable
+export function clearTimerInterval() {
+  if (timerIntervalId !== null) {
+    const idToClear = timerIntervalId; // Store temporarily for logging
+    console.log(
+      `STATE DEBUG: Clearing interval ID: ${idToClear} via clearInterval.`
+    );
+    clearInterval(idToClear);
+    timerIntervalId = null; // Set to null internally
+    console.log(`STATE DEBUG: timerIntervalId set to null.`);
+  } else {
+    console.log(
+      "STATE DEBUG: clearTimerInterval called, but no active interval ID found in state."
+    );
+  }
+}
+// --- END MODIFIED FUNCTION ---
 
 // Optional: Getters if needed, though direct import works for 'let'
 // export function getLobbyId() { return currentLobbyId; }

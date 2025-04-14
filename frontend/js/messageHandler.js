@@ -4,6 +4,8 @@ import {
   showScreen,
   updateLobbyWaitScreenUI,
   updateDraftScreenUI,
+  startOrUpdateTimerDisplay,
+  stopTimerDisplay,
 } from "./uiViews.js";
 
 export function handleWebSocketMessage(jsonData) {
@@ -43,12 +45,16 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       case "lobbyStateUpdate":
-        console.log("MessageHandler: Processing lobbyStateUpdate");
-        console.log("MessageHandler: Received state:", message);
+        // --- ADD LOG ---
+        console.log(
+          "MessageHandler DEBUG: Received lobbyStateUpdate:",
+          message
+        );
+        // --- END ADD ---
 
-        state.setCurrentDraftState(message); // Store the latest state object
+        state.setCurrentDraftState(message);
 
-        // Explicitly update the specific phase and turn state variables
+        // Update phase and turn
         if (message.hasOwnProperty("currentPhase")) {
           state.setDraftPhase(message.currentPhase);
         }
@@ -56,43 +62,47 @@ export function handleWebSocketMessage(jsonData) {
           state.setDraftTurn(message.currentTurn);
         }
 
-        // --- ADD CHECK FOR DRAFT COMPLETION ---
-        if (message.currentPhase === "DRAFT_COMPLETE") {
-          console.log("MessageHandler: Draft Complete state detected.");
-          // Call a function to update UI specifically for completion
-          // Option 1: Call a new function
-          // handleDraftCompletionUI(message);
-          // Option 2: Modify updateDraftScreenUI to handle it (shown below)
-          updateDraftScreenUI(message); // Ensure this handles the complete state
-        }
-        // --- END ADDITION ---
-
-        // Original logic to decide which screen/UI to update
-        // MODIFY the condition slightly to EXCLUDE DRAFT_COMPLETE if handled above
-        else if (message.lobbyState && message.lobbyState === "DRAFTING") {
-          // Check only DRAFTING now
+        // --- TIMER HANDLING ---
+        if (message.hasOwnProperty("turnExpiresAt")) {
+          // --- ADD LOG ---
           console.log(
-            "MessageHandler: State is DRAFTING, updating draft screen."
+            `MessageHandler DEBUG: Found turnExpiresAt: ${message.turnExpiresAt}`
           );
-          updateDraftScreenUI(message); // Update draft screen (will handle non-complete phases)
-          const activeScreen = document.querySelector(".screen.active");
-          if (!activeScreen || activeScreen.id !== "draft-screen") {
-            console.log("MessageHandler: Switching view to draft-screen.");
-            showScreen("draft-screen");
-          }
+          // --- END ADD ---
+          state.setTurnExpiry(message.turnExpiresAt);
+          startOrUpdateTimerDisplay(); // Call UI function
         } else {
-          // Lobby is likely still in WAITING
+          // --- ADD LOG ---
           console.log(
-            "MessageHandler: State is WAITING, updating wait screen."
+            "MessageHandler DEBUG: No turnExpiresAt found in update."
           );
-          updateLobbyWaitScreenUI(message);
-          const activeScreen = document.querySelector(".screen.active");
-          if (!activeScreen || activeScreen.id !== "lobby-wait-screen") {
-            console.log("MessageHandler: Switching view to lobby-wait-screen.");
-            showScreen("lobby-wait-screen");
-          }
+          // --- END ADD ---
+          state.setTurnExpiry(null);
+          stopTimerDisplay();
         }
-        break; // End of case "lobbyStateUpdate"
+        // --- END TIMER HANDLING ---
+
+        // Check for DRAFT_COMPLETE
+        if (message.currentPhase === "DRAFT_COMPLETE") {
+          console.log("MessageHandler: Draft complete detected");
+          // Update UI to show completion state
+          updateDraftScreenUI(message);
+          showScreen("draft-screen");
+          return;
+        }
+
+        // Handle DRAFTING state
+        if (message.lobbyState && message.lobbyState === "DRAFTING") {
+          console.log("MessageHandler: Updating draft screen UI");
+          updateDraftScreenUI(message);
+          showScreen("draft-screen");
+        } else {
+          // Handle WAITING state
+          console.log("MessageHandler: Updating lobby wait screen UI");
+          updateLobbyWaitScreenUI(message);
+          showScreen("lobby-wait-screen");
+        }
+        break;
 
       case "error":
         console.error("MessageHandler: Server error:", message.message);
