@@ -45,63 +45,67 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       case "lobbyStateUpdate":
-        // --- ADD LOG ---
         console.log(
           "MessageHandler DEBUG: Received lobbyStateUpdate:",
           message
         );
-        // --- END ADD ---
 
+        // Update internal state first
         state.setCurrentDraftState(message);
-
-        // Update phase and turn
         if (message.hasOwnProperty("currentPhase")) {
           state.setDraftPhase(message.currentPhase);
         }
         if (message.hasOwnProperty("currentTurn")) {
           state.setDraftTurn(message.currentTurn);
         }
-
-        // --- TIMER HANDLING ---
+        // Timer Handling
         if (message.hasOwnProperty("turnExpiresAt")) {
-          // --- ADD LOG ---
           console.log(
             `MessageHandler DEBUG: Found turnExpiresAt: ${message.turnExpiresAt}`
           );
-          // --- END ADD ---
           state.setTurnExpiry(message.turnExpiresAt);
-          startOrUpdateTimerDisplay(); // Call UI function
+          startOrUpdateTimerDisplay(); // Start/update timer based on new expiry
         } else {
-          // --- ADD LOG ---
           console.log(
             "MessageHandler DEBUG: No turnExpiresAt found in update."
           );
-          // --- END ADD ---
           state.setTurnExpiry(null);
-          stopTimerDisplay();
-        }
-        // --- END TIMER HANDLING ---
-
-        // Check for DRAFT_COMPLETE
-        if (message.currentPhase === "DRAFT_COMPLETE") {
-          console.log("MessageHandler: Draft complete detected");
-          // Update UI to show completion state
-          updateDraftScreenUI(message);
-          showScreen("draft-screen");
-          return;
+          stopTimerDisplay(); // Stop timer if no expiry provided
         }
 
-        // Handle DRAFTING state
-        if (message.lobbyState && message.lobbyState === "DRAFTING") {
-          console.log("MessageHandler: Updating draft screen UI");
-          updateDraftScreenUI(message);
-          showScreen("draft-screen");
-        } else {
-          // Handle WAITING state
-          console.log("MessageHandler: Updating lobby wait screen UI");
+        // --- REVISED SCREEN LOGIC ---
+        // Check the currentPhase stored in our state module AFTER updating it.
+        // If a phase is set (e.g., 'BAN1', 'PICK1', ..., 'DRAFT_COMPLETE'),
+        // it means the draft is active or has just finished.
+        if (state.currentPhase) {
+          console.log(
+            `MessageHandler: Phase is '${state.currentPhase}'. Updating/showing draft screen.`
+          );
+          updateDraftScreenUI(message); // Update the draft UI with the new data
+          showScreen("draft-screen"); // Ensure the draft screen is visible
+        }
+        // Only show the wait screen if the phase is null (draft hasn't started)
+        // AND the lobby state indicates we are waiting.
+        else if (message.lobbyState === "WAITING") {
+          console.log(
+            "MessageHandler: State is WAITING. Updating/showing lobby wait screen."
+          );
           updateLobbyWaitScreenUI(message);
           showScreen("lobby-wait-screen");
         }
+        // Fallback for potentially unexpected states (e.g., if phase is null but state isn't WAITING)
+        else {
+          console.warn(
+            "MessageHandler: Unhandled lobbyStateUpdate screen logic - Phase:",
+            state.currentPhase,
+            "LobbyState:",
+            message.lobbyState
+          );
+          // Defaulting to wait screen as a safety measure, but review if this happens.
+          updateLobbyWaitScreenUI(message);
+          showScreen("lobby-wait-screen");
+        }
+        // --- END REVISED SCREEN LOGIC ---
         break;
 
       case "error":

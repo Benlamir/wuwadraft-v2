@@ -269,14 +269,23 @@ export function stopTimerDisplay() {
 
 // This internal function updates the clock display
 function updateCountdown(expiryTime, intervalId) {
-  //console.log(
-  //  `UI DEBUG: updateCountdown TICK for interval ID ${intervalId}. Active state ID: ${state.timerIntervalId}`
-  //);
+  // --- ADD state import for clarity ---
+  const {
+    myAssignedSlot,
+    currentTurn,
+    currentPhase,
+    timerIntervalId: activeTimerId,
+  } = state;
+  // --- END ADD ---
 
-  if (intervalId !== state.timerIntervalId) {
-    //console.log(
-    //  `UI DEBUG: Stale timer callback DETECTED (ID ${intervalId}, Active ID ${state.timerIntervalId}). Clearing ${intervalId} and exiting.`
-    //);
+  console.log(
+    `UI DEBUG: updateCountdown TICK for interval ID ${intervalId}. Active state ID: ${activeTimerId}`
+  );
+
+  if (intervalId !== activeTimerId) {
+    console.log(
+      `UI DEBUG: Stale timer callback DETECTED (ID ${intervalId}, Active ID ${activeTimerId}). Clearing ${intervalId} and exiting.`
+    );
     clearInterval(intervalId);
     return;
   }
@@ -289,11 +298,47 @@ function updateCountdown(expiryTime, intervalId) {
       elements.draftTimer.textContent = "Time Remaining: 00:00";
       elements.draftTimer.classList.add("text-danger", "fw-bold");
     }
-    //  console.log(
-    //  `UI DEBUG: Timer expired (ID ${intervalId}). Clearing interval ${intervalId}.`
-    //);
-    clearInterval(intervalId); // Clear this interval
-    // Ensure state.timerIntervalId is NOT set to null here
+
+    // Clear the interval FIRST to stop the countdown updates
+    clearInterval(intervalId); // Clear this specific interval ID
+    console.log(
+      `UI: Timer visually reached zero (Interval ID: ${intervalId}). Clearing interval.`
+    );
+
+    // --- ADD CHECK: Only send timeout if it's MY turn ---
+    if (myAssignedSlot === currentTurn) {
+      console.log(
+        `UI: It's MY turn (${myAssignedSlot}), waiting briefly before sending timeout.`
+      );
+      // Use setTimeout to introduce a small delay (e.g., 500ms)
+      setTimeout(() => {
+        // Optional: Re-check if turn hasn't changed *during* the 500ms delay
+        if (state.currentTurn === myAssignedSlot) {
+          console.log(
+            `UI: Sending timeout action after delay. Expected Phase: ${state.currentPhase}, Expected Turn: ${myAssignedSlot}` // Use myAssignedSlot here too
+          );
+          sendMessageToServer({
+            action: "turnTimeout",
+            expectedPhase: state.currentPhase, // Send phase from current state
+            expectedTurn: myAssignedSlot, // Send MY slot as the expected turn
+          });
+        } else {
+          console.log(
+            `UI: Timeout send cancelled. Turn changed to ${state.currentTurn} during delay.`
+          );
+        }
+      }, 500); // Delay sending by 500 milliseconds
+    } else {
+      console.log(
+        `UI: Timer expired, but it was not my turn (${myAssignedSlot} vs ${currentTurn}). Not sending timeout action.`
+      );
+      // If it wasn't my turn, we don't send the timeout.
+      // We might rely on the other player's client to send it,
+      // or potentially a future server-side check if needed.
+    }
+    // --- END CHECK ---
+
+    // Note: We cleared the interval outside the check/setTimeout
   } else {
     const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000));
     const minutes = Math.floor(remainingSeconds / 60);

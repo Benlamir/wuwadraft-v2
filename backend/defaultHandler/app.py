@@ -8,6 +8,9 @@ import uuid # Import uuid library for generating unique IDs
 from datetime import datetime, timezone, timedelta # For timestamps and timedelta
 from boto3.dynamodb.conditions import Key, Attr # Keep this if needed elsewhere
 from botocore.exceptions import ClientError # Remove ConditionalCheckFailedException from import
+import time
+import random  # Added for random selection on timeout
+import decimal
 
 # Set up logging
 logger = logging.getLogger()
@@ -460,56 +463,63 @@ def handler(event, context):
                 current_lobby_state = 'DRAFTING'
                 current_phase = 'BAN1'
                 current_turn = 'P1'
-                draft_started = True # Mark that draft state was initialized
-
-                # --- Calculate expiry for the FIRST turn ---
-                now = datetime.now(timezone.utc)
-                expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
-                turn_expires_at_iso = expires_at_dt.isoformat()
-                logger.info(f"Setting initial turn expiry for lobby {lobby_id} to: {turn_expires_at_iso}")
-                # --- End Calculation ---
+                draft_started = True # Mark that draft state *attempt* was initiated
 
                 # Initialize draft state in DDB
                 try:
-                    # Define parameters for update_item
-                    update_expression_string = """
-                        SET lobbyState = :newState,
-                            currentPhase = :phase,
-                            currentTurn = :turn,
-                            bans = :emptyList,
-                            player1Picks = :emptyList,
-                            player2Picks = :emptyList,
-                            availableResonators = :allRes,
-                            currentStepIndex = :zero,
-                            turnExpiresAt = :expires
-                    """
-                    expression_attribute_values_dict = {
-                        ':newState': current_lobby_state,
-                        ':phase': current_phase,
-                        ':turn': current_turn,
-                        ':emptyList': [],
-                        ':allRes': ALL_RESONATOR_NAMES,
-                        ':zero': 0,
-                        ':expires': turn_expires_at_iso
-                    }
+                    # --- Calculate expiry for the FIRST turn ---
+                    now = datetime.now(timezone.utc)
+                    expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
+                    turn_expires_at_iso = expires_at_dt.isoformat()
+                    logger.info(f"Setting initial turn expiry for lobby {lobby_id} to: {turn_expires_at_iso}")
 
-                    # --- ADD LOGGING HERE ---
-                    logger.info(f"UpdateItem Params for lobby {lobby_id} (draft initialization):")
-                    logger.info(f"  UpdateExpression: {update_expression_string}")
-                    logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_attribute_values_dict)}")
-                    # --- END LOGGING ---
+                    # Prepare values
+                    expression_attribute_values_dict = {
+                            ':newState': current_lobby_state,
+                            ':phase': current_phase,
+                            ':turn': current_turn,
+                            ':emptyList': [],
+                            ':allRes': ALL_RESONATOR_NAMES,
+                            ':zero': 0,
+                            ':expires': turn_expires_at_iso,
+                            ':waitState': 'WAITING' # Value for condition check
+                        }
+                    # Add condition check
+                    condition_expression_string = "lobbyState = :waitState" # Only update if still WAITING
+
+                    logger.info(f"DEBUG: Initializing draft state with: {json.dumps(expression_attribute_values_dict)}")
+                    logger.info(f"DEBUG: Initializing ConditionExpression: {condition_expression_string}")
 
                     lobbies_table.update_item(
                         Key={'lobbyId': lobby_id},
-                        UpdateExpression=update_expression_string,
+                        UpdateExpression="""
+                            SET lobbyState = :newState,
+                                currentPhase = :phase,
+                                currentTurn = :turn,
+                                bans = :emptyList,
+                                player1Picks = :emptyList,
+                                player2Picks = :emptyList,
+                                availableResonators = :allRes,
+                                currentStepIndex = :zero,
+                                turnExpiresAt = :expires
+                        """,
+                        ConditionExpression=condition_expression_string, # <-- ADD THIS CONDITION
                         ExpressionAttributeValues=expression_attribute_values_dict
                     )
-                    logger.info(f"Lobby {lobby_id} state updated to {current_lobby_state} with draft initialization (including turn expiry)")
+                    logger.info(f"Lobby {lobby_id} state updated to DRAFTING with draft initialization (conditional)")
 
+                except ClientError as e: # <-- ADD EXCEPTION HANDLING
+                     if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                          logger.warning(f"Draft initialization failed for lobby {lobby_id} - Condition Check Failed (likely already started by concurrent request). Ignoring this update attempt.")
+                          # Don't return an error, just log. The other invocation succeeded.
+                          # Ensure draft_started remains True so broadcast happens based on latest state
+                          draft_started = True
+                     else:
+                          logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id} (ClientError): {str(e)}")
+                          draft_started = False # Revert flag on other DDB errors
                 except Exception as state_update_err:
                      logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id}: {str(state_update_err)}")
-                     # Handle error: maybe reset flag or return error?
-                     draft_started = False # Revert flag on error?
+                     draft_started = False
 
             # --- MODIFICATION START: Re-fetch AFTER potential DDB update ---
             # 7. Fetch the absolute latest state FOR BROADCASTING
@@ -578,17 +588,17 @@ def handler(event, context):
 
         # --- ADD makeBan HANDLER ---
         elif action == 'makeBan':
-            logger.info(f"--- Entered 'makeBan' action block ---")
-
-            # Step 1: Initial Data Fetching (Keep uncommented)
+            # --- ADD THIS LOGGING ---
             connection_id = event.get('requestContext', {}).get('connectionId')
-            logger.info(f"Processing 'makeBan' action for {connection_id}")
-            # Assumes message_data is parsed earlier
-            resonator_name_to_ban = message_data.get('resonatorName')
-            if not resonator_name_to_ban:
+            logger.info(f"--- !!! Entered 'makeBan' action block !!! --- Connection: {connection_id}")
+            logger.info(f"DEBUG: 'makeBan' received message data: {message_data}")
+            # --- END LOGGING ---
+
+            resonator_name = message_data.get('resonatorName')
+            if not resonator_name:
                 logger.error(f"'makeBan' request from {connection_id} missing 'resonatorName'.")
                 return {'statusCode': 400, 'body': 'Missing resonatorName in request.'}
-            logger.info(f"Received resonatorName: {resonator_name_to_ban}")
+            logger.info(f"Received resonatorName: {resonator_name}")
             lobby_id = None
             try:
                 connection_item = connections_table.get_item(Key={'connectionId': connection_id}).get('Item')
@@ -616,7 +626,6 @@ def handler(event, context):
             else:
                  logger.error(f"Cannot fetch lobby item because lobby_id is missing for connection {connection_id}")
                  return {'statusCode': 500, 'body': 'Internal error: lobby_id missing.'}
-            # --- End of Step 1 ---
 
             # --- Step 2: Validation (Should be uncommented) ---
             current_phase = lobby_item.get('currentPhase')
@@ -651,13 +660,13 @@ def handler(event, context):
                 return {'statusCode': 400, 'body': 'Not your turn.'}
 
             # d) Check if the resonator is available
-            if resonator_name_to_ban not in available_resonators:
-                logger.warning(f"Ban attempt in lobby {lobby_id} for unavailable resonator '{resonator_name_to_ban}'. Available: {available_resonators}")
-                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Resonator '{resonator_name_to_ban}' is not available."})
+            if resonator_name not in available_resonators:
+                logger.warning(f"Ban attempt in lobby {lobby_id} for unavailable resonator '{resonator_name}'. Available: {available_resonators}")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Resonator '{resonator_name}' is not available."})
                 return {'statusCode': 400, 'body': 'Resonator not available.'}
 
             # --- Validation Passed ---
-            logger.info(f"Validation passed for ban of '{resonator_name_to_ban}' by {current_turn} in lobby {lobby_id}, phase {current_phase}.")
+            logger.info(f"Validation passed for ban of '{resonator_name}' by {current_turn} in lobby {lobby_id}, phase {current_phase}.")
             # --- End of Step 2 ---
 
             # 5. *** Calculate Next State using Index ***
@@ -686,7 +695,7 @@ def handler(event, context):
 
             # 6. *** Update DynamoDB (with index and timer) ***
             try:
-                new_available_list = [res for res in available_resonators if res != resonator_name_to_ban]
+                new_available_list = [res for res in available_resonators if res != resonator_name]
 
                 # --- Calculate expiry for the NEXT turn ---
                 turn_expires_at_iso = None
@@ -708,7 +717,7 @@ def handler(event, context):
                 """
                 expression_attribute_values_dict = {
                     ':empty_list': [],
-                    ':new_ban': [resonator_name_to_ban],
+                    ':new_ban': [resonator_name],
                     ':new_available': new_available_list,
                     ':next_phase': next_phase,
                     ':next_turn': next_turn,
@@ -772,7 +781,8 @@ def handler(event, context):
                     "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
                     "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
                     "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []),
-                    "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt') # Add turn expiry time
+                    "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'),
+                    "lastAction": f'{current_turn} banned {resonator_name}'
                 }
                 logger.info(f"Broadcasting FINAL lobby state update after ban: {json.dumps(state_payload)}")
 
@@ -800,17 +810,17 @@ def handler(event, context):
 
         # --- ADD makePick HANDLER ---
         elif action == 'makePick':
-            logger.info(f"--- Entered 'makePick' action block ---")
-
-            # Step 1: Initial Data Fetching (Keep uncommented)
+            # --- ADD THIS LOGGING ---
             connection_id = event.get('requestContext', {}).get('connectionId')
-            logger.info(f"Processing 'makePick' action for {connection_id}")
-            # Assumes message_data is parsed earlier
-            resonator_name_to_pick = message_data.get('resonatorName')
-            if not resonator_name_to_pick:
+            logger.info(f"--- !!! Entered 'makePick' action block !!! --- Connection: {connection_id}")
+            logger.info(f"DEBUG: 'makePick' received message data: {message_data}")
+            # --- END LOGGING ---
+
+            resonator_name = message_data.get('resonatorName')
+            if not resonator_name:
                 logger.error(f"'makePick' request from {connection_id} missing 'resonatorName'.")
                 return {'statusCode': 400, 'body': 'Missing resonatorName in request.'}
-            logger.info(f"Received resonatorName: {resonator_name_to_pick}")
+            logger.info(f"Received resonatorName: {resonator_name}")
             lobby_id = None
             try:
                 connection_item = connections_table.get_item(Key={'connectionId': connection_id}).get('Item')
@@ -838,7 +848,6 @@ def handler(event, context):
             else:
                  logger.error(f"Cannot fetch lobby item because lobby_id is missing for connection {connection_id}")
                  return {'statusCode': 500, 'body': 'Internal error: lobby_id missing.'}
-            # --- End of Step 1 ---
 
             # --- Step 2: Validation (Keep uncommented) ---
             current_phase = lobby_item.get('currentPhase')
@@ -873,13 +882,13 @@ def handler(event, context):
                 return {'statusCode': 400, 'body': 'Not your turn.'}
 
             # d) Check if the resonator is available
-            if resonator_name_to_pick not in available_resonators:
-                logger.warning(f"Pick attempt in lobby {lobby_id} for unavailable resonator '{resonator_name_to_pick}'. Available: {available_resonators}")
-                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Resonator '{resonator_name_to_pick}' is not available."})
+            if resonator_name not in available_resonators:
+                logger.warning(f"Pick attempt in lobby {lobby_id} for unavailable resonator '{resonator_name}'. Available: {available_resonators}")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Resonator '{resonator_name}' is not available."})
                 return {'statusCode': 400, 'body': 'Resonator not available.'}
 
             # --- Validation Passed ---
-            logger.info(f"Validation passed for pick of '{resonator_name_to_pick}' by {current_turn} in lobby {lobby_id}, phase {current_phase}.")
+            logger.info(f"Validation passed for pick of '{resonator_name}' by {current_turn} in lobby {lobby_id}, phase {current_phase}.")
             # --- End of Step 2 ---
 
             # 5. *** Calculate Next State using Index ***
@@ -894,7 +903,7 @@ def handler(event, context):
                      raise ValueError("Invalid step index (-1) after conversion.")
             except (TypeError, ValueError) as e:
                  # Log error if conversion fails or value is invalid
-                 logger.error(f"Invalid currentStepIndex '{current_step_index_decimal}' retrieved from lobby {lobby_id}. Error: {e}")
+                 logger.error(f"Invalid currentStepIndex '{current_step_index_decimal}' retrieved from lobby {lobby_id} during pick. Error: {e}")
                  return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index.'}
             # --- END ADDITION ---
 
@@ -908,7 +917,7 @@ def handler(event, context):
 
             # 6. *** Update DynamoDB (with index and timer) ***
             try:
-                new_available_list = [res for res in available_resonators if res != resonator_name_to_pick]
+                new_available_list = [res for res in available_resonators if res != resonator_name]
 
                 # --- Calculate expiry for the NEXT turn ---
                 turn_expires_at_iso = None
@@ -936,7 +945,7 @@ def handler(event, context):
                     """
                     expression_attribute_values_dict = {
                         ':empty_list': [],
-                        ':new_pick_p1': [resonator_name_to_pick],
+                        ':new_pick_p1': [resonator_name],
                         ':new_available': new_available_list,
                         ':next_phase': next_phase,
                         ':next_turn': next_turn,
@@ -956,7 +965,7 @@ def handler(event, context):
                     """
                     expression_attribute_values_dict = {
                         ':empty_list': [],
-                        ':new_pick_p2': [resonator_name_to_pick],
+                        ':new_pick_p2': [resonator_name],
                         ':new_available': new_available_list,
                         ':next_phase': next_phase,
                         ':next_turn': next_turn,
@@ -1017,44 +1026,263 @@ def handler(event, context):
                     "hostName": final_lobby_item_for_broadcast.get('hostName'),
                     "player1Name": final_lobby_item_for_broadcast.get('player1Name'),
                     "player2Name": final_lobby_item_for_broadcast.get('player2Name'),
-                    "lobbyState": final_lobby_item_for_broadcast.get('lobbyState'),
-                    "player1Ready": final_lobby_item_for_broadcast.get('player1Ready', False),
-                    "player2Ready": final_lobby_item_for_broadcast.get('player2Ready', False),
                     "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'),
                     "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),
                     "bans": final_lobby_item_for_broadcast.get('bans', []),
                     "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
                     "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
                     "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []),
-                    "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt') # Add turn expiry time
+                    "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'),
+                    "lastAction": f'{current_turn} picked {resonator_name}'
                 }
-                logger.info(f"Broadcasting FINAL lobby state update after pick: {json.dumps(state_payload)}")
 
-                # Broadcast to all participants
-                participants = [
-                    final_lobby_item_for_broadcast.get('hostConnectionId'),
-                    final_lobby_item_for_broadcast.get('player1ConnectionId'),
-                    final_lobby_item_for_broadcast.get('player2ConnectionId')
-                ]
-                valid_connection_ids = [pid for pid in participants if pid]
+                logger.info(f"Broadcasting FINAL lobby state update after pick: {json.dumps(state_payload)}")
+                
+                # Get all participants
+                participants = []
+                try:
+                    response = connections_table.scan(
+                        FilterExpression=Attr('currentLobbyId').eq(lobby_id)
+                    )
+                    participants = response.get('Items', [])
+                except Exception as e:
+                    logger.error(f"Error fetching participants for broadcast: {str(e)}")
+                    return {'statusCode': 500, 'body': 'Error fetching participants for broadcast.'}
+
+                # Send to all valid connections
+                valid_connection_ids = [p['connectionId'] for p in participants if 'connectionId' in p]
                 failed_sends = []
                 for recipient_id in valid_connection_ids:
                     if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
-                         failed_sends.append(recipient_id)
+                        failed_sends.append(recipient_id)
+                
                 if failed_sends:
-                     logger.warning(f"Failed to send state update to some connections: {failed_sends}")
+                    logger.warning(f"Failed to send pick update to some participants: {failed_sends}")
 
             except Exception as broadcast_err:
                  logger.error(f"Error broadcasting lobby state update after pick for {lobby_id}: {str(broadcast_err)}")
-                 # Don't necessarily fail the operation, but log the error. DB update succeeded.
 
-            # --- End of Step 4 ---
-
-            # --- Final Success Return ---
             return {'statusCode': 200, 'body': 'Pick processed successfully.'}
             # --- END Final Return ---
-        # --- END makePick HANDLER ---
-        # --- PING HANDLER ---
+
+        # --- ADD TIMEOUT HANDLER ---
+        elif action == 'turnTimeout':
+            logger.info(f"--- Entered 'turnTimeout' action block ---")
+            connection_id = event.get('requestContext', {}).get('connectionId') # ID of client whose timer expired
+
+            # Get expected state from client message
+            expected_phase = message_data.get('expectedPhase')
+            expected_turn = message_data.get('expectedTurn')
+            if not expected_phase or not expected_turn:
+                 logger.warning(f"Timeout message from {connection_id} missing expected phase/turn.")
+                 return {'statusCode': 400, 'body': 'Missing expected state in timeout request.'}
+
+            # 1. Find lobby for the connection
+            lobby_id = None
+            try:
+                connection_item = connections_table.get_item(Key={'connectionId': connection_id}).get('Item')
+                if connection_item and 'currentLobbyId' in connection_item:
+                    lobby_id = connection_item['currentLobbyId']
+                else: # Should not happen if player is in draft, but handle defensively
+                     logger.warning(f"Connection {connection_id} reporting timeout not found or not in lobby.")
+                     return {'statusCode': 404, 'body': 'Connection not associated with a lobby.'}
+                logger.info(f"Found lobbyId: {lobby_id} for timeout request from {connection_id}")
+            except Exception as e:
+                 logger.error(f"Failed to get connection details for {connection_id}: {str(e)}")
+                 return {'statusCode': 500, 'body': 'Error finding connection details.'}
+
+            # 2. Get CURRENT lobby state from DB
+            lobby_item = None
+            if lobby_id:
+                try:
+                    response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                    lobby_item = response.get('Item')
+                    if not lobby_item:
+                        logger.warning(f"Lobby {lobby_id} not found for timeout processing.")
+                        return {'statusCode': 404, 'body': 'Lobby data not found.'}
+                    logger.info(f"Fetched current lobby state for {lobby_id} to process timeout.")
+                    # --- ADD DEBUG LOGGING HERE ---
+                    logger.info(f"DEBUG: Fetched lobby state for timeout check. DB Phase: {lobby_item.get('currentPhase')}, DB Turn: {lobby_item.get('currentTurn')}, DB Index: {lobby_item.get('currentStepIndex')}, DB Expires: {lobby_item.get('turnExpiresAt')}")
+                    # --- END DEBUG LOGGING ---
+                except Exception as e:
+                     logger.error(f"Failed to get lobby {lobby_id} for timeout: {str(e)}")
+                     return {'statusCode': 500, 'body': 'Error fetching lobby data.'}
+            else: # Should be caught above
+                return {'statusCode': 500, 'body': 'Internal error: lobby_id missing.'}
+
+            # 3. *** Timeout Validation ***
+            current_phase_db = lobby_item.get('currentPhase')
+            current_turn_db = lobby_item.get('currentTurn')
+            current_step_index_decimal = lobby_item.get('currentStepIndex', -1)
+            turn_expires_at_db = lobby_item.get('turnExpiresAt')
+            logger.info(f"DEBUG: Timeout Check: Expected={expected_phase}/{expected_turn}, DB={current_phase_db}/{current_turn_db}, Expires={turn_expires_at_db}")
+
+            # --- UNCOMMENT THIS CHECK ---
+            # a) Check if the turn reported by client matches the DB
+            if current_phase_db != expected_phase or current_turn_db != expected_turn:
+                logger.info(f"Timeout ignored for lobby {lobby_id}. Client expected {expected_phase}/{expected_turn} but DB state is {current_phase_db}/{current_turn_db}. Player likely acted or race condition occurred previously.")
+                return {'statusCode': 200, 'body': 'Timeout ignored, state already advanced.'}
+            # --- END UNCOMMENT ---
+
+            # --- CORRECT THIS CHECK ---
+            # b) Check if the expiry time has actually passed
+            now_iso = datetime.now(timezone.utc).isoformat()
+            if not turn_expires_at_db:
+                 logger.warning(f"Timeout processing failed for lobby {lobby_id}. Missing turnExpiresAt attribute.")
+                 return {'statusCode': 500, 'body': 'Internal error: Missing expiry data.'}
+            elif now_iso <= turn_expires_at_db: # Check if current time is BEFORE or EQUAL to expiry
+                 logger.warning(f"Timeout check failed for lobby {lobby_id}. Expiry {turn_expires_at_db} has not passed yet ({now_iso}). Client timer might be fast or message delayed.")
+                 return {'statusCode': 400, 'body': 'Timeout condition not met (time has not passed).'}
+            # If we reach here, time HAS passed
+            logger.info(f"Timeout time condition met for lobby {lobby_id}. Expiry: {turn_expires_at_db}, Current: {now_iso}.")
+            # --- END CORRECTION ---
+
+            # c) Convert and check index (Keep fix from Response #87)
+            current_step_index = None # Initialize
+            try:
+                current_step_index = int(current_step_index_decimal)
+                if current_step_index == -1 and current_step_index_decimal != -1: raise ValueError("Invalid step index (-1)")
+            except (TypeError, ValueError) as e:
+                  logger.error(f"Invalid currentStepIndex '{current_step_index_decimal}' ... Error: {e}")
+                  return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index.'}
+
+            if current_phase_db == DRAFT_COMPLETE_PHASE or current_step_index is None or current_step_index < 0:
+                 logger.warning(f"Timeout ignored for lobby {lobby_id}. Draft already complete or index invalid ({current_step_index}).")
+                 return {'statusCode': 200, 'body': 'Timeout ignored, draft finished or invalid state.'}
+
+            logger.info(f"Timeout validated for lobby {lobby_id}. Player {current_turn_db} timed out during phase {current_phase_db} at step {current_step_index}.")
+
+            # 4. *** Perform Random Action ***
+            timed_out_player = current_turn_db # The player who failed to act
+            available_resonators = lobby_item.get('availableResonators', [])
+            if not available_resonators:
+                logger.error(f"Timeout action failed for lobby {lobby_id}: No available resonators.")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Timeout occurred, but no characters available."})
+                return {'statusCode': 500, 'body': 'Internal error: No characters available on timeout.'}
+
+            random_choice = random.choice(available_resonators)
+            is_ban_phase = current_phase_db.startswith('BAN')
+            action_taken = "banned" if is_ban_phase else "picked"
+            logger.info(f"Timeout action for {timed_out_player} in lobby {lobby_id}: Randomly {action_taken} '{random_choice}'.")
+
+            # 5. *** Calculate Next State ***
+            next_phase, next_turn, next_step_index = determine_next_state(current_step_index) # Use int version
+
+            # 6. *** Update DynamoDB ***
+            try:
+                new_available_list = [res for res in available_resonators if res != random_choice]
+                turn_expires_at_iso = None # Calculate expiry for the NEW turn
+                if next_turn:
+                    now = datetime.now(timezone.utc)
+                    expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
+                    turn_expires_at_iso = expires_at_dt.isoformat()
+                logger.info(f"Setting next turn expiry (after timeout) for lobby {lobby_id} to: {turn_expires_at_iso}")
+
+                update_expression = ""
+                expression_attribute_values = {}
+
+                base_update = """
+                    SET availableResonators = :new_available,
+                        currentPhase = :next_phase,
+                        currentTurn = :next_turn,
+                        currentStepIndex = :next_index,
+                        turnExpiresAt = :expires
+                """
+                base_values = {
+                    ':new_available': new_available_list,
+                    ':next_phase': next_phase,
+                    ':next_turn': next_turn,
+                    ':next_index': next_step_index,
+                    ':expires': turn_expires_at_iso,
+                    ':expected_index': current_step_index # Use the int version here
+                }
+
+                if is_ban_phase:
+                    update_expression = base_update + ", bans = list_append(if_not_exists(bans, :empty_list), :new_ban)"
+                    expression_attribute_values = {**base_values, ':empty_list': [], ':new_ban': [random_choice]}
+                elif timed_out_player == 'P1':
+                    update_expression = base_update + ", player1Picks = list_append(if_not_exists(player1Picks, :empty_list), :new_pick)"
+                    expression_attribute_values = {**base_values, ':empty_list': [], ':new_pick': [random_choice]}
+                elif timed_out_player == 'P2':
+                    update_expression = base_update + ", player2Picks = list_append(if_not_exists(player2Picks, :empty_list), :new_pick)"
+                    expression_attribute_values = {**base_values, ':empty_list': [], ':new_pick': [random_choice]}
+                else: # Should not happen
+                     raise ValueError(f"Invalid timed_out_player: {timed_out_player}")
+
+                logger.info(f"Attempting to update lobby {lobby_id} state after timeout.")
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=update_expression,
+                    ConditionExpression="currentStepIndex = :expected_index", # Check against expected int index
+                    ExpressionAttributeValues=expression_attribute_values
+                )
+                logger.info(f"Successfully updated lobby {lobby_id} state after timeout.")
+
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                    logger.warning(f"Conditional check failed for lobby {lobby_id} during timeout update. State may have changed.")
+                    return {'statusCode': 409, 'body': 'State changed during timeout processing.'}
+                logger.error(f"Failed to update lobby {lobby_id} after timeout (ClientError): {str(e)}")
+                return {'statusCode': 500, 'body': 'Failed to update lobby state after timeout.'}
+            except Exception as e:
+                 logger.error(f"Unexpected error updating lobby {lobby_id} after timeout: {str(e)}")
+                 return {'statusCode': 500, 'body': 'Internal server error during timeout update.'}
+
+            # 7. *** Fetch Final State and Broadcast ***
+            try:
+                logger.info(f"Fetching final lobby state for broadcast after timeout. Lobby: {lobby_id}")
+                final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                final_lobby_item_for_broadcast = final_response.get('Item')
+                if not final_lobby_item_for_broadcast:
+                    logger.error(f"Failed to fetch final state for broadcast after timeout. Lobby: {lobby_id}")
+                    return {'statusCode': 500, 'body': 'Failed to fetch final state for broadcast.'}
+
+                state_payload = {
+                    "type": "lobbyStateUpdate",
+                    "lobbyId": lobby_id,
+                    "hostName": final_lobby_item_for_broadcast.get('hostName'),
+                    "player1Name": final_lobby_item_for_broadcast.get('player1Name'),
+                    "player2Name": final_lobby_item_for_broadcast.get('player2Name'),
+                    "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'),
+                    "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),
+                    "bans": final_lobby_item_for_broadcast.get('bans', []),
+                    "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
+                    "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
+                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []),
+                    "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'),
+                    "lastAction": f'{timed_out_player} timed out, randomly {action_taken} {random_choice}'
+                }
+
+                logger.info(f"Broadcasting FINAL lobby state update after timeout: {json.dumps(state_payload)}")
+                
+                # Get all participants
+                participants = []
+                try:
+                    response = connections_table.scan(
+                        FilterExpression=Attr('currentLobbyId').eq(lobby_id)
+                    )
+                    participants = response.get('Items', [])
+                except Exception as e:
+                    logger.error(f"Error fetching participants for broadcast: {str(e)}")
+                    return {'statusCode': 500, 'body': 'Error fetching participants for broadcast.'}
+
+                # Send to all valid connections
+                valid_connection_ids = [p['connectionId'] for p in participants if 'connectionId' in p]
+                failed_sends = []
+                for recipient_id in valid_connection_ids:
+                    if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
+                        failed_sends.append(recipient_id)
+                
+                if failed_sends:
+                    logger.warning(f"Failed to send timeout update to some participants: {failed_sends}")
+
+            except Exception as broadcast_err:
+                 logger.error(f"Error broadcasting lobby state update after timeout for {lobby_id}: {str(broadcast_err)}")
+
+            return {'statusCode': 200, 'body': 'Timeout processed successfully.'}
+
+        # --- END TIMEOUT HANDLER ---
+
         elif action == 'ping':
             # API Gateway idle timeout resets upon receiving a message.
             # No action needed usually, but we can log it or send pong.
