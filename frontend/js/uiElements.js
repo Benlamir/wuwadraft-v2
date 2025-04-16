@@ -20,7 +20,7 @@ export function initializeElements() {
   // Welcome Screen Buttons
   elements.actionCreateBtn = document.getElementById("action-create-btn");
   elements.actionJoinBtn = document.getElementById("action-join-btn");
-  elements.actionRandomizeBtn = document.getElementById("action-randomize-btn");
+  elements.actionRandomizeBtn = document.getElementById("action-randomize-btn"); // Randomize Pick button
 
   // Create/Join Inputs & Buttons
   elements.createNameInput = document.getElementById("create-name-input");
@@ -37,7 +37,7 @@ export function initializeElements() {
   // Lobby Wait Screen Elements
   elements.lobbyIdDisplay = document.getElementById("lobby-id-display");
   elements.toggleLobbyIdDisplayBtn = document.getElementById(
-    "toggle-lobby-id-display"
+    "toggle-lobby-id-display" // Ensure ID matches HTML if this is separate from join screen toggle
   );
   elements.copyLobbyIdBtn = document.getElementById("copy-lobby-id-btn");
   elements.hostNameDisplay = document.getElementById("host-name");
@@ -46,14 +46,23 @@ export function initializeElements() {
   elements.player1StatusElement = document.getElementById("player1-status");
   elements.player2StatusElement = document.getElementById("player2-status");
   elements.lobbyStatusDisplay = document.getElementById("lobby-status");
-  elements.hostControls = document.getElementById("host-controls");
-  elements.playerControls = document.getElementById("player-controls");
+  // elements.hostControls = document.getElementById("host-controls"); // Consider removing if buttons are integrated directly
+  // elements.playerControls = document.getElementById("player-controls"); // Consider removing if buttons are integrated directly
   elements.player1ReadyBtn = document.getElementById("player1-ready-btn");
   elements.player2ReadyBtn = document.getElementById("player2-ready-btn");
-  elements.lobbyBackBtn = document.getElementById("lobby-back-btn");
+  elements.lobbyBackBtn = document.getElementById("lobby-back-btn"); // Player's back button
 
-  // Draft Screen Elements (Add more as needed)
-  elements.draftBackBtn = document.getElementById("draft-back-btn");
+  // --- ADD HOST CONTROL BUTTONS (Wait Screen) ---
+  elements.hostDeleteLobbyBtn = document.getElementById(
+    "host-delete-lobby-btn"
+  );
+  elements.hostJoinSlotBtn = document.getElementById("host-join-slot-btn");
+  elements.hostKickP1Btn = document.getElementById("host-kick-p1-btn");
+  elements.hostKickP2Btn = document.getElementById("host-kick-p2-btn");
+  // --- END ADD ---
+
+  // Draft Screen Elements
+  elements.draftBackBtn = document.getElementById("draft-back-btn"); // Player's back button on draft screen
   elements.draftPhaseStatus = document.getElementById("draft-phase-status");
   elements.draftTimer = document.getElementById("draft-timer");
   elements.draftP1Name = document.getElementById("draft-p1-name");
@@ -84,6 +93,10 @@ export function initializeElements() {
   elements.banSlot3 = document.getElementById("ban-slot-3");
   elements.banSlot4 = document.getElementById("ban-slot-4");
 
+  // --- ADD HOST CONTROL BUTTONS (Draft Screen - Add later if needed) ---
+  // elements.hostResetDraftBtn = document.getElementById("host-reset-draft-btn");
+  // --- END ADD ---
+
   // Optional: Add logs to verify
   console.log("Check element - draftP1Name:", elements.draftP1Name);
   console.log("Check element - draftP2Name:", elements.draftP2Name);
@@ -92,12 +105,19 @@ export function initializeElements() {
 
   // Check for missing elements (optional but helpful)
   for (const key in elements) {
+    // Adjusted check to allow null for specific elements initially
     if (
       elements[key] === null &&
-      key !== "screensNodeList" &&
-      !key.endsWith("Controls")
+      ![
+        "screensNodeList",
+        // Add IDs of buttons that might not exist yet if you add them dynamically later
+        "hostDeleteLobbyBtn",
+        "hostJoinSlotBtn",
+        "hostKickP1Btn",
+        "hostKickP2Btn",
+        // Add other elements if needed
+      ].includes(key)
     ) {
-      // Allow controls to be missing initially
       console.warn(`UI Element ID not found for: ${key}`);
     } else if (key === "screensNodeList" && elements[key]?.length === 0) {
       console.warn(`UI: No elements found with class="screen"`);
