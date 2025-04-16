@@ -162,7 +162,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   );
   console.log("DEBUG: isCurrentUserHost =", state.isCurrentUserHost);
 
-  // --- Update Button Visibility/State using direct style.display ---
+  // --- Update Button Visibility/State using d-none class ---
   const isHost = state.isCurrentUserHost;
   const mySlot = state.myAssignedSlot;
 
@@ -170,79 +170,76 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   if (elements.player1ReadyBtn) {
     const shouldShowP1Ready =
       mySlot === "P1" && lobbyStateData.player1Ready !== true;
-    console.log(
-      "DEBUG P1 Button: Setting display =",
-      shouldShowP1Ready ? "inline-block" : "none"
-    );
-    elements.player1ReadyBtn.style.display = shouldShowP1Ready
-      ? "inline-block"
-      : "none";
+    console.log("DEBUG P1 Button: Setting visibility =", shouldShowP1Ready);
+    if (shouldShowP1Ready) {
+      elements.player1ReadyBtn.classList.remove("d-none");
+    } else {
+      elements.player1ReadyBtn.classList.add("d-none");
+    }
     elements.player1ReadyBtn.disabled = !shouldShowP1Ready;
   }
 
   if (elements.player2ReadyBtn) {
     const shouldShowP2Ready =
       mySlot === "P2" && lobbyStateData.player2Ready !== true;
-    console.log(
-      "DEBUG P2 Button: Setting display =",
-      shouldShowP2Ready ? "inline-block" : "none"
-    );
-    elements.player2ReadyBtn.style.display = shouldShowP2Ready
-      ? "inline-block"
-      : "none";
+    console.log("DEBUG P2 Button: Setting visibility =", shouldShowP2Ready);
+    if (shouldShowP2Ready) {
+      elements.player2ReadyBtn.classList.remove("d-none");
+    } else {
+      elements.player2ReadyBtn.classList.add("d-none");
+    }
     elements.player2ReadyBtn.disabled = !shouldShowP2Ready;
   }
 
   // Player Back Button
   if (elements.lobbyBackBtn) {
     const shouldShowBackBtn = !isHost;
-    console.log(
-      "DEBUG Back Button: Setting display =",
-      shouldShowBackBtn ? "inline-block" : "none"
-    );
-    elements.lobbyBackBtn.style.display = shouldShowBackBtn
-      ? "inline-block"
-      : "none";
+    console.log("DEBUG Back Button: Setting visibility =", shouldShowBackBtn);
+    if (shouldShowBackBtn) {
+      elements.lobbyBackBtn.classList.remove("d-none");
+    } else {
+      elements.lobbyBackBtn.classList.add("d-none");
+    }
   }
 
   // Host Controls
   if (elements.hostDeleteLobbyBtn) {
-    console.log(
-      "DEBUG Delete Button: Setting display =",
-      isHost ? "inline-block" : "none"
-    );
-    elements.hostDeleteLobbyBtn.style.display = isHost
-      ? "inline-block"
-      : "none";
+    console.log("DEBUG Delete Button: Setting visibility =", isHost);
+    if (isHost) {
+      elements.hostDeleteLobbyBtn.classList.remove("d-none");
+    } else {
+      elements.hostDeleteLobbyBtn.classList.add("d-none");
+    }
   }
 
   if (elements.hostJoinSlotBtn) {
     const canHostJoin = isHost && (!p1Name || !p2Name);
-    console.log(
-      "DEBUG Join Button: Setting display =",
-      canHostJoin ? "inline-block" : "none"
-    );
-    elements.hostJoinSlotBtn.style.display = canHostJoin
-      ? "inline-block"
-      : "none";
+    console.log("DEBUG Join Button: Setting visibility =", canHostJoin);
+    if (canHostJoin) {
+      elements.hostJoinSlotBtn.classList.remove("d-none");
+    } else {
+      elements.hostJoinSlotBtn.classList.add("d-none");
+    }
   }
 
   if (elements.hostKickP1Btn) {
     const showKickP1 = isHost && !!p1Name;
-    console.log(
-      "DEBUG Kick P1 Button: Setting display =",
-      showKickP1 ? "inline-block" : "none"
-    );
-    elements.hostKickP1Btn.style.display = showKickP1 ? "inline-block" : "none";
+    console.log("DEBUG Kick P1 Button: Setting visibility =", showKickP1);
+    if (showKickP1) {
+      elements.hostKickP1Btn.classList.remove("d-none");
+    } else {
+      elements.hostKickP1Btn.classList.add("d-none");
+    }
   }
 
   if (elements.hostKickP2Btn) {
     const showKickP2 = isHost && !!p2Name;
-    console.log(
-      "DEBUG Kick P2 Button: Setting display =",
-      showKickP2 ? "inline-block" : "none"
-    );
-    elements.hostKickP2Btn.style.display = showKickP2 ? "inline-block" : "none";
+    console.log("DEBUG Kick P2 Button: Setting visibility =", showKickP2);
+    if (showKickP2) {
+      elements.hostKickP2Btn.classList.remove("d-none");
+    } else {
+      elements.hostKickP2Btn.classList.add("d-none");
+    }
   }
 }
 

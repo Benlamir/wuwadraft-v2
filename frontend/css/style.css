@@ -201,7 +201,7 @@ header {
 
 /* Add this rule to hide ready buttons by default */
 .player-ready-btn {
-  display: none;
+  /* display: none; */
 }
 
 /* --- Draft Screen Styles --- */
