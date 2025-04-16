@@ -162,35 +162,50 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   );
   console.log("DEBUG: isCurrentUserHost =", state.isCurrentUserHost);
 
-  // --- Update Button Visibility/State ---
+  // --- Update Button Visibility/State using direct style.display ---
   const isHost = state.isCurrentUserHost;
   const mySlot = state.myAssignedSlot;
 
-  // Player Ready Buttons - Use toggleElementVisibility
+  // Player Ready Buttons
   if (elements.player1ReadyBtn) {
     const shouldShowP1Ready =
       mySlot === "P1" && lobbyStateData.player1Ready !== true;
-    console.log("DEBUG P1 Button: Setting visibility =", shouldShowP1Ready);
-    toggleElementVisibility(elements.player1ReadyBtn, shouldShowP1Ready);
+    console.log(
+      "DEBUG P1 Button: Setting display =",
+      shouldShowP1Ready ? "inline-block" : "none"
+    );
+    elements.player1ReadyBtn.style.display = shouldShowP1Ready
+      ? "inline-block"
+      : "none";
     elements.player1ReadyBtn.disabled = !shouldShowP1Ready;
   }
 
   if (elements.player2ReadyBtn) {
     const shouldShowP2Ready =
       mySlot === "P2" && lobbyStateData.player2Ready !== true;
-    console.log("DEBUG P2 Button: Setting visibility =", shouldShowP2Ready);
-    toggleElementVisibility(elements.player2ReadyBtn, shouldShowP2Ready);
+    console.log(
+      "DEBUG P2 Button: Setting display =",
+      shouldShowP2Ready ? "inline-block" : "none"
+    );
+    elements.player2ReadyBtn.style.display = shouldShowP2Ready
+      ? "inline-block"
+      : "none";
     elements.player2ReadyBtn.disabled = !shouldShowP2Ready;
   }
 
-  // Player Back Button - Use toggleElementVisibility
+  // Player Back Button
   if (elements.lobbyBackBtn) {
     const shouldShowBackBtn = !isHost;
-    console.log("DEBUG Back Button: Setting visibility =", shouldShowBackBtn);
-    toggleElementVisibility(elements.lobbyBackBtn, shouldShowBackBtn);
+    console.log(
+      "DEBUG Back Button: Setting display =",
+      shouldShowBackBtn ? "inline-block" : "none"
+    );
+    elements.lobbyBackBtn.style.display = shouldShowBackBtn
+      ? "inline-block"
+      : "none";
   }
 
-  // Host Controls - Keep direct style manipulation
+  // Host Controls
   if (elements.hostDeleteLobbyBtn) {
     console.log(
       "DEBUG Delete Button: Setting display =",
@@ -199,11 +214,6 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
     elements.hostDeleteLobbyBtn.style.display = isHost
       ? "inline-block"
       : "none";
-    if (isHost) {
-      elements.hostDeleteLobbyBtn.classList.remove("d-none");
-    } else {
-      elements.hostDeleteLobbyBtn.classList.add("d-none");
-    }
   }
 
   if (elements.hostJoinSlotBtn) {
@@ -215,11 +225,6 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
     elements.hostJoinSlotBtn.style.display = canHostJoin
       ? "inline-block"
       : "none";
-    if (canHostJoin) {
-      elements.hostJoinSlotBtn.classList.remove("d-none");
-    } else {
-      elements.hostJoinSlotBtn.classList.add("d-none");
-    }
   }
 
   if (elements.hostKickP1Btn) {
@@ -229,11 +234,6 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
       showKickP1 ? "inline-block" : "none"
     );
     elements.hostKickP1Btn.style.display = showKickP1 ? "inline-block" : "none";
-    if (showKickP1) {
-      elements.hostKickP1Btn.classList.remove("d-none");
-    } else {
-      elements.hostKickP1Btn.classList.add("d-none");
-    }
   }
 
   if (elements.hostKickP2Btn) {
@@ -243,11 +243,6 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
       showKickP2 ? "inline-block" : "none"
     );
     elements.hostKickP2Btn.style.display = showKickP2 ? "inline-block" : "none";
-    if (showKickP2) {
-      elements.hostKickP2Btn.classList.remove("d-none");
-    } else {
-      elements.hostKickP2Btn.classList.add("d-none");
-    }
   }
 }
 
