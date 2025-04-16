@@ -98,20 +98,43 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (elements.lobbyBackBtn) {
     elements.lobbyBackBtn.addEventListener("click", () => {
-      // TODO: Should leaving lobby send a message? Or just disconnect?
-      // For now, just go back and clear state visually
+      console.log("Lobby Back Button (Player Leave - Wait Screen) clicked.");
+      if (state.currentLobbyId) {
+        sendMessageToServer({
+          action: "leaveLobby",
+          lobbyId: state.currentLobbyId,
+        });
+      } else {
+        console.warn("Cannot leave lobby, currentLobbyId is null.");
+      }
+      // Action: Navigate self back, clear state, close WS
       closeWebSocket(); // Close connection cleanly
       state.clearLobbyState();
       showScreen("welcome-screen");
     });
+  } else {
+    console.warn("Lobby Back Button not found during listener setup.");
   }
   if (elements.draftBackBtn) {
     elements.draftBackBtn.addEventListener("click", () => {
-      // TODO: Handle leaving draft state properly
+      console.log("Draft Back Button (Player Leave - Draft Screen) clicked.");
+      // --- UPDATE THIS LATER per plan (send leaveLobby, handle response) ---
+      if (state.currentLobbyId) {
+        sendMessageToServer({
+          action: "leaveLobby", // Backend will handle state based on lobbyState
+          lobbyId: state.currentLobbyId,
+        });
+      } else {
+        console.warn("Cannot leave lobby, currentLobbyId is null.");
+      }
+      // Navigate self immediately, backend handles notifying others/cleanup
       closeWebSocket();
       state.clearLobbyState();
       showScreen("welcome-screen");
+      // --- END UPDATE ---
     });
+  } else {
+    console.warn("Draft Back Button not found during listener setup.");
   }
 
   // Ready Buttons
@@ -199,6 +222,105 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("UI: Could not find filter controls to attach listeners.");
   }
   // --- End of Filter Control Listeners ---
+
+  // --- NEW: Host Control Event Listeners (Wait Screen) ---
+  if (elements.hostDeleteLobbyBtn) {
+    elements.hostDeleteLobbyBtn.addEventListener("click", () => {
+      console.log("Host: Delete Lobby button clicked.");
+      if (state.isCurrentUserHost && state.currentLobbyId) {
+        if (
+          confirm(
+            "Are you sure you want to delete this lobby? This cannot be undone."
+          )
+        ) {
+          sendMessageToServer({
+            action: "deleteLobby",
+            lobbyId: state.currentLobbyId,
+          });
+          // Don't navigate immediately, wait for confirmation or handle disconnect
+        }
+      } else {
+        console.warn(
+          "Delete button clicked but user is not host or lobbyId is missing."
+        );
+      }
+    });
+  } else {
+    console.warn("Host Delete Lobby Button not found during listener setup.");
+  }
+
+  if (elements.hostJoinSlotBtn) {
+    elements.hostJoinSlotBtn.addEventListener("click", () => {
+      console.log("Host: Join as Player button clicked.");
+      if (state.isCurrentUserHost && state.currentLobbyId) {
+        sendMessageToServer({
+          action: "hostJoinSlot",
+          lobbyId: state.currentLobbyId,
+        });
+      } else {
+        console.warn(
+          "Join slot button clicked but user is not host or lobbyId is missing."
+        );
+      }
+    });
+  } else {
+    console.warn("Host Join Slot Button not found during listener setup.");
+  }
+
+  if (elements.hostKickP1Btn) {
+    elements.hostKickP1Btn.addEventListener("click", () => {
+      console.log("Host: Kick P1 button clicked.");
+      if (state.isCurrentUserHost && state.currentLobbyId) {
+        if (
+          confirm(
+            `Are you sure you want to kick Player 1 (${
+              state.currentDraftState?.player1Name || "Unknown"
+            })?`
+          )
+        ) {
+          sendMessageToServer({
+            action: "kickPlayer",
+            lobbyId: state.currentLobbyId,
+            playerSlot: "P1", // Specify which player to kick
+          });
+        }
+      } else {
+        console.warn(
+          "Kick P1 button clicked but user is not host or lobbyId is missing."
+        );
+      }
+    });
+  } else {
+    console.warn("Host Kick P1 Button not found during listener setup.");
+  }
+
+  if (elements.hostKickP2Btn) {
+    elements.hostKickP2Btn.addEventListener("click", () => {
+      console.log("Host: Kick P2 button clicked.");
+      if (state.isCurrentUserHost && state.currentLobbyId) {
+        if (
+          confirm(
+            `Are you sure you want to kick Player 2 (${
+              state.currentDraftState?.player2Name || "Unknown"
+            })?`
+          )
+        ) {
+          sendMessageToServer({
+            action: "kickPlayer",
+            lobbyId: state.currentLobbyId,
+            playerSlot: "P2", // Specify which player to kick
+          });
+        }
+      } else {
+        console.warn(
+          "Kick P2 button clicked but user is not host or lobbyId is missing."
+        );
+      }
+    });
+  } else {
+    console.warn("Host Kick P2 Button not found during listener setup.");
+  }
+  // --- END HOST CONTROL LISTENERS ---
 
   // --- Show Initial Screen ---
   showScreen("welcome-screen");

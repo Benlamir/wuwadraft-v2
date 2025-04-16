@@ -16,6 +16,21 @@ import decimal
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# --- Helper Function (Decimal Encoder) ---
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            # Check if it's an integer stored as Decimal
+            if obj % 1 == 0:
+                return int(obj)
+            else:
+                # Keep precision for floats stored as Decimal
+                # Using str() preserves precision accurately
+                return str(obj)
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
+# --- END Helper Function ---
+
 # --- ADD HELPER FUNCTION FOR TURN LOGIC ---
 def determine_next_state(current_step_index):
     """Calculates the next phase, turn, and index based on the current step index."""
@@ -124,6 +139,77 @@ def send_message_to_client(apigw_client, connection_id, payload):
         logger.error(f"Failed to post message to connectionId {connection_id}: {str(e)}")
     return False
 
+# --- Helper Function to Broadcast Lobby State ---
+def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_connection_id=None):
+    """Fetches the latest lobby state and broadcasts it to all participants."""
+    try:
+        logger.info(f"Broadcasting state for lobby {lobby_id}. Last Action: {last_action}. Excluding: {exclude_connection_id}")
+        # Use ConsistentRead to get the absolute latest state
+        final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+        final_lobby_item = final_response.get('Item')
+
+        if not final_lobby_item:
+            logger.warning(f"Cannot broadcast state for lobby {lobby_id}, item not found (may have been deleted).")
+            return False # Cannot broadcast if lobby doesn't exist
+
+        # Construct the broadcast payload (ensure Decimal is handled for json.dumps)
+        # Convert Decimal types before creating the payload or use DecimalEncoder
+        state_payload = {
+            "type": "lobbyStateUpdate",
+            "lobbyId": lobby_id,
+            "hostName": final_lobby_item.get('hostName'),
+            "player1Name": final_lobby_item.get('player1Name'),
+            "player2Name": final_lobby_item.get('player2Name'),
+            "lobbyState": final_lobby_item.get('lobbyState'),
+            "player1Ready": final_lobby_item.get('player1Ready', False),
+            "player2Ready": final_lobby_item.get('player2Ready', False),
+            "currentPhase": final_lobby_item.get('currentPhase'),
+            "currentTurn": final_lobby_item.get('currentTurn'),
+            "bans": final_lobby_item.get('bans', []),
+            "player1Picks": final_lobby_item.get('player1Picks', []),
+            "player2Picks": final_lobby_item.get('player2Picks', []),
+            "availableResonators": final_lobby_item.get('availableResonators', []),
+            "turnExpiresAt": final_lobby_item.get('turnExpiresAt')
+            # currentStepIndex is removed - client doesn't need it
+        }
+        # Add lastAction if provided
+        if last_action:
+            state_payload["lastAction"] = last_action
+
+        # Use DecimalEncoder for safe JSON serialization
+        payload_json = json.dumps(state_payload, cls=DecimalEncoder)
+        logger.info(f"Constructed broadcast payload (JSON): {payload_json}")
+
+        # Get all participant connection IDs from the fetched item
+        participants = [
+            final_lobby_item.get('hostConnectionId'),
+            final_lobby_item.get('player1ConnectionId'),
+            final_lobby_item.get('player2ConnectionId')
+        ]
+        valid_connection_ids = [pid for pid in participants if pid]
+
+        # Send to all valid connections, optionally excluding one
+        failed_sends = []
+        success_count = 0
+        for recipient_id in valid_connection_ids:
+            if recipient_id == exclude_connection_id:
+                continue # Skip excluded connection
+            # Use the JSON string created with the encoder
+            if send_message_to_client(apigw_client, recipient_id, json.loads(payload_json)): # Send dict back to helper
+                 success_count += 1
+            else:
+                failed_sends.append(recipient_id)
+
+        if failed_sends:
+            logger.warning(f"Failed to send state update to some connections: {failed_sends}")
+
+        logger.info(f"Broadcast complete. Sent to {success_count} participant(s).")
+        return True # Indicate broadcast attempt was made
+
+    except Exception as broadcast_err:
+        logger.error(f"Error during broadcast_lobby_state for {lobby_id}: {str(broadcast_err)}", exc_info=True)
+        return False
+# --- End Helper Function ---
 
 def handler(event, context):
     # --- ADD THIS LINE AS THE VERY FIRST LINE OF THE HANDLER ---
@@ -796,9 +882,10 @@ def handler(event, context):
                 failed_sends = []
                 for recipient_id in valid_connection_ids:
                     if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
-                         failed_sends.append(recipient_id)
+                        failed_sends.append(recipient_id)
+                
                 if failed_sends:
-                     logger.warning(f"Failed to send state update to some connections: {failed_sends}")
+                    logger.warning(f"Failed to send state update to some connections: {failed_sends}")
 
             except Exception as broadcast_err:
                  logger.error(f"Error broadcasting lobby state update after ban for {lobby_id}: {str(broadcast_err)}")
@@ -1222,8 +1309,9 @@ def handler(event, context):
                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
                     logger.warning(f"Conditional check failed for lobby {lobby_id} during timeout update. State may have changed.")
                     return {'statusCode': 409, 'body': 'State changed during timeout processing.'}
-                logger.error(f"Failed to update lobby {lobby_id} after timeout (ClientError): {str(e)}")
-                return {'statusCode': 500, 'body': 'Failed to update lobby state after timeout.'}
+                else:
+                    logger.error(f"Failed to update lobby {lobby_id} after timeout (ClientError): {str(e)}")
+                    return {'statusCode': 500, 'body': 'Failed to update lobby state after timeout.'}
             except Exception as e:
                  logger.error(f"Unexpected error updating lobby {lobby_id} after timeout: {str(e)}")
                  return {'statusCode': 500, 'body': 'Internal server error during timeout update.'}
@@ -1291,6 +1379,393 @@ def handler(event, context):
             # send_message_to_client(apigw_management_client, connection_id, {"type": "pong"})
             return {'statusCode': 200, 'body': 'Pong.'}
         # --- END PING HANDLER ---
+
+        # --- NEW: leaveLobby Handler ---
+        elif action == 'leaveLobby':
+            logger.info(f"Processing 'leaveLobby' for connection {connection_id}")
+            lobby_id = message_data.get('lobbyId') # Client should send lobbyId
+            if not lobby_id:
+                 logger.warning(f"leaveLobby request from {connection_id} missing lobbyId.")
+                 # No need to send error, client is leaving anyway
+                 return {'statusCode': 400, 'body': 'Missing lobbyId.'}
+
+            try:
+                # Get lobby state
+                # Use ConsistentRead=True to get latest state before modifying
+                response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                lobby_item = response.get('Item')
+                if not lobby_item:
+                    logger.warning(f"Lobby {lobby_id} not found for leaving connection {connection_id}.")
+                    # If lobby not found, maybe just try cleaning up connection table?
+                    try:
+                        connections_table.update_item(Key={'connectionId': connection_id}, UpdateExpression="REMOVE currentLobbyId")
+                        logger.info(f"Cleaned up connection {connection_id} for non-existent lobby {lobby_id}.")
+                    except Exception as conn_clean_err:
+                         logger.error(f"Failed to cleanup connection {connection_id} for non-existent lobby {lobby_id}: {conn_clean_err}")
+                    return {'statusCode': 404, 'body': 'Lobby not found.'}
+
+                current_lobby_state = lobby_item.get('lobbyState', 'UNKNOWN')
+                player1_conn_id = lobby_item.get('player1ConnectionId')
+                player2_conn_id = lobby_item.get('player2ConnectionId')
+                host_conn_id = lobby_item.get('hostConnectionId') # Needed for broadcast exclusion
+
+                leaving_player_slot = None
+                leaving_player_name = "Unknown Player"
+                update_expressions = [] # Use list for expressions
+                remove_expressions = [] # Use list for REMOVE expressions
+                expression_values = {}
+                last_action_msg = None
+
+                # Determine which slot is leaving
+                if connection_id == player1_conn_id:
+                    leaving_player_slot = 'P1'
+                    leaving_player_name = lobby_item.get('player1Name', 'Player 1')
+                    remove_expressions.extend(["player1ConnectionId", "player1Name"])
+                    update_expressions.append("player1Ready = :falseVal")
+                    expression_values[':falseVal'] = False
+                elif connection_id == player2_conn_id:
+                    leaving_player_slot = 'P2'
+                    leaving_player_name = lobby_item.get('player2Name', 'Player 2')
+                    remove_expressions.extend(["player2ConnectionId", "player2Name"])
+                    update_expressions.append("player2Ready = :falseVal")
+                    expression_values[':falseVal'] = False
+                else:
+                    logger.warning(f"Connection {connection_id} tried to leave lobby {lobby_id} but is not P1 or P2.")
+                    # Handle host leaving later in disconnect handler if needed
+                    return {'statusCode': 200, 'body': 'Leave ignored (not P1 or P2).'}
+
+                # Reset logic based on lobby state
+                if current_lobby_state == 'DRAFTING':
+                    logger.info(f"Player {leaving_player_slot} leaving mid-draft. Resetting lobby {lobby_id} to WAITING.")
+                    last_action_msg = f"{leaving_player_name} left during the draft."
+                    update_expressions.extend([
+                        "lobbyState = :waitState",
+                        "player1Ready = :falseVal", # Ensure both are false again
+                        "player2Ready = :falseVal",
+                        "lastAction = :lastAct"
+                    ])
+                    remove_expressions.extend([ # Remove all draft-specific fields
+                        "currentPhase", "currentTurn", "currentStepIndex",
+                        "turnExpiresAt", "bans", "player1Picks",
+                        "player2Picks", "availableResonators"
+                    ])
+                    expression_values[':waitState'] = 'WAITING'
+                    expression_values[':falseVal'] = False # Already set but needed if only one SET was added above
+                    expression_values[':lastAct'] = last_action_msg
+
+                elif current_lobby_state == 'WAITING':
+                     logger.info(f"Player {leaving_player_slot} leaving in WAITING state.")
+                     last_action_msg = f"{leaving_player_name} left the lobby."
+                     update_expressions.append("lastAction = :lastAct")
+                     expression_values[':lastAct'] = last_action_msg
+                else: # E.g., DRAFT_COMPLETE or UNKNOWN
+                     logger.warning(f"Player {leaving_player_slot} leaving from state {current_lobby_state}")
+                     last_action_msg = f"{leaving_player_name} left."
+                     update_expressions.append("lastAction = :lastAct")
+                     expression_values[':lastAct'] = last_action_msg
+
+                # Construct final UpdateExpression
+                final_update_expr = ""
+                if update_expressions:
+                    final_update_expr += "SET " + ", ".join(update_expressions)
+                if remove_expressions:
+                    if final_update_expr: final_update_expr += " " # Add space if SET exists
+                    final_update_expr += "REMOVE " + ", ".join(remove_expressions)
+
+                # Update the Lobby Item if there are changes
+                if final_update_expr:
+                    logger.info(f"Updating lobby {lobby_id}. Update: {final_update_expr}, Values: {expression_values}")
+                    lobbies_table.update_item(
+                         Key={'lobbyId': lobby_id},
+                         UpdateExpression=final_update_expr,
+                         ExpressionAttributeValues=expression_values
+                         # No ConditionExpression needed here generally
+                    )
+                else:
+                    logger.warning(f"No update expression generated for leaveLobby in lobby {lobby_id}.")
+
+
+                # Update the leaving connection's item to remove lobby association
+                try:
+                     connections_table.update_item(
+                         Key={'connectionId': connection_id},
+                         UpdateExpression="REMOVE currentLobbyId"
+                     )
+                     logger.info(f"Removed currentLobbyId from connection {connection_id}")
+                except Exception as conn_update_err:
+                     logger.error(f"Failed to remove lobbyId from connection {connection_id}: {conn_update_err}")
+
+
+                # Broadcast the updated state to REMAINING participants
+                broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg, exclude_connection_id=connection_id)
+
+                return {'statusCode': 200, 'body': 'Player left successfully.'}
+
+            except Exception as e:
+                logger.error(f"Error processing leaveLobby for {connection_id} in lobby {lobby_id}: {str(e)}", exc_info=True)
+                # Don't try to send error to leaving client
+                return {'statusCode': 500, 'body': 'Failed to process leave request.'}
+        # --- END leaveLobby Handler ---
+
+        # --- NEW: deleteLobby Handler ---
+        elif action == 'deleteLobby':
+             logger.info(f"Processing 'deleteLobby' for connection {connection_id}")
+             lobby_id = message_data.get('lobbyId')
+             if not lobby_id:
+                 logger.warning(f"deleteLobby request from {connection_id} missing lobbyId.")
+                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby ID missing."})
+                 return {'statusCode': 400, 'body': 'Missing lobbyId.'}
+
+             try:
+                 # Get lobby to verify host and find participants
+                 # Use ConsistentRead=True to prevent deleting based on stale data
+                 response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                 lobby_item = response.get('Item')
+                 if not lobby_item:
+                     logger.warning(f"Lobby {lobby_id} not found for deletion attempt by {connection_id}.")
+                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby already deleted or not found."})
+                     return {'statusCode': 404, 'body': 'Lobby not found.'}
+
+                 # Verify requester is the host
+                 host_connection_id = lobby_item.get('hostConnectionId')
+                 if connection_id != host_connection_id:
+                     logger.warning(f"Unauthorized delete attempt on lobby {lobby_id} by {connection_id} (Host is {host_connection_id}).")
+                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can delete the lobby."})
+                     return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
+
+                 # Find participants BEFORE deleting lobby
+                 participants = [
+                     lobby_item.get('hostConnectionId'),
+                     lobby_item.get('player1ConnectionId'),
+                     lobby_item.get('player2ConnectionId')
+                 ]
+                 valid_connection_ids = [pid for pid in participants if pid]
+
+                 # Delete the lobby item
+                 logger.info(f"Host {connection_id} deleting lobby {lobby_id}.")
+                 lobbies_table.delete_item(Key={'lobbyId': lobby_id})
+                 logger.info(f"Lobby {lobby_id} deleted successfully.")
+
+                 # Notify participants and cleanup connections table
+                 delete_notification = {"type": "lobbyDeleted", "reason": "Lobby deleted by host."}
+                 for pid in valid_connection_ids:
+                     logger.info(f"Notifying & cleaning up connection {pid} for deleted lobby {lobby_id}.")
+                     if pid != connection_id: # Don't notify host they deleted it
+                        send_message_to_client(apigw_management_client, pid, delete_notification)
+                     # Cleanup connection entry (best effort)
+                     try:
+                         connections_table.update_item(
+                             Key={'connectionId': pid},
+                             UpdateExpression="REMOVE currentLobbyId"
+                         )
+                     except Exception as conn_clean_err:
+                         logger.error(f"Failed to cleanup connection {pid} after lobby deletion: {conn_clean_err}")
+
+                 return {'statusCode': 200, 'body': 'Lobby deleted successfully.'}
+
+             except Exception as e:
+                 logger.error(f"Error processing deleteLobby for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
+                 # Avoid sending error if delete succeeded but notification failed
+                 # Check if item still exists to determine error type? More complex.
+                 # For now, send generic error to host.
+                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to delete lobby: {str(e)}"})
+                 return {'statusCode': 500, 'body': 'Failed to delete lobby.'}
+        # --- END deleteLobby Handler ---
+
+        # --- NEW: kickPlayer Handler ---
+        elif action == 'kickPlayer':
+            logger.info(f"Processing 'kickPlayer' from connection {connection_id}")
+            lobby_id = message_data.get('lobbyId')
+            player_slot_to_kick = message_data.get('playerSlot') # 'P1' or 'P2'
+
+            if not lobby_id or not player_slot_to_kick or player_slot_to_kick not in ['P1', 'P2']:
+                logger.warning(f"kickPlayer request from {connection_id} missing lobbyId or valid playerSlot.")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Missing lobbyId or valid playerSlot ('P1' or 'P2')."})
+                return {'statusCode': 400, 'body': 'Missing lobbyId or valid playerSlot.'}
+
+            try:
+                # Get lobby item (ConsistentRead recommended)
+                response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                lobby_item = response.get('Item')
+                if not lobby_item:
+                    logger.warning(f"Lobby {lobby_id} not found for kick attempt by {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby not found."})
+                    return {'statusCode': 404, 'body': 'Lobby not found.'}
+
+                # Verify requester is the host
+                host_connection_id = lobby_item.get('hostConnectionId')
+                if connection_id != host_connection_id:
+                    logger.warning(f"Unauthorized kick attempt on lobby {lobby_id} by non-host {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can kick players."})
+                    return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
+
+                # Get target player info
+                target_conn_id_key = f"player{player_slot_to_kick[1]}ConnectionId" # player1ConnectionId or player2ConnectionId
+                target_name_key = f"player{player_slot_to_kick[1]}Name"
+                target_ready_key = f"player{player_slot_to_kick[1]}Ready"
+                kicked_connection_id = lobby_item.get(target_conn_id_key)
+                kicked_player_name = lobby_item.get(target_name_key, player_slot_to_kick) # Default name if missing
+
+                if not kicked_connection_id:
+                    logger.warning(f"Host {connection_id} tried to kick {player_slot_to_kick} from lobby {lobby_id}, but slot is empty.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Player slot {player_slot_to_kick} is already empty."})
+                    return {'statusCode': 400, 'body': 'Player slot already empty.'}
+
+                # Prevent host kicking self if they joined as player
+                if kicked_connection_id == host_connection_id:
+                     logger.warning(f"Host {connection_id} tried to kick themselves from slot {player_slot_to_kick} in lobby {lobby_id}.")
+                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Host cannot kick themselves."})
+                     return {'statusCode': 400, 'body': 'Host cannot kick self.'}
+
+
+                # Update lobby item to remove the player
+                logger.info(f"Host {connection_id} kicking {player_slot_to_kick} ({kicked_player_name}, {kicked_connection_id}) from lobby {lobby_id}.")
+                last_action_msg = f"Host kicked {kicked_player_name}."
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    # Use REMOVE for nullable fields, SET ready to False, add lastAction
+                    UpdateExpression=f"REMOVE {target_conn_id_key}, {target_name_key} SET {target_ready_key} = :falseVal, lastAction = :lastAct",
+                    ExpressionAttributeValues={
+                        ':falseVal': False,
+                         ':lastAct': last_action_msg,
+                         ':kick_conn_id': kicked_connection_id
+                    },
+                    ConditionExpression=f"attribute_exists({target_conn_id_key}) AND {target_conn_id_key} = :kick_conn_id" # Ensure correct player is kicked
+                )
+
+                # Notify the kicked player
+                kick_notification = {"type": "kicked", "reason": "Kicked from lobby by host."}
+                send_message_to_client(apigw_management_client, kicked_connection_id, kick_notification)
+
+                # Cleanup kicked player's connection item
+                try:
+                    connections_table.update_item(
+                        Key={'connectionId': kicked_connection_id},
+                        UpdateExpression="REMOVE currentLobbyId"
+                    )
+                    logger.info(f"Removed currentLobbyId from kicked connection {kicked_connection_id}")
+                except Exception as conn_clean_err:
+                    logger.error(f"Failed to cleanup connection {kicked_connection_id} after kick: {conn_clean_err}")
+
+                # Broadcast updated state to remaining participants (Host and potentially other player)
+                broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg, exclude_connection_id=kicked_connection_id)
+
+                return {'statusCode': 200, 'body': 'Player kicked successfully.'}
+
+            except ClientError as e:
+                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                     logger.warning(f"Conditional check failed for kickPlayer in lobby {lobby_id}. Player may have already left or changed.")
+                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Failed to kick player, slot may have changed."})
+                     # Broadcast maybe?
+                     broadcast_lobby_state(lobby_id, apigw_management_client) # Broadcast current state
+                     return {'statusCode': 409, 'body': 'Conflict, player slot changed.'}
+                 else:
+                      logger.error(f"Error processing kickPlayer for {connection_id} on lobby {lobby_id} (ClientError): {str(e)}", exc_info=True)
+                      send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to kick player: {str(e)}"})
+                      return {'statusCode': 500, 'body': 'Failed to kick player.'}
+            except Exception as e:
+                 logger.error(f"Error processing kickPlayer for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
+                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to kick player: {str(e)}"})
+                 return {'statusCode': 500, 'body': 'Failed to kick player.'}
+        # --- END kickPlayer Handler ---
+
+        # --- NEW: hostJoinSlot Handler ---
+        elif action == 'hostJoinSlot':
+            logger.info(f"Processing 'hostJoinSlot' for connection {connection_id}")
+            lobby_id = message_data.get('lobbyId')
+            if not lobby_id:
+                 logger.warning(f"hostJoinSlot request from {connection_id} missing lobbyId.")
+                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby ID missing."})
+                 return {'statusCode': 400, 'body': 'Missing lobbyId.'}
+
+            try:
+                 # Get lobby item
+                 # Use ConsistentRead to ensure we see the latest slot status
+                 response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                 lobby_item = response.get('Item')
+                 if not lobby_item:
+                     logger.warning(f"Lobby {lobby_id} not found for host join attempt by {connection_id}.")
+                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby not found."})
+                     return {'statusCode': 404, 'body': 'Lobby not found.'}
+
+                 # Verify requester is the host
+                 host_connection_id = lobby_item.get('hostConnectionId')
+                 host_name = lobby_item.get('hostName', 'Host')
+                 if connection_id != host_connection_id:
+                     logger.warning(f"Unauthorized hostJoinSlot attempt on lobby {lobby_id} by non-host {connection_id}.")
+                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can use this action."})
+                     return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
+
+                 # Check if host is already P1 or P2
+                 if lobby_item.get('player1ConnectionId') == host_connection_id or lobby_item.get('player2ConnectionId') == host_connection_id:
+                     logger.info(f"Host {connection_id} already in a player slot for lobby {lobby_id}.")
+                     send_message_to_client(apigw_management_client, connection_id, {"type": "info", "message": "You are already assigned to a player slot."})
+                     return {'statusCode': 200, 'body': 'Host already in slot.'}
+
+
+                 # Find first available slot and prepare update
+                 assigned_slot_num = None # 1 or 2
+                 update_expression = None
+                 expression_values = {
+                     ':hostConnId': host_connection_id,
+                     ':hostName': host_name,
+                      ':falseVal': False # Set ready status to False initially
+                 }
+                 condition_expression = None
+
+
+                 if lobby_item.get('player1ConnectionId') is None:
+                     assigned_slot_num = 1
+                     update_expression = "SET player1ConnectionId = :hostConnId, player1Name = :hostName, player1Ready = :falseVal, lastAction = :lastAct"
+                     condition_expression = "attribute_not_exists(player1ConnectionId)" # Ensure slot is still free
+                     expression_values[':lastAct'] = f"{host_name} (Host) joined as Player 1."
+                 elif lobby_item.get('player2ConnectionId') is None:
+                     assigned_slot_num = 2
+                     update_expression = "SET player2ConnectionId = :hostConnId, player2Name = :hostName, player2Ready = :falseVal, lastAction = :lastAct"
+                     condition_expression = "attribute_not_exists(player2ConnectionId)" # Ensure slot is still free
+                     expression_values[':lastAct'] = f"{host_name} (Host) joined as Player 2."
+                 else:
+                     logger.warning(f"Host {connection_id} tried to join lobby {lobby_id}, but both slots are full.")
+                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby is full, cannot join as player."})
+                     return {'statusCode': 400, 'body': 'Lobby is full.'}
+
+                 assigned_slot_str = f"P{assigned_slot_num}"
+                 last_action_msg = expression_values[':lastAct']
+                 logger.info(f"Host {connection_id} attempting to join slot {assigned_slot_str} in lobby {lobby_id}.")
+
+
+                 # Attempt to update the lobby item conditionally
+                 lobbies_table.update_item(
+                     Key={'lobbyId': lobby_id},
+                     UpdateExpression=update_expression,
+                     ConditionExpression=condition_expression,
+                     ExpressionAttributeValues=expression_values
+                 )
+                 logger.info(f"Host {connection_id} successfully joined slot {assigned_slot_str} in lobby {lobby_id}.")
+
+                 # No need to update connections table, host retains host identity
+
+                 # Broadcast updated state to all participants
+                 broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg)
+
+                 return {'statusCode': 200, 'body': 'Host joined slot successfully.'}
+
+            except ClientError as e:
+                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                     logger.warning(f"Conditional check failed for hostJoinSlot in lobby {lobby_id}. Slot likely taken.")
+                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Failed to join slot, it may have been taken simultaneously."})
+                     broadcast_lobby_state(lobby_id, apigw_management_client) # Broadcast current state so host sees who joined
+                     return {'statusCode': 409, 'body': 'Conflict, slot taken.'}
+                 else:
+                      logger.error(f"Error processing hostJoinSlot for {connection_id} on lobby {lobby_id} (ClientError): {str(e)}", exc_info=True)
+                      send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to join slot: {str(e)}"})
+                      return {'statusCode': 500, 'body': 'Failed to join slot.'}
+            except Exception as e:
+                 logger.error(f"Error processing hostJoinSlot for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
+                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to join slot: {str(e)}"})
+                 return {'statusCode': 500, 'body': 'Failed to join slot.'}
+        # --- END hostJoinSlot Handler ---
+
         else:
             # Unknown action - echo back or send error/info
             logger.info(f"Received unknown action '{action}' or no action from {connection_id}. Echoing.")

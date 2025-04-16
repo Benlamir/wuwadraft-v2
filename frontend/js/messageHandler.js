@@ -9,14 +9,15 @@ import {
 } from "./uiViews.js";
 
 export function handleWebSocketMessage(jsonData) {
-  console.log("MessageHandler: Received data:", jsonData);
+  console.log("MH_TRACE: handleWebSocketMessage START");
+  console.log("MH_TRACE: Raw data:", jsonData);
   try {
     const message = JSON.parse(jsonData);
-    console.log("MessageHandler: Parsed message:", message);
+    console.log("MH_TRACE: Parsed message:", message);
 
     switch (message.type) {
       case "lobbyCreated":
-        console.log("MessageHandler: Processing lobbyCreated");
+        console.log("MH_TRACE: Case lobbyCreated");
         state.setLobbyInfo(message.lobbyId, message.isHost);
         // Need username from create action, maybe store globally in main.js first?
         // state.setUserName(???)
@@ -34,22 +35,21 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       case "lobbyJoined":
-        console.log("MessageHandler: Processing lobbyJoined");
-        state.setLobbyInfo(message.lobbyId, message.isHost);
-        state.setAssignedSlot(message.assignedSlot);
-        // Username was set when user clicked Join in main.js
-        // We need the full state to display correctly, wait for lobbyStateUpdate
-        // updateLobbyWaitScreenUI(... need full state ...); // Or just show basic joined message?
-        showScreen("lobby-wait-screen"); // Navigate first
-        // Expecting a lobbyStateUpdate immediately after this to populate fully
+        console.log("MH_TRACE: Case lobbyJoined");
+        state.setLobbyInfo(
+          message.lobbyId,
+          message.isHost,
+          message.assignedSlot
+        ); // Use setLobbyInfo which also sets slot
+        console.log(
+          "MH_TRACE: After setLobbyInfo, myAssignedSlot=",
+          state.myAssignedSlot
+        );
+        showScreen("lobby-wait-screen");
         break;
 
       case "lobbyStateUpdate":
-        console.log(
-          "MessageHandler DEBUG: Received lobbyStateUpdate:",
-          message
-        );
-
+        console.log("MH_TRACE: Case lobbyStateUpdate");
         // Update internal state first
         state.setCurrentDraftState(message);
         if (message.hasOwnProperty("currentPhase")) {
@@ -109,6 +109,7 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       case "error":
+        console.log("MH_TRACE: Case error");
         console.error("MessageHandler: Server error:", message.message);
         alert(`Server Error: ${message.message}`); // Show error to user
         // Decide where to navigate user on error? Back to welcome?
@@ -116,17 +117,17 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       case "echo":
+        console.log("MH_TRACE: Case echo");
         console.log("MessageHandler: Echo:", message.received_message);
         break;
 
       default:
+        console.log("MH_TRACE: Case default");
         console.log("MessageHandler: Unknown message type:", message.type);
     }
   } catch (error) {
-    console.error(
-      "MessageHandler: Error parsing message JSON or processing message:",
-      error
-    );
-    console.error("Received data that caused error:", jsonData);
+    console.error("MH_TRACE: ERROR in handleWebSocketMessage:", error);
+    console.error("MH_TRACE: Received data that caused error:", jsonData);
   }
+  console.log("MH_TRACE: handleWebSocketMessage END");
 }
