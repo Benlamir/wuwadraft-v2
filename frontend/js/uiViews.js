@@ -4,6 +4,22 @@ import * as state from "./state.js"; // Use state variables
 import { sendMessageToServer } from "./websocket.js"; // Import function to send messages
 import { ALL_RESONATORS_DATA } from "./resonatorData.js";
 
+// --- ADD HELPER FUNCTION ---
+// Helper function to toggle visibility using Bootstrap's d-none class
+function toggleElementVisibility(element, show) {
+  if (element) {
+    if (show) {
+      element.classList.remove("d-none");
+    } else {
+      element.classList.add("d-none");
+    }
+  } else {
+    // Optional: Log if the element wasn't found during initialization
+    // console.warn("Attempted to toggle visibility on a non-existent element.");
+  }
+}
+// --- END HELPER FUNCTION ---
+
 // --- Screen Navigation ---
 export function showScreen(screenIdToShow) {
   if (!elements.screensNodeList) {
@@ -73,7 +89,9 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   if (elements.player2NameDisplay)
     elements.player2NameDisplay.textContent = p2Name || "Waiting...";
 
+  // Add "(You)" or "(Host)" - Refined logic
   if (state.isCurrentUserHost && elements.hostNameDisplay) {
+    // If host is ALSO a player, the (You) suffix takes precedence below
     if (state.myAssignedSlot !== "P1" && state.myAssignedSlot !== "P2") {
       elements.hostNameDisplay.textContent += " (Host)";
     }
@@ -115,10 +133,12 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
   // --- Update Lobby Status Text (Including lastAction) ---
   if (elements.lobbyStatusDisplay) {
+    // Prioritize showing the lastAction message if it exists
     if (lobbyStateData.lastAction) {
       elements.lobbyStatusDisplay.textContent = lobbyStateData.lastAction;
-      elements.lobbyStatusDisplay.classList.add("text-info");
+      elements.lobbyStatusDisplay.classList.add("text-info"); // Optional: Style the message
     } else {
+      // Otherwise show lobby state or default message
       let statusText = lobbyStateData.lobbyState || "WAITING";
       if (statusText === "WAITING" && (!p1Name || !p2Name)) {
         statusText = "Waiting for players...";
@@ -130,53 +150,64 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
     }
   }
 
-  // --- Update Button Visibility/State using direct style.display ---
-  const isHost = state.isCurrentUserHost;
-  const mySlot = state.myAssignedSlot;
+  // --- TEMP DEBUG 2 for Ready Buttons (Direct Style) ---
+  console.log(
+    `DEBUG Ready Check 2: mySlot=${state.myAssignedSlot}, P1 Ready=${lobbyStateData.player1Ready}, P2 Ready=${lobbyStateData.player2Ready}`
+  );
 
-  // Player Ready Buttons
+  // Handle P1 Button
   if (elements.player1ReadyBtn) {
-    const shouldShowP1Ready =
-      mySlot === "P1" && lobbyStateData.player1Ready !== true;
-    elements.player1ReadyBtn.style.display = shouldShowP1Ready
-      ? "inline-block"
-      : "none";
-    elements.player1ReadyBtn.disabled = !shouldShowP1Ready;
+    if (state.myAssignedSlot === "P1" && lobbyStateData.player1Ready !== true) {
+      console.log("DEBUG P1 Button 2: Setting display = inline-block");
+      elements.player1ReadyBtn.style.display = "inline-block"; // FORCE SHOW
+      elements.player1ReadyBtn.disabled = false;
+    } else {
+      console.log("DEBUG P1 Button 2: Setting display = none");
+      elements.player1ReadyBtn.style.display = "none"; // FORCE HIDE
+      elements.player1ReadyBtn.disabled = true;
+    }
+  } else {
+    console.warn("DEBUG: P1 Ready button element is null!");
   }
+
+  // Handle P2 Button
   if (elements.player2ReadyBtn) {
-    const shouldShowP2Ready =
-      mySlot === "P2" && lobbyStateData.player2Ready !== true;
-    elements.player2ReadyBtn.style.display = shouldShowP2Ready
-      ? "inline-block"
-      : "none";
-    elements.player2ReadyBtn.disabled = !shouldShowP2Ready;
+    if (state.myAssignedSlot === "P2" && lobbyStateData.player2Ready !== true) {
+      console.log("DEBUG P2 Button 2: Setting display = inline-block");
+      elements.player2ReadyBtn.style.display = "inline-block"; // FORCE SHOW
+      elements.player2ReadyBtn.disabled = false;
+    } else {
+      console.log("DEBUG P2 Button 2: Setting display = none");
+      elements.player2ReadyBtn.style.display = "none"; // FORCE HIDE
+      elements.player2ReadyBtn.disabled = true;
+    }
+  } else {
+    console.warn("DEBUG: P2 Ready button element is null!");
   }
+  // --- END TEMP DEBUG 2 ---
 
-  // Player Back Button
-  if (elements.lobbyBackBtn) {
-    elements.lobbyBackBtn.style.display = !isHost ? "inline-block" : "none";
-  }
+  console.log("DEBUG: isCurrentUserHost =", state.isCurrentUserHost);
+  console.log("DEBUG: myAssignedSlot =", state.myAssignedSlot);
+  // --- Show/Hide Host/Player Controls ---
+  const isHost = state.isCurrentUserHost;
 
-  // Host Controls
-  if (elements.hostDeleteLobbyBtn) {
-    elements.hostDeleteLobbyBtn.style.display = isHost
-      ? "inline-block"
-      : "none";
-  }
-  if (elements.hostJoinSlotBtn) {
-    const canHostJoin = isHost && (!p1Name || !p2Name);
-    elements.hostJoinSlotBtn.style.display = canHostJoin
-      ? "inline-block"
-      : "none";
-  }
-  if (elements.hostKickP1Btn) {
-    const showKickP1 = isHost && !!p1Name;
-    elements.hostKickP1Btn.style.display = showKickP1 ? "inline-block" : "none";
-  }
-  if (elements.hostKickP2Btn) {
-    const showKickP2 = isHost && !!p2Name;
-    elements.hostKickP2Btn.style.display = showKickP2 ? "inline-block" : "none";
-  }
+  // Player "Back to Welcome" button
+  toggleElementVisibility(elements.lobbyBackBtn, !isHost);
+
+  // Host "Delete Lobby" button
+  toggleElementVisibility(elements.hostDeleteLobbyBtn, isHost);
+
+  // Host "Join as Player" button - Show if host AND at least one slot is free
+  const canHostJoin = isHost && (!p1Name || !p2Name);
+  toggleElementVisibility(elements.hostJoinSlotBtn, canHostJoin);
+
+  // Host "Kick P1" button - Show if host AND P1 slot is filled
+  const showKickP1 = isHost && !!p1Name; // Use !! to convert name to boolean
+  toggleElementVisibility(elements.hostKickP1Btn, showKickP1);
+
+  // Host "Kick P2" button - Show if host AND P2 slot is filled
+  const showKickP2 = isHost && !!p2Name; // Use !! to convert name to boolean
+  toggleElementVisibility(elements.hostKickP2Btn, showKickP2);
 }
 
 // --- ADD HELPER FUNCTION ---
@@ -273,6 +304,9 @@ function updateBanSlots(draftState) {
 // --- ADD TIMER DISPLAY FUNCTIONS ---
 
 export function stopTimerDisplay() {
+  //console.log(
+  //  `UI DEBUG: stopTimerDisplay START. Current state interval ID: ${state.timerIntervalId}`
+  //);
   // Call the state function which now handles both clearing and nulling
   state.clearTimerInterval();
 
@@ -280,6 +314,7 @@ export function stopTimerDisplay() {
   if (elements.draftTimer) {
     elements.draftTimer.textContent = "Time Remaining: --:--";
     elements.draftTimer.classList.remove("text-danger", "fw-bold");
+    // console.log("UI DEBUG: stopTimerDisplay reset timer text.");
   }
 }
 
@@ -381,22 +416,43 @@ function updateCountdown(expiryTime, intervalId) {
 
 // This function starts a new timer cycle
 export function startOrUpdateTimerDisplay() {
+  //console.log("UI DEBUG: startOrUpdateTimerDisplay START.");
   stopTimerDisplay(); // Ensure previous timer is stopped & state ID is nulled
 
+  //console.log(
+  //  `UI DEBUG: Reading state.currentTurnExpiresAt: ${state.currentTurnExpiresAt}`
+  //);
+
   if (!state.currentTurnExpiresAt) {
+    //console.log("UI DEBUG: No expiry time set in state, timer not starting.");
     return;
   }
 
   try {
     const expiryTimestamp = new Date(state.currentTurnExpiresAt).getTime();
+    //console.log(
+    //  `UI DEBUG: Parsed expiryTimestamp: ${expiryTimestamp} (isNaN: ${isNaN(
+    //    expiryTimestamp
+    //  )})`
+    //);
 
     if (isNaN(expiryTimestamp)) {
+      //console.error(
+      //  "UI DEBUG: Invalid expiry timestamp received from state:",
+      //  state.currentTurnExpiresAt
+      //);
       return;
     }
 
     const now = Date.now();
+    //console.log(
+    //  `UI DEBUG: Comparing expiry ${expiryTimestamp} with now ${now}`
+    //);
 
     if (expiryTimestamp <= now) {
+      //console.log(
+      //  "UI DEBUG: Expiry time is in the past. Setting timer to 00:00."
+      //);
       if (elements.draftTimer) {
         elements.draftTimer.textContent = "Time Remaining: 00:00";
         elements.draftTimer.classList.add("text-danger", "fw-bold");
@@ -404,15 +460,25 @@ export function startOrUpdateTimerDisplay() {
       return;
     }
 
+    //console.log(`UI DEBUG: Starting new timer interval...`);
+
     const newIntervalId = setInterval(() => {
       // Pass expiryTimestamp (parsed time) and newIntervalId
       updateCountdown(expiryTimestamp, newIntervalId);
     }, 1000);
 
+    //console.log(
+    //  `UI DEBUG: New interval created with ID: ${newIntervalId}. Storing in state via function.`
+    //);
     state.setTimerIntervalId(newIntervalId); // Call the function in state.js instead
 
+    //console.log(
+    //  `UI DEBUG: Calling updateCountdown immediately once for ID ${newIntervalId}.`
+    //);
     updateCountdown(expiryTimestamp, newIntervalId); // Run immediately
   } catch (e) {
+    // Log the error WITH the stack trace
+    //console.error("UI DEBUG: Error during timer start:", e);
     stopTimerDisplay();
   }
 }
@@ -421,7 +487,11 @@ export function startOrUpdateTimerDisplay() {
 
 // --- MODIFY updateDraftScreenUI FUNCTION ---
 export function updateDraftScreenUI(draftState) {
+  //console.log("UI: Updating draft screen UI with state:", draftState);
   if (!elements || !elements.draftScreen) {
+    //console.error(
+    //  "UI Update Error: elements object or draftScreen element not initialized!"
+    //);
     return;
   }
 
@@ -443,10 +513,16 @@ export function updateDraftScreenUI(draftState) {
     if (elements.characterGridContainer) {
       elements.characterGridContainer.innerHTML =
         '<p class="text-center text-muted fst-italic mt-4">-- Draft Finished --</p>'; // Replace grid content
+      // OR disable all buttons within it if preferred
+      // const allButtons = elements.characterGridContainer.querySelectorAll('button');
+      // allButtons.forEach(btn => btn.disabled = true);
     }
     // Optionally hide filter controls
     const filterControls = document.getElementById("draft-filter-controls");
     if (filterControls) filterControls.style.display = "none";
+
+    // Optionally add a 'Back to Lobby/Welcome' button or message here
+    // (Requires further logic)
 
     stopTimerDisplay(); // Explicitly stop timer on completion
     return; // Stop further UI updates for active turn display etc.
@@ -479,6 +555,9 @@ export function updateDraftScreenUI(draftState) {
   if (elements.draftP2Name) {
     elements.draftP2Name.textContent = draftState.player2Name || "[P2 Name]";
   }
+
+  // Update Timer (Keep placeholder)
+  // if (elements.draftTimer) { ... }
 
   // Update Pick and Ban Slots (Keep)
   updatePickSlots(draftState);
