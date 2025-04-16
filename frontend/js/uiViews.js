@@ -68,6 +68,16 @@ export function showScreen(screenIdToShow) {
 export function updateLobbyWaitScreenUI(lobbyStateData) {
   console.log("UI: Updating lobby wait screen", lobbyStateData);
 
+  // --- DEBUG: Verify all button elements exist ---
+  console.log("DEBUG: Verifying button elements...");
+  console.log("player1ReadyBtn exists:", !!elements.player1ReadyBtn);
+  console.log("player2ReadyBtn exists:", !!elements.player2ReadyBtn);
+  console.log("lobbyBackBtn exists:", !!elements.lobbyBackBtn);
+  console.log("hostDeleteLobbyBtn exists:", !!elements.hostDeleteLobbyBtn);
+  console.log("hostJoinSlotBtn exists:", !!elements.hostJoinSlotBtn);
+  console.log("hostKickP1Btn exists:", !!elements.hostKickP1Btn);
+  console.log("hostKickP2Btn exists:", !!elements.hostKickP2Btn);
+
   // --- Update Lobby ID Display ---
   if (elements.lobbyIdDisplay) {
     elements.lobbyIdDisplay.textContent = "••••••••"; // Keep it masked initially on updates
@@ -89,9 +99,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   if (elements.player2NameDisplay)
     elements.player2NameDisplay.textContent = p2Name || "Waiting...";
 
-  // Add "(You)" or "(Host)" - Refined logic
   if (state.isCurrentUserHost && elements.hostNameDisplay) {
-    // If host is ALSO a player, the (You) suffix takes precedence below
     if (state.myAssignedSlot !== "P1" && state.myAssignedSlot !== "P2") {
       elements.hostNameDisplay.textContent += " (Host)";
     }
@@ -133,12 +141,10 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
   // --- Update Lobby Status Text (Including lastAction) ---
   if (elements.lobbyStatusDisplay) {
-    // Prioritize showing the lastAction message if it exists
     if (lobbyStateData.lastAction) {
       elements.lobbyStatusDisplay.textContent = lobbyStateData.lastAction;
-      elements.lobbyStatusDisplay.classList.add("text-info"); // Optional: Style the message
+      elements.lobbyStatusDisplay.classList.add("text-info");
     } else {
-      // Otherwise show lobby state or default message
       let statusText = lobbyStateData.lobbyState || "WAITING";
       if (statusText === "WAITING" && (!p1Name || !p2Name)) {
         statusText = "Waiting for players...";
@@ -150,64 +156,99 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
     }
   }
 
-  // --- TEMP DEBUG 2 for Ready Buttons (Direct Style) ---
+  // --- DEBUG: Log current state ---
   console.log(
-    `DEBUG Ready Check 2: mySlot=${state.myAssignedSlot}, P1 Ready=${lobbyStateData.player1Ready}, P2 Ready=${lobbyStateData.player2Ready}`
+    `DEBUG Ready Check: mySlot=${state.myAssignedSlot}, P1 Ready=${lobbyStateData.player1Ready}, P2 Ready=${lobbyStateData.player2Ready}`
   );
-
-  // Handle P1 Button
-  if (elements.player1ReadyBtn) {
-    if (state.myAssignedSlot === "P1" && lobbyStateData.player1Ready !== true) {
-      console.log("DEBUG P1 Button 2: Setting display = inline-block");
-      elements.player1ReadyBtn.style.display = "inline-block"; // FORCE SHOW
-      elements.player1ReadyBtn.disabled = false;
-    } else {
-      console.log("DEBUG P1 Button 2: Setting display = none");
-      elements.player1ReadyBtn.style.display = "none"; // FORCE HIDE
-      elements.player1ReadyBtn.disabled = true;
-    }
-  } else {
-    console.warn("DEBUG: P1 Ready button element is null!");
-  }
-
-  // Handle P2 Button
-  if (elements.player2ReadyBtn) {
-    if (state.myAssignedSlot === "P2" && lobbyStateData.player2Ready !== true) {
-      console.log("DEBUG P2 Button 2: Setting display = inline-block");
-      elements.player2ReadyBtn.style.display = "inline-block"; // FORCE SHOW
-      elements.player2ReadyBtn.disabled = false;
-    } else {
-      console.log("DEBUG P2 Button 2: Setting display = none");
-      elements.player2ReadyBtn.style.display = "none"; // FORCE HIDE
-      elements.player2ReadyBtn.disabled = true;
-    }
-  } else {
-    console.warn("DEBUG: P2 Ready button element is null!");
-  }
-  // --- END TEMP DEBUG 2 ---
-
   console.log("DEBUG: isCurrentUserHost =", state.isCurrentUserHost);
-  console.log("DEBUG: myAssignedSlot =", state.myAssignedSlot);
-  // --- Show/Hide Host/Player Controls ---
+
+  // --- Update Button Visibility/State ---
   const isHost = state.isCurrentUserHost;
+  const mySlot = state.myAssignedSlot;
 
-  // Player "Back to Welcome" button
-  toggleElementVisibility(elements.lobbyBackBtn, !isHost);
+  // Player Ready Buttons - Use toggleElementVisibility
+  if (elements.player1ReadyBtn) {
+    const shouldShowP1Ready =
+      mySlot === "P1" && lobbyStateData.player1Ready !== true;
+    console.log("DEBUG P1 Button: Setting visibility =", shouldShowP1Ready);
+    toggleElementVisibility(elements.player1ReadyBtn, shouldShowP1Ready);
+    elements.player1ReadyBtn.disabled = !shouldShowP1Ready;
+  }
 
-  // Host "Delete Lobby" button
-  toggleElementVisibility(elements.hostDeleteLobbyBtn, isHost);
+  if (elements.player2ReadyBtn) {
+    const shouldShowP2Ready =
+      mySlot === "P2" && lobbyStateData.player2Ready !== true;
+    console.log("DEBUG P2 Button: Setting visibility =", shouldShowP2Ready);
+    toggleElementVisibility(elements.player2ReadyBtn, shouldShowP2Ready);
+    elements.player2ReadyBtn.disabled = !shouldShowP2Ready;
+  }
 
-  // Host "Join as Player" button - Show if host AND at least one slot is free
-  const canHostJoin = isHost && (!p1Name || !p2Name);
-  toggleElementVisibility(elements.hostJoinSlotBtn, canHostJoin);
+  // Player Back Button - Use toggleElementVisibility
+  if (elements.lobbyBackBtn) {
+    const shouldShowBackBtn = !isHost;
+    console.log("DEBUG Back Button: Setting visibility =", shouldShowBackBtn);
+    toggleElementVisibility(elements.lobbyBackBtn, shouldShowBackBtn);
+  }
 
-  // Host "Kick P1" button - Show if host AND P1 slot is filled
-  const showKickP1 = isHost && !!p1Name; // Use !! to convert name to boolean
-  toggleElementVisibility(elements.hostKickP1Btn, showKickP1);
+  // Host Controls - Keep direct style manipulation
+  if (elements.hostDeleteLobbyBtn) {
+    console.log(
+      "DEBUG Delete Button: Setting display =",
+      isHost ? "inline-block" : "none"
+    );
+    elements.hostDeleteLobbyBtn.style.display = isHost
+      ? "inline-block"
+      : "none";
+    if (isHost) {
+      elements.hostDeleteLobbyBtn.classList.remove("d-none");
+    } else {
+      elements.hostDeleteLobbyBtn.classList.add("d-none");
+    }
+  }
 
-  // Host "Kick P2" button - Show if host AND P2 slot is filled
-  const showKickP2 = isHost && !!p2Name; // Use !! to convert name to boolean
-  toggleElementVisibility(elements.hostKickP2Btn, showKickP2);
+  if (elements.hostJoinSlotBtn) {
+    const canHostJoin = isHost && (!p1Name || !p2Name);
+    console.log(
+      "DEBUG Join Button: Setting display =",
+      canHostJoin ? "inline-block" : "none"
+    );
+    elements.hostJoinSlotBtn.style.display = canHostJoin
+      ? "inline-block"
+      : "none";
+    if (canHostJoin) {
+      elements.hostJoinSlotBtn.classList.remove("d-none");
+    } else {
+      elements.hostJoinSlotBtn.classList.add("d-none");
+    }
+  }
+
+  if (elements.hostKickP1Btn) {
+    const showKickP1 = isHost && !!p1Name;
+    console.log(
+      "DEBUG Kick P1 Button: Setting display =",
+      showKickP1 ? "inline-block" : "none"
+    );
+    elements.hostKickP1Btn.style.display = showKickP1 ? "inline-block" : "none";
+    if (showKickP1) {
+      elements.hostKickP1Btn.classList.remove("d-none");
+    } else {
+      elements.hostKickP1Btn.classList.add("d-none");
+    }
+  }
+
+  if (elements.hostKickP2Btn) {
+    const showKickP2 = isHost && !!p2Name;
+    console.log(
+      "DEBUG Kick P2 Button: Setting display =",
+      showKickP2 ? "inline-block" : "none"
+    );
+    elements.hostKickP2Btn.style.display = showKickP2 ? "inline-block" : "none";
+    if (showKickP2) {
+      elements.hostKickP2Btn.classList.remove("d-none");
+    } else {
+      elements.hostKickP2Btn.classList.add("d-none");
+    }
+  }
 }
 
 // --- ADD HELPER FUNCTION ---
