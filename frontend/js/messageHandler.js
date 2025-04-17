@@ -121,6 +121,21 @@ export function handleWebSocketMessage(jsonData) {
         console.log("MessageHandler: Echo:", message.received_message);
         break;
 
+      case "forceRedirect":
+        console.log("MH_TRACE: Case forceRedirect");
+        console.log("Received forceRedirect:", message);
+        const redirectMessage =
+          message.message ||
+          "An action requires you to return to the main screen.";
+        alert(redirectMessage); // Inform the user
+
+        // Reset client state (lobby ID, role, slot, etc.)
+        state.clearLobbyState();
+
+        // Navigate back to the welcome screen
+        showScreen("welcome-screen");
+        break;
+
       default:
         console.log("MH_TRACE: Case default");
         console.log("MessageHandler: Unknown message type:", message.type);

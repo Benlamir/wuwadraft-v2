@@ -162,7 +162,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   );
   console.log("DEBUG: isCurrentUserHost =", state.isCurrentUserHost);
 
-  // --- Update Button Visibility/State using d-none class ---
+  // --- Update Button Visibility using d-none class ---
   const isHost = state.isCurrentUserHost;
   const mySlot = state.myAssignedSlot;
 

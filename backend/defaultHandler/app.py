@@ -1574,23 +1574,28 @@ def handler(event, context):
 
         # --- NEW: kickPlayer Handler ---
         elif action == 'kickPlayer':
+            # Add logging to confirm entry
             logger.info(f"Processing 'kickPlayer' from connection {connection_id}")
             lobby_id = message_data.get('lobbyId')
-            player_slot_to_kick = message_data.get('playerSlot') # 'P1' or 'P2'
+            player_slot_to_kick = message_data.get('playerSlot') # Expect 'P1' or 'P2'
 
+            # Validate input
             if not lobby_id or not player_slot_to_kick or player_slot_to_kick not in ['P1', 'P2']:
-                logger.warning(f"kickPlayer request from {connection_id} missing lobbyId or valid playerSlot.")
+                logger.warning(f"kickPlayer request from {connection_id} missing lobbyId or valid playerSlot. Data: {message_data}")
                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Missing lobbyId or valid playerSlot ('P1' or 'P2')."})
                 return {'statusCode': 400, 'body': 'Missing lobbyId or valid playerSlot.'}
+            logger.info(f"Received kick request for Slot: {player_slot_to_kick}, Lobby: {lobby_id}")
 
             try:
-                # Get lobby item (ConsistentRead recommended)
+                # Get lobby item (ConsistentRead recommended for checks)
+                logger.info(f"Fetching lobby {lobby_id} for kick attempt by {connection_id}")
                 response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
                 lobby_item = response.get('Item')
                 if not lobby_item:
                     logger.warning(f"Lobby {lobby_id} not found for kick attempt by {connection_id}.")
                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby not found."})
                     return {'statusCode': 404, 'body': 'Lobby not found.'}
+                logger.info(f"Lobby {lobby_id} found.")
 
                 # Verify requester is the host
                 host_connection_id = lobby_item.get('hostConnectionId')
@@ -1598,14 +1603,16 @@ def handler(event, context):
                     logger.warning(f"Unauthorized kick attempt on lobby {lobby_id} by non-host {connection_id}.")
                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can kick players."})
                     return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
+                logger.info(f"Host {connection_id} verified.")
 
-                # Get target player info
-                target_conn_id_key = f"player{player_slot_to_kick[1]}ConnectionId" # player1ConnectionId or player2ConnectionId
+                # Get target player info based on playerSlot
+                target_conn_id_key = f"player{player_slot_to_kick[1]}ConnectionId"
                 target_name_key = f"player{player_slot_to_kick[1]}Name"
                 target_ready_key = f"player{player_slot_to_kick[1]}Ready"
                 kicked_connection_id = lobby_item.get(target_conn_id_key)
                 kicked_player_name = lobby_item.get(target_name_key, player_slot_to_kick) # Default name if missing
 
+                # Check if slot is actually occupied
                 if not kicked_connection_id:
                     logger.warning(f"Host {connection_id} tried to kick {player_slot_to_kick} from lobby {lobby_id}, but slot is empty.")
                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Player slot {player_slot_to_kick} is already empty."})
@@ -1616,58 +1623,77 @@ def handler(event, context):
                      logger.warning(f"Host {connection_id} tried to kick themselves from slot {player_slot_to_kick} in lobby {lobby_id}.")
                      send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Host cannot kick themselves."})
                      return {'statusCode': 400, 'body': 'Host cannot kick self.'}
+                logger.info(f"Target player identified: Slot={player_slot_to_kick}, Name={kicked_player_name}, ConnId={kicked_connection_id}")
 
+                # --- CORRECTED LOGIC: Notify Kicked Player FIRST ---
+                logger.info(f"Sending forceRedirect notification to kicked player {kicked_connection_id}")
+                force_redirect_payload = {
+                    "type": "forceRedirect",
+                    "reason": "kicked",
+                    "message": f"You were kicked from lobby {lobby_id} by the host."
+                }
+                send_message_to_client(apigw_management_client, kicked_connection_id, force_redirect_payload)
+                # --- END CORRECTED LOGIC ---
 
                 # Update lobby item to remove the player
-                logger.info(f"Host {connection_id} kicking {player_slot_to_kick} ({kicked_player_name}, {kicked_connection_id}) from lobby {lobby_id}.")
+                logger.info(f"Preparing to update lobby {lobby_id} to remove {player_slot_to_kick}.")
                 last_action_msg = f"Host kicked {kicked_player_name}."
-                lobbies_table.update_item(
-                    Key={'lobbyId': lobby_id},
-                    # Use REMOVE for nullable fields, SET ready to False, add lastAction
-                    UpdateExpression=f"REMOVE {target_conn_id_key}, {target_name_key} SET {target_ready_key} = :falseVal, lastAction = :lastAct",
-                    ExpressionAttributeValues={
+                update_expression=f"REMOVE {target_conn_id_key}, {target_name_key} SET {target_ready_key} = :falseVal, lastAction = :lastAct"
+                expression_values={
                         ':falseVal': False,
                          ':lastAct': last_action_msg,
-                         ':kick_conn_id': kicked_connection_id
-                    },
-                    ConditionExpression=f"attribute_exists({target_conn_id_key}) AND {target_conn_id_key} = :kick_conn_id" # Ensure correct player is kicked
-                )
+                         ':kick_conn_id': kicked_connection_id # Value for condition check
+                    }
+                # Condition ensures we only kick the player currently in that slot
+                condition_expression=f"attribute_exists({target_conn_id_key}) AND {target_conn_id_key} = :kick_conn_id"
 
-                # Notify the kicked player
-                kick_notification = {"type": "kicked", "reason": "Kicked from lobby by host."}
-                send_message_to_client(apigw_management_client, kicked_connection_id, kick_notification)
+                logger.info(f"Attempting UpdateItem for kick. Update: {update_expression}, Condition: {condition_expression}, Values: {expression_values}")
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=update_expression,
+                    ConditionExpression=condition_expression,
+                    ExpressionAttributeValues=expression_values
+                )
+                logger.info(f"Lobby {lobby_id} updated successfully.")
 
                 # Cleanup kicked player's connection item
                 try:
+                    logger.info(f"Cleaning up connection table for kicked player {kicked_connection_id}")
                     connections_table.update_item(
                         Key={'connectionId': kicked_connection_id},
                         UpdateExpression="REMOVE currentLobbyId"
                     )
                     logger.info(f"Removed currentLobbyId from kicked connection {kicked_connection_id}")
                 except Exception as conn_clean_err:
+                    # Log error but don't fail the whole operation
                     logger.error(f"Failed to cleanup connection {kicked_connection_id} after kick: {conn_clean_err}")
 
-                # Broadcast updated state to remaining participants (Host and potentially other player)
+                # Broadcast updated state to remaining participants
+                logger.info(f"Broadcasting state update after kick for lobby {lobby_id}")
                 broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg, exclude_connection_id=kicked_connection_id)
 
+                logger.info(f"Kick player action completed successfully for lobby {lobby_id}")
                 return {'statusCode': 200, 'body': 'Player kicked successfully.'}
 
             except ClientError as e:
                  if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-                     logger.warning(f"Conditional check failed for kickPlayer in lobby {lobby_id}. Player may have already left or changed.")
+                     # Log more details including the exception
+                     logger.warning(f"Conditional check failed for kickPlayer in lobby {lobby_id}. Player slot: {player_slot_to_kick}, Expected ConnId: {kicked_connection_id}. Maybe player left or changed? Full error: {e}", exc_info=True)
                      send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Failed to kick player, slot may have changed."})
-                     # Broadcast maybe?
-                     broadcast_lobby_state(lobby_id, apigw_management_client) # Broadcast current state
+                     # Broadcast current state so host sees the actual situation
+                     broadcast_lobby_state(lobby_id, apigw_management_client)
                      return {'statusCode': 409, 'body': 'Conflict, player slot changed.'}
                  else:
+                      # Log the full error traceback for other ClientErrors
                       logger.error(f"Error processing kickPlayer for {connection_id} on lobby {lobby_id} (ClientError): {str(e)}", exc_info=True)
-                      send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to kick player: {str(e)}"})
-                      return {'statusCode': 500, 'body': 'Failed to kick player.'}
+                      send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to kick player due to database error."})
+                      return {'statusCode': 500, 'body': 'Failed to kick player (database error).'}
             except Exception as e:
-                 logger.error(f"Error processing kickPlayer for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
-                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to kick player: {str(e)}"})
-                 return {'statusCode': 500, 'body': 'Failed to kick player.'}
-        # --- END kickPlayer Handler ---
+                 # Log the full error traceback for any other unexpected errors
+                 logger.error(f"Unexpected error processing kickPlayer for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
+                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Internal server error during kick."})
+                 return {'statusCode': 500, 'body': 'Failed to kick player (server error).'}
+        # --- END CORRECTED & FINAL kickPlayer Handler ---
 
         # --- NEW: hostJoinSlot Handler ---
         elif action == 'hostJoinSlot':
