@@ -1710,96 +1710,132 @@ def handler(event, context):
             logger.info(f"Processing 'hostJoinSlot' for connection {connection_id}")
             lobby_id = message_data.get('lobbyId')
             if not lobby_id:
-                 logger.warning(f"hostJoinSlot request from {connection_id} missing lobbyId.")
-                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby ID missing."})
-                 return {'statusCode': 400, 'body': 'Missing lobbyId.'}
+                logger.warning(f"hostJoinSlot request from {connection_id} missing lobbyId.")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby ID missing."})
+                return {'statusCode': 400, 'body': 'Missing lobbyId.'}
 
             try:
-                 # Get lobby item
-                 # Use ConsistentRead to ensure we see the latest slot status
-                 response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
-                 lobby_item = response.get('Item')
-                 if not lobby_item:
-                     logger.warning(f"Lobby {lobby_id} not found for host join attempt by {connection_id}.")
-                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby not found."})
-                     return {'statusCode': 404, 'body': 'Lobby not found.'}
+                # Get lobby item with ConsistentRead to ensure we see the latest state
+                response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                lobby_item = response.get('Item')
+                if not lobby_item:
+                    logger.warning(f"Lobby {lobby_id} not found for host join attempt by {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby not found."})
+                    return {'statusCode': 404, 'body': 'Lobby not found.'}
 
-                 # Verify requester is the host
-                 host_connection_id = lobby_item.get('hostConnectionId')
-                 host_name = lobby_item.get('hostName', 'Host')
-                 if connection_id != host_connection_id:
-                     logger.warning(f"Unauthorized hostJoinSlot attempt on lobby {lobby_id} by non-host {connection_id}.")
-                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can use this action."})
-                     return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
+                # Verify requester is the host
+                host_connection_id = lobby_item.get('hostConnectionId')
+                host_name = lobby_item.get('hostName', 'Host')
+                if connection_id != host_connection_id:
+                    logger.warning(f"Unauthorized hostJoinSlot attempt on lobby {lobby_id} by non-host {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can use this action."})
+                    return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
 
-                 # Check if host is already P1 or P2
-                 if lobby_item.get('player1ConnectionId') == host_connection_id or lobby_item.get('player2ConnectionId') == host_connection_id:
-                     logger.info(f"Host {connection_id} already in a player slot for lobby {lobby_id}.")
-                     send_message_to_client(apigw_management_client, connection_id, {"type": "info", "message": "You are already assigned to a player slot."})
-                     return {'statusCode': 200, 'body': 'Host already in slot.'}
+                # Check if host is already P1 or P2
+                if lobby_item.get('player1ConnectionId') == host_connection_id or lobby_item.get('player2ConnectionId') == host_connection_id:
+                    logger.info(f"Host {connection_id} already in a player slot for lobby {lobby_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "info", "message": "You are already assigned to a player slot."})
+                    return {'statusCode': 200, 'body': 'Host already in slot.'}
 
+                # Find first available slot and prepare update
+                assigned_slot_num = None # 1 or 2
+                update_expression = None
+                expression_values = {
+                    ':hostConnId': host_connection_id,
+                    ':hostName': host_name,
+                    ':falseVal': False, # Set ready status to False initially
+                    ':nullVal': None # For comparison
+                }
+                condition_expression = None
 
-                 # Find first available slot and prepare update
-                 assigned_slot_num = None # 1 or 2
-                 update_expression = None
-                 expression_values = {
-                     ':hostConnId': host_connection_id,
-                     ':hostName': host_name,
-                      ':falseVal': False # Set ready status to False initially
-                 }
-                 condition_expression = None
+                # Try to join P1 first, then P2
+                max_retries = 3
+                retry_count = 0
+                success = False
+                last_error = None
 
+                while retry_count < max_retries and not success:
+                    try:
+                        # Refresh lobby state before each attempt
+                        response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                        lobby_item = response.get('Item')
+                        
+                        # Check slots again with fresh data
+                        if lobby_item.get('player1ConnectionId') is None:
+                            assigned_slot_num = 1
+                            update_expression = "SET player1ConnectionId = :hostConnId, player1Name = :hostName, player1Ready = :falseVal, lastAction = :lastAct"
+                            # Use a more specific condition that checks for null/None
+                            condition_expression = "player1ConnectionId = :nullVal"
+                            expression_values[':lastAct'] = f"{host_name} (Host) joined as Player 1."
+                        elif lobby_item.get('player2ConnectionId') is None:
+                            assigned_slot_num = 2
+                            update_expression = "SET player2ConnectionId = :hostConnId, player2Name = :hostName, player2Ready = :falseVal, lastAction = :lastAct"
+                            # Use a more specific condition that checks for null/None
+                            condition_expression = "player2ConnectionId = :nullVal"
+                            expression_values[':lastAct'] = f"{host_name} (Host) joined as Player 2."
+                        else:
+                            logger.warning(f"Host {connection_id} tried to join lobby {lobby_id}, but both slots are full.")
+                            send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby is full, cannot join as player."})
+                            return {'statusCode': 400, 'body': 'Lobby is full.'}
 
-                 if lobby_item.get('player1ConnectionId') is None:
-                     assigned_slot_num = 1
-                     update_expression = "SET player1ConnectionId = :hostConnId, player1Name = :hostName, player1Ready = :falseVal, lastAction = :lastAct"
-                     condition_expression = "attribute_not_exists(player1ConnectionId)" # Ensure slot is still free
-                     expression_values[':lastAct'] = f"{host_name} (Host) joined as Player 1."
-                 elif lobby_item.get('player2ConnectionId') is None:
-                     assigned_slot_num = 2
-                     update_expression = "SET player2ConnectionId = :hostConnId, player2Name = :hostName, player2Ready = :falseVal, lastAction = :lastAct"
-                     condition_expression = "attribute_not_exists(player2ConnectionId)" # Ensure slot is still free
-                     expression_values[':lastAct'] = f"{host_name} (Host) joined as Player 2."
-                 else:
-                     logger.warning(f"Host {connection_id} tried to join lobby {lobby_id}, but both slots are full.")
-                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby is full, cannot join as player."})
-                     return {'statusCode': 400, 'body': 'Lobby is full.'}
+                        assigned_slot_str = f"P{assigned_slot_num}"
+                        last_action_msg = expression_values[':lastAct']
+                        logger.info(f"Host {connection_id} attempting to join slot {assigned_slot_str} in lobby {lobby_id} (attempt {retry_count + 1}/{max_retries})")
+                        logger.info(f"Update expression: {update_expression}")
+                        logger.info(f"Condition expression: {condition_expression}")
+                        logger.info(f"Expression values: {expression_values}")
 
-                 assigned_slot_str = f"P{assigned_slot_num}"
-                 last_action_msg = expression_values[':lastAct']
-                 logger.info(f"Host {connection_id} attempting to join slot {assigned_slot_str} in lobby {lobby_id}.")
+                        # Attempt to update the lobby item conditionally
+                        lobbies_table.update_item(
+                            Key={'lobbyId': lobby_id},
+                            UpdateExpression=update_expression,
+                            ConditionExpression=condition_expression,
+                            ExpressionAttributeValues=expression_values
+                        )
+                        success = True
+                        logger.info(f"Host {connection_id} successfully joined slot {assigned_slot_str} in lobby {lobby_id}.")
 
+                        # Send lobbyJoined message to the host to update their client state
+                        send_message_to_client(apigw_management_client, connection_id, {
+                            "type": "lobbyJoined",
+                            "lobbyId": lobby_id,
+                            "assignedSlot": assigned_slot_str,
+                            "isHost": True, # Keep host status
+                            "message": f"Successfully joined as {assigned_slot_str}"
+                        })
 
-                 # Attempt to update the lobby item conditionally
-                 lobbies_table.update_item(
-                     Key={'lobbyId': lobby_id},
-                     UpdateExpression=update_expression,
-                     ConditionExpression=condition_expression,
-                     ExpressionAttributeValues=expression_values
-                 )
-                 logger.info(f"Host {connection_id} successfully joined slot {assigned_slot_str} in lobby {lobby_id}.")
+                        # Broadcast updated state to all participants
+                        broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg)
 
-                 # No need to update connections table, host retains host identity
+                        return {'statusCode': 200, 'body': 'Host joined slot successfully.'}
 
-                 # Broadcast updated state to all participants
-                 broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg)
+                    except ClientError as e:
+                        if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                            retry_count += 1
+                            last_error = e
+                            if retry_count < max_retries:
+                                # Wait a short time before retrying (increasing delay with each retry)
+                                time.sleep(0.1 * retry_count)
+                                continue
+                            else:
+                                logger.warning(f"Failed to join slot after {max_retries} attempts for host {connection_id} in lobby {lobby_id}. Last error: {str(last_error)}")
+                                # Get final state to show what changed
+                                final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                                final_lobby_item = final_response.get('Item')
+                                if final_lobby_item:
+                                    logger.info(f"Final lobby state: P1={final_lobby_item.get('player1ConnectionId')}, P2={final_lobby_item.get('player2ConnectionId')}")
+                                    logger.info(f"Final lobby state details: {json.dumps(final_lobby_item, default=str)}")
+                                
+                                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Failed to join slot after multiple attempts. Please try again."})
+                                broadcast_lobby_state(lobby_id, apigw_management_client) # Broadcast current state so host sees who joined
+                                return {'statusCode': 409, 'body': 'Conflict, slot taken.'}
+                        else:
+                            raise e
 
-                 return {'statusCode': 200, 'body': 'Host joined slot successfully.'}
-
-            except ClientError as e:
-                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-                     logger.warning(f"Conditional check failed for hostJoinSlot in lobby {lobby_id}. Slot likely taken.")
-                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Failed to join slot, it may have been taken simultaneously."})
-                     broadcast_lobby_state(lobby_id, apigw_management_client) # Broadcast current state so host sees who joined
-                     return {'statusCode': 409, 'body': 'Conflict, slot taken.'}
-                 else:
-                      logger.error(f"Error processing hostJoinSlot for {connection_id} on lobby {lobby_id} (ClientError): {str(e)}", exc_info=True)
-                      send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to join slot: {str(e)}"})
-                      return {'statusCode': 500, 'body': 'Failed to join slot.'}
             except Exception as e:
-                 logger.error(f"Error processing hostJoinSlot for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
-                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to join slot: {str(e)}"})
-                 return {'statusCode': 500, 'body': 'Failed to join slot.'}
+                logger.error(f"Error processing hostJoinSlot for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to join slot: {str(e)}"})
+                return {'statusCode': 500, 'body': 'Failed to join slot.'}
         # --- END hostJoinSlot Handler ---
 
         else:
