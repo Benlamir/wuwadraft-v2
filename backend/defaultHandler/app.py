@@ -1648,14 +1648,16 @@ def handler(event, context):
                 # Update lobby item to remove the player
                 logger.info(f"Preparing to update lobby {lobby_id} to remove {player_slot_to_kick}.")
                 last_action_msg = f"Host kicked {kicked_player_name}."
-                update_expression=f"REMOVE {target_conn_id_key}, {target_name_key} SET {target_ready_key} = :falseVal, lastAction = :lastAct"
-                expression_values={
-                        ':falseVal': False,
-                         ':lastAct': last_action_msg,
-                         ':kick_conn_id': kicked_connection_id # Value for condition check
-                    }
+                
+                # Use REMOVE to completely clear the fields
+                update_expression = f"REMOVE {target_conn_id_key}, {target_name_key} SET {target_ready_key} = :falseVal, lastAction = :lastAct"
+                expression_values = {
+                    ':falseVal': False,
+                    ':lastAct': last_action_msg,
+                    ':kick_conn_id': kicked_connection_id # Value for condition check
+                }
                 # Condition ensures we only kick the player currently in that slot
-                condition_expression=f"attribute_exists({target_conn_id_key}) AND {target_conn_id_key} = :kick_conn_id"
+                condition_expression = f"attribute_exists({target_conn_id_key}) AND {target_conn_id_key} = :kick_conn_id"
 
                 logger.info(f"Attempting UpdateItem for kick. Update: {update_expression}, Condition: {condition_expression}, Values: {expression_values}")
                 lobbies_table.update_item(
@@ -1743,8 +1745,7 @@ def handler(event, context):
                 expression_values = {
                     ':hostConnId': host_connection_id,
                     ':hostName': host_name,
-                    ':falseVal': False, # Set ready status to False initially
-                    ':nullVal': None # For comparison
+                    ':falseVal': False # Set ready status to False initially
                 }
                 condition_expression = None
 
@@ -1761,18 +1762,22 @@ def handler(event, context):
                         lobby_item = response.get('Item')
                         
                         # Check slots again with fresh data
-                        if lobby_item.get('player1ConnectionId') is None:
+                        if not lobby_item.get('player1ConnectionId'):  # This will work for both None and missing field
                             assigned_slot_num = 1
                             update_expression = "SET player1ConnectionId = :hostConnId, player1Name = :hostName, player1Ready = :falseVal, lastAction = :lastAct"
-                            # Use a more specific condition that checks for null/None
-                            condition_expression = "player1ConnectionId = :nullVal"
+                            # Check for both missing field and None value
+                            condition_expression = "attribute_not_exists(player1ConnectionId) OR player1ConnectionId = :nullVal OR player1ConnectionId = :emptyStr"
                             expression_values[':lastAct'] = f"{host_name} (Host) joined as Player 1."
-                        elif lobby_item.get('player2ConnectionId') is None:
+                            expression_values[':nullVal'] = None
+                            expression_values[':emptyStr'] = ""
+                        elif not lobby_item.get('player2ConnectionId'):  # This will work for both None and missing field
                             assigned_slot_num = 2
                             update_expression = "SET player2ConnectionId = :hostConnId, player2Name = :hostName, player2Ready = :falseVal, lastAction = :lastAct"
-                            # Use a more specific condition that checks for null/None
-                            condition_expression = "player2ConnectionId = :nullVal"
+                            # Check for both missing field and None value
+                            condition_expression = "attribute_not_exists(player2ConnectionId) OR player2ConnectionId = :nullVal OR player2ConnectionId = :emptyStr"
                             expression_values[':lastAct'] = f"{host_name} (Host) joined as Player 2."
+                            expression_values[':nullVal'] = None
+                            expression_values[':emptyStr'] = ""
                         else:
                             logger.warning(f"Host {connection_id} tried to join lobby {lobby_id}, but both slots are full.")
                             send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby is full, cannot join as player."})
