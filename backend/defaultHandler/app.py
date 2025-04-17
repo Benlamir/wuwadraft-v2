@@ -1546,20 +1546,30 @@ def handler(event, context):
                  lobbies_table.delete_item(Key={'lobbyId': lobby_id})
                  logger.info(f"Lobby {lobby_id} deleted successfully.")
 
-                 # Notify participants and cleanup connections table
-                 delete_notification = {"type": "lobbyDeleted", "reason": "Lobby deleted by host."}
+                 # --- CORRECTED NOTIFICATION LOGIC ---
+                 # Notify ALL participants (including host) and cleanup connections table
+                 force_redirect_payload = {
+                     "type": "forceRedirect",
+                     "reason": "deleted", # Use 'deleted' reason
+                     "message": f"Lobby {lobby_id} was deleted by the host."
+                 }
+                 logger.info(f"Notifying participants and cleaning up connections for deleted lobby {lobby_id}. Participants: {valid_connection_ids}")
                  for pid in valid_connection_ids:
-                     logger.info(f"Notifying & cleaning up connection {pid} for deleted lobby {lobby_id}.")
-                     if pid != connection_id: # Don't notify host they deleted it
-                        send_message_to_client(apigw_management_client, pid, delete_notification)
+                     logger.info(f"Sending forceRedirect to {pid} and cleaning up connection.")
+                     # Send redirect message first
+                     send_message_to_client(apigw_management_client, pid, force_redirect_payload)
+
                      # Cleanup connection entry (best effort)
                      try:
                          connections_table.update_item(
                              Key={'connectionId': pid},
                              UpdateExpression="REMOVE currentLobbyId"
+                             # Add ConditionExpression if needed, e.g., check if currentLobbyId still matches lobby_id
                          )
+                         logger.info(f"Removed currentLobbyId from connection {pid}")
                      except Exception as conn_clean_err:
                          logger.error(f"Failed to cleanup connection {pid} after lobby deletion: {conn_clean_err}")
+                 # --- END CORRECTED NOTIFICATION LOGIC ---
 
                  return {'statusCode': 200, 'body': 'Lobby deleted successfully.'}
 

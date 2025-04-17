@@ -6,7 +6,7 @@ import {
   updateDraftScreenUI,
   startOrUpdateTimerDisplay,
   stopTimerDisplay,
-} from "./uiViews.js";
+} from "./uiViews.js"; // Assuming uiViews exports showScreen
 
 export function handleWebSocketMessage(jsonData) {
   console.log("MH_TRACE: handleWebSocketMessage START");
@@ -19,12 +19,10 @@ export function handleWebSocketMessage(jsonData) {
       case "lobbyCreated":
         console.log("MH_TRACE: Case lobbyCreated");
         state.setLobbyInfo(message.lobbyId, message.isHost);
-        // Need username from create action, maybe store globally in main.js first?
-        // state.setUserName(???)
+        // Assuming currentUserName is set correctly elsewhere before this is called
         updateLobbyWaitScreenUI({
-          // Provide initial state for UI update
           lobbyId: message.lobbyId,
-          hostName: state.currentUserName, // Use name stored when user clicked Create
+          hostName: state.currentUserName,
           player1Name: null,
           player2Name: null,
           lobbyState: "WAITING",
@@ -40,18 +38,21 @@ export function handleWebSocketMessage(jsonData) {
           message.lobbyId,
           message.isHost,
           message.assignedSlot
-        ); // Use setLobbyInfo which also sets slot
+        );
         console.log(
           "MH_TRACE: After setLobbyInfo, myAssignedSlot=",
           state.myAssignedSlot
         );
+        // We need the initial lobby state here to populate the UI correctly
+        // This should ideally come with the lobbyJoined confirmation or via a separate lobbyStateUpdate
+        // For now, showing the screen, but UI might be empty until first state update
         showScreen("lobby-wait-screen");
         break;
 
       case "lobbyStateUpdate":
         console.log("MH_TRACE: Case lobbyStateUpdate");
         // Update internal state first
-        state.setCurrentDraftState(message);
+        state.setCurrentDraftState(message); // Store the whole state
         if (message.hasOwnProperty("currentPhase")) {
           state.setDraftPhase(message.currentPhase);
         }
@@ -73,67 +74,74 @@ export function handleWebSocketMessage(jsonData) {
           stopTimerDisplay(); // Stop timer if no expiry provided
         }
 
-        // --- REVISED SCREEN LOGIC ---
-        // Check the currentPhase stored in our state module AFTER updating it.
-        // If a phase is set (e.g., 'BAN1', 'PICK1', ..., 'DRAFT_COMPLETE'),
-        // it means the draft is active or has just finished.
-        if (state.currentPhase) {
+        // Screen Logic based on updated state
+        if (state.currentPhase) { // Draft is active or complete
           console.log(
             `MessageHandler: Phase is '${state.currentPhase}'. Updating/showing draft screen.`
           );
-          updateDraftScreenUI(message); // Update the draft UI with the new data
-          showScreen("draft-screen"); // Ensure the draft screen is visible
-        }
-        // Only show the wait screen if the phase is null (draft hasn't started)
-        // AND the lobby state indicates we are waiting.
-        else if (message.lobbyState === "WAITING") {
+          updateDraftScreenUI(message);
+          showScreen("draft-screen");
+        } else if (message.lobbyState === "WAITING") { // Waiting for players/ready
           console.log(
             "MessageHandler: State is WAITING. Updating/showing lobby wait screen."
           );
           updateLobbyWaitScreenUI(message);
           showScreen("lobby-wait-screen");
-        }
-        // Fallback for potentially unexpected states (e.g., if phase is null but state isn't WAITING)
-        else {
+        } else { // Fallback
           console.warn(
             "MessageHandler: Unhandled lobbyStateUpdate screen logic - Phase:",
             state.currentPhase,
             "LobbyState:",
             message.lobbyState
           );
-          // Defaulting to wait screen as a safety measure, but review if this happens.
           updateLobbyWaitScreenUI(message);
           showScreen("lobby-wait-screen");
         }
-        // --- END REVISED SCREEN LOGIC ---
         break;
+
+      // --- NEW CASE ADDED ---
+      case 'forceRedirect':
+        console.log("MH_TRACE: Case forceRedirect");
+        console.log("Received forceRedirect:", message);
+        const redirectMessage = message.message || "An action requires you to return to the main screen.";
+        alert(redirectMessage); // Inform the user
+
+        // Reset client state (lobby ID, role, slot, currentDraftState etc.)
+        // Ensure state.resetClientState() exists in state.js and clears relevant variables
+        if (typeof state.resetClientState === 'function') {
+            state.resetClientState();
+            console.log("MH_TRACE: Client state reset via resetClientState().");
+        } else {
+             // Fallback if resetClientState doesn't exist (implement it in state.js!)
+            console.warn("MH_TRACE: state.resetClientState function not found! Attempting manual reset.");
+            state.setLobbyInfo(null, false, null); // Clears lobbyId, isHost, assignedSlot
+            state.setCurrentDraftState(null); // Clears draft state
+            state.setDraftPhase(null); // Clears phase
+            state.setDraftTurn(null); // Clears turn
+            state.setTurnExpiry(null); // Clears timer expiry
+            // Add any other state variables that need clearing
+        }
+
+        // Navigate back to the welcome screen
+        // Ensure uiViews is imported correctly
+        showScreen('welcome-screen');
+        console.log("MH_TRACE: Navigated to welcome screen due to:", message.reason); // Log reason
+
+        // Optional: Consider closing the WebSocket connection here if desired
+        // import { closeWebSocket } from './websocket.js';
+        // closeWebSocket();
+        break;
+      // --- END NEW CASE ---
 
       case "error":
         console.log("MH_TRACE: Case error");
         console.error("MessageHandler: Server error:", message.message);
         alert(`Server Error: ${message.message}`); // Show error to user
-        // Decide where to navigate user on error? Back to welcome?
-        // showScreen('welcome-screen');
         break;
 
       case "echo":
         console.log("MH_TRACE: Case echo");
         console.log("MessageHandler: Echo:", message.received_message);
-        break;
-
-      case "forceRedirect":
-        console.log("MH_TRACE: Case forceRedirect");
-        console.log("Received forceRedirect:", message);
-        const redirectMessage =
-          message.message ||
-          "An action requires you to return to the main screen.";
-        alert(redirectMessage); // Inform the user
-
-        // Reset client state (lobby ID, role, slot, etc.)
-        state.clearLobbyState();
-
-        // Navigate back to the welcome screen
-        showScreen("welcome-screen");
         break;
 
       default:
