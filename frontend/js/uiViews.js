@@ -557,6 +557,15 @@ export function updateDraftScreenUI(draftState) {
     }
   }
 
+  // --- Update Back Button Visibility ---
+  if (elements.draftBackBtn) {
+    if (state.isCurrentUserHost) {
+      elements.draftBackBtn.classList.add("d-none");
+    } else {
+      elements.draftBackBtn.classList.remove("d-none");
+    }
+  }
+
   // --- Original UI Update Logic (for ongoing draft) ---
   // Update Phase and Turn Status (This will now only run if draft is NOT complete)
   if (elements.draftPhaseStatus) {
