@@ -1237,6 +1237,12 @@ def handler(event, context):
                  logger.warning(f"Timeout ignored for lobby {lobby_id}. Draft already complete or index invalid ({current_step_index}).")
                  return {'statusCode': 200, 'body': 'Timeout ignored, draft finished or invalid state.'}
 
+            # --- REMOVE SPECIAL CHECK FOR FIRST TURN ---
+            # if current_step_index == 0 and current_phase_db == 'BAN1' and current_turn_db == 'P1':
+            #     logger.info(f"Timeout ignored for lobby {lobby_id}. First turn (BAN1 P1) cannot be automatically passed.")
+            #     return {'statusCode': 200, 'body': 'Timeout ignored, first turn cannot be automatically passed.'}
+            # --- END REMOVE SPECIAL CHECK ---
+
             logger.info(f"Timeout validated for lobby {lobby_id}. Player {current_turn_db} timed out during phase {current_phase_db} at step {current_step_index}.")
 
             # 4. *** Perform Random Action ***
