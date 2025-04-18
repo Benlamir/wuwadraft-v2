@@ -26,7 +26,7 @@ export function showScreen(screenIdToShow) {
     console.error("Screens NodeList not initialized yet in uiViews!");
     return;
   }
-  console.log(`UI: Navigating to screen: ${screenIdToShow}`);
+  // console.log(`UI: Navigating to screen: ${screenIdToShow}`);
 
   // --- Toggle Header Visibility ---
   if (elements.header) {
@@ -41,10 +41,10 @@ export function showScreen(screenIdToShow) {
 
   // --- Toggle Background Class ---
   if (screenIdToShow === "draft-screen") {
-    console.log("UI: Adding draft background class to body.");
+    // console.log("UI: Adding draft background class to body.");
     document.body.classList.add("draft-active-background");
   } else {
-    console.log("UI: Removing draft background class from body.");
+    // console.log("UI: Removing draft background class from body.");
     document.body.classList.remove("draft-active-background");
   }
 
@@ -66,17 +66,17 @@ export function showScreen(screenIdToShow) {
 // --- UI Update Functions ---
 
 export function updateLobbyWaitScreenUI(lobbyStateData) {
-  console.log("UI: Updating lobby wait screen", lobbyStateData);
+  // console.log("UI: Updating lobby wait screen", lobbyStateData);
 
   // --- DEBUG: Verify all button elements exist ---
-  console.log("DEBUG: Verifying button elements...");
-  console.log("player1ReadyBtn exists:", !!elements.player1ReadyBtn);
-  console.log("player2ReadyBtn exists:", !!elements.player2ReadyBtn);
-  console.log("lobbyBackBtn exists:", !!elements.lobbyBackBtn);
-  console.log("hostDeleteLobbyBtn exists:", !!elements.hostDeleteLobbyBtn);
-  console.log("hostJoinSlotBtn exists:", !!elements.hostJoinSlotBtn);
-  console.log("hostKickP1Btn exists:", !!elements.hostKickP1Btn);
-  console.log("hostKickP2Btn exists:", !!elements.hostKickP2Btn);
+  // console.log("DEBUG: Verifying button elements...");
+  // console.log("player1ReadyBtn exists:", !!elements.player1ReadyBtn);
+  // console.log("player2ReadyBtn exists:", !!elements.player2ReadyBtn);
+  // console.log("lobbyBackBtn exists:", !!elements.lobbyBackBtn);
+  // console.log("hostDeleteLobbyBtn exists:", !!elements.hostDeleteLobbyBtn);
+  // console.log("hostJoinSlotBtn exists:", !!elements.hostJoinSlotBtn);
+  // console.log("hostKickP1Btn exists:", !!elements.hostKickP1Btn);
+  // console.log("hostKickP2Btn exists:", !!elements.hostKickP2Btn);
 
   // --- Update Lobby ID Display ---
   if (elements.lobbyIdDisplay) {
@@ -157,10 +157,10 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   }
 
   // --- DEBUG: Log current state ---
-  console.log(
-    `DEBUG Ready Check: mySlot=${state.myAssignedSlot}, P1 Ready=${lobbyStateData.player1Ready}, P2 Ready=${lobbyStateData.player2Ready}`
-  );
-  console.log("DEBUG: isCurrentUserHost =", state.isCurrentUserHost);
+  // console.log(
+  //   `DEBUG Ready Check: mySlot=${state.myAssignedSlot}, P1 Ready=${lobbyStateData.player1Ready}, P2 Ready=${lobbyStateData.player2Ready}`
+  // );
+  // console.log("DEBUG: isCurrentUserHost =", state.isCurrentUserHost);
 
   // --- Update Button Visibility using d-none class ---
   const isHost = state.isCurrentUserHost;
@@ -170,7 +170,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   if (elements.player1ReadyBtn) {
     const shouldShowP1Ready =
       mySlot === "P1" && lobbyStateData.player1Ready !== true;
-    console.log("DEBUG P1 Button: Setting visibility =", shouldShowP1Ready);
+    // console.log("DEBUG P1 Button: Setting visibility =", shouldShowP1Ready);
     if (shouldShowP1Ready) {
       elements.player1ReadyBtn.classList.remove("d-none");
     } else {
@@ -182,7 +182,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   if (elements.player2ReadyBtn) {
     const shouldShowP2Ready =
       mySlot === "P2" && lobbyStateData.player2Ready !== true;
-    console.log("DEBUG P2 Button: Setting visibility =", shouldShowP2Ready);
+    // console.log("DEBUG P2 Button: Setting visibility =", shouldShowP2Ready);
     if (shouldShowP2Ready) {
       elements.player2ReadyBtn.classList.remove("d-none");
     } else {
@@ -194,7 +194,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   // Player Back Button
   if (elements.lobbyBackBtn) {
     const shouldShowBackBtn = !isHost;
-    console.log("DEBUG Back Button: Setting visibility =", shouldShowBackBtn);
+    // console.log("DEBUG Back Button: Setting visibility =", shouldShowBackBtn);
     if (shouldShowBackBtn) {
       elements.lobbyBackBtn.classList.remove("d-none");
     } else {
@@ -204,7 +204,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
   // Host Controls
   if (elements.hostDeleteLobbyBtn) {
-    console.log("DEBUG Delete Button: Setting visibility =", isHost);
+    // console.log("DEBUG Delete Button: Setting visibility =", isHost);
     if (isHost) {
       elements.hostDeleteLobbyBtn.classList.remove("d-none");
     } else {
@@ -214,7 +214,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
   if (elements.hostJoinSlotBtn) {
     const canHostJoin = isHost && (!p1Name || !p2Name);
-    console.log("DEBUG Join Button: Setting visibility =", canHostJoin);
+    // console.log("DEBUG Join Button: Setting visibility =", canHostJoin);
     if (canHostJoin) {
       elements.hostJoinSlotBtn.classList.remove("d-none");
     } else {
@@ -224,7 +224,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
   if (elements.hostKickP1Btn) {
     const showKickP1 = isHost && !!p1Name;
-    console.log("DEBUG Kick P1 Button: Setting visibility =", showKickP1);
+    // console.log("DEBUG Kick P1 Button: Setting visibility =", showKickP1);
     if (showKickP1) {
       elements.hostKickP1Btn.classList.remove("d-none");
     } else {
@@ -234,7 +234,7 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
   if (elements.hostKickP2Btn) {
     const showKickP2 = isHost && !!p2Name;
-    console.log("DEBUG Kick P2 Button: Setting visibility =", showKickP2);
+    // console.log("DEBUG Kick P2 Button: Setting visibility =", showKickP2);
     if (showKickP2) {
       elements.hostKickP2Btn.classList.remove("d-none");
     } else {
@@ -337,13 +337,11 @@ function updateBanSlots(draftState) {
 // --- ADD TIMER DISPLAY FUNCTIONS ---
 
 export function stopTimerDisplay() {
-  //console.log(
-  //  `UI DEBUG: stopTimerDisplay START. Current state interval ID: ${state.timerIntervalId}`
-  //);
-  // Call the state function which now handles both clearing and nulling
+  // console.log(
+  //   `UI DEBUG: stopTimerDisplay START. Current state interval ID: ${state.timerIntervalId}`
+  // );
   state.clearTimerInterval();
 
-  // Reset display text immediately
   if (elements.draftTimer) {
     elements.draftTimer.textContent = "Time Remaining: --:--";
     elements.draftTimer.classList.remove("text-danger", "fw-bold");
@@ -353,23 +351,21 @@ export function stopTimerDisplay() {
 
 // This internal function updates the clock display
 function updateCountdown(expiryTime, intervalId) {
-  // --- ADD state import for clarity ---
   const {
     myAssignedSlot,
     currentTurn,
     currentPhase,
     timerIntervalId: activeTimerId,
   } = state;
-  // --- END ADD ---
 
-  console.log(
-    `UI DEBUG: updateCountdown TICK for interval ID ${intervalId}. Active state ID: ${activeTimerId}`
-  );
+  // console.log(
+  //   `UI DEBUG: updateCountdown TICK for interval ID ${intervalId}. Active state ID: ${activeTimerId}`
+  // );
 
   if (intervalId !== activeTimerId) {
-    console.log(
-      `UI DEBUG: Stale timer callback DETECTED (ID ${intervalId}, Active ID ${activeTimerId}). Clearing ${intervalId} and exiting.`
-    );
+    // console.log(
+    //   `UI DEBUG: Stale timer callback DETECTED (ID ${intervalId}, Active ID ${activeTimerId}). Clearing ${intervalId} and exiting.`
+    // );
     clearInterval(intervalId);
     return;
   }
@@ -383,46 +379,36 @@ function updateCountdown(expiryTime, intervalId) {
       elements.draftTimer.classList.add("text-danger", "fw-bold");
     }
 
-    // Clear the interval FIRST to stop the countdown updates
-    clearInterval(intervalId); // Clear this specific interval ID
-    console.log(
-      `UI: Timer visually reached zero (Interval ID: ${intervalId}). Clearing interval.`
-    );
+    clearInterval(intervalId);
+    // console.log(
+    //   `UI: Timer visually reached zero (Interval ID: ${intervalId}). Clearing interval.`
+    // );
 
-    // --- ADD CHECK: Only send timeout if it's MY turn ---
     if (myAssignedSlot === currentTurn) {
-      console.log(
-        `UI: It's MY turn (${myAssignedSlot}), waiting briefly before sending timeout.`
-      );
-      // Use setTimeout to introduce a small delay (e.g., 500ms)
+      // console.log(
+      //   `UI: It's MY turn (${myAssignedSlot}), waiting briefly before sending timeout.`
+      // );
       setTimeout(() => {
-        // Optional: Re-check if turn hasn't changed *during* the 500ms delay
         if (state.currentTurn === myAssignedSlot) {
-          console.log(
-            `UI: Sending timeout action after delay. Expected Phase: ${state.currentPhase}, Expected Turn: ${myAssignedSlot}` // Use myAssignedSlot here too
-          );
+          // console.log(
+          //   `UI: Sending timeout action after delay. Expected Phase: ${state.currentPhase}, Expected Turn: ${myAssignedSlot}`
+          // );
           sendMessageToServer({
             action: "turnTimeout",
-            expectedPhase: state.currentPhase, // Send phase from current state
-            expectedTurn: myAssignedSlot, // Send MY slot as the expected turn
+            expectedPhase: state.currentPhase,
+            expectedTurn: myAssignedSlot,
           });
         } else {
-          console.log(
-            `UI: Timeout send cancelled. Turn changed to ${state.currentTurn} during delay.`
-          );
+          // console.log(
+          //   `UI: Timeout send cancelled. Turn changed to ${state.currentTurn} during delay.`
+          // );
         }
-      }, 500); // Delay sending by 500 milliseconds
+      }, 500);
     } else {
-      console.log(
-        `UI: Timer expired, but it was not my turn (${myAssignedSlot} vs ${currentTurn}). Not sending timeout action.`
-      );
-      // If it wasn't my turn, we don't send the timeout.
-      // We might rely on the other player's client to send it,
-      // or potentially a future server-side check if needed.
+      // console.log(
+      //   `UI: Timer expired, but it was not my turn (${myAssignedSlot} vs ${currentTurn}). Not sending timeout action.`
+      // );
     }
-    // --- END CHECK ---
-
-    // Note: We cleared the interval outside the check/setTimeout
   } else {
     const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000));
     const minutes = Math.floor(remainingSeconds / 60);
@@ -449,43 +435,43 @@ function updateCountdown(expiryTime, intervalId) {
 
 // This function starts a new timer cycle
 export function startOrUpdateTimerDisplay() {
-  //console.log("UI DEBUG: startOrUpdateTimerDisplay START.");
-  stopTimerDisplay(); // Ensure previous timer is stopped & state ID is nulled
+  // console.log("UI DEBUG: startOrUpdateTimerDisplay START.");
+  stopTimerDisplay();
 
-  //console.log(
-  //  `UI DEBUG: Reading state.currentTurnExpiresAt: ${state.currentTurnExpiresAt}`
-  //);
+  // console.log(
+  //   `UI DEBUG: Reading state.currentTurnExpiresAt: ${state.currentTurnExpiresAt}`
+  // );
 
   if (!state.currentTurnExpiresAt) {
-    //console.log("UI DEBUG: No expiry time set in state, timer not starting.");
+    // console.log("UI DEBUG: No expiry time set in state, timer not starting.");
     return;
   }
 
   try {
     const expiryTimestamp = new Date(state.currentTurnExpiresAt).getTime();
-    //console.log(
-    //  `UI DEBUG: Parsed expiryTimestamp: ${expiryTimestamp} (isNaN: ${isNaN(
-    //    expiryTimestamp
-    //  )})`
-    //);
+    // console.log(
+    //   `UI DEBUG: Parsed expiryTimestamp: ${expiryTimestamp} (isNaN: ${isNaN(
+    //     expiryTimestamp
+    //   )})`
+    // );
 
     if (isNaN(expiryTimestamp)) {
-      //console.error(
-      //  "UI DEBUG: Invalid expiry timestamp received from state:",
-      //  state.currentTurnExpiresAt
-      //);
+      console.error(
+        "UI DEBUG: Invalid expiry timestamp received from state:",
+        state.currentTurnExpiresAt
+      );
       return;
     }
 
     const now = Date.now();
-    //console.log(
-    //  `UI DEBUG: Comparing expiry ${expiryTimestamp} with now ${now}`
-    //);
+    // console.log(
+    //   `UI DEBUG: Comparing expiry ${expiryTimestamp} with now ${now}`
+    // );
 
     if (expiryTimestamp <= now) {
-      //console.log(
-      //  "UI DEBUG: Expiry time is in the past. Setting timer to 00:00."
-      //);
+      // console.log(
+      //   "UI DEBUG: Expiry time is in the past. Setting timer to 00:00."
+      // );
       if (elements.draftTimer) {
         elements.draftTimer.textContent = "Time Remaining: 00:00";
         elements.draftTimer.classList.add("text-danger", "fw-bold");
@@ -493,25 +479,23 @@ export function startOrUpdateTimerDisplay() {
       return;
     }
 
-    //console.log(`UI DEBUG: Starting new timer interval...`);
+    // console.log(`UI DEBUG: Starting new timer interval...`);
 
     const newIntervalId = setInterval(() => {
-      // Pass expiryTimestamp (parsed time) and newIntervalId
       updateCountdown(expiryTimestamp, newIntervalId);
     }, 1000);
 
-    //console.log(
-    //  `UI DEBUG: New interval created with ID: ${newIntervalId}. Storing in state via function.`
-    //);
-    state.setTimerIntervalId(newIntervalId); // Call the function in state.js instead
+    // console.log(
+    //   `UI DEBUG: New interval created with ID: ${newIntervalId}. Storing in state via function.`
+    // );
+    state.setTimerIntervalId(newIntervalId);
 
-    //console.log(
-    //  `UI DEBUG: Calling updateCountdown immediately once for ID ${newIntervalId}.`
-    //);
-    updateCountdown(expiryTimestamp, newIntervalId); // Run immediately
+    // console.log(
+    //   `UI DEBUG: Calling updateCountdown immediately once for ID ${newIntervalId}.`
+    // );
+    updateCountdown(expiryTimestamp, newIntervalId);
   } catch (e) {
-    // Log the error WITH the stack trace
-    //console.error("UI DEBUG: Error during timer start:", e);
+    console.error("UI DEBUG: Error during timer start:", e);
     stopTimerDisplay();
   }
 }
@@ -520,11 +504,11 @@ export function startOrUpdateTimerDisplay() {
 
 // --- MODIFY updateDraftScreenUI FUNCTION ---
 export function updateDraftScreenUI(draftState) {
-  //console.log("UI: Updating draft screen UI with state:", draftState);
+  // console.log("UI: Updating draft screen UI with state:", draftState);
   if (!elements || !elements.draftScreen) {
-    //console.error(
-    //  "UI Update Error: elements object or draftScreen element not initialized!"
-    //);
+    // console.error(
+    //   "UI Update Error: elements object or draftScreen element not initialized!"
+    // );
     return;
   }
 
@@ -546,21 +530,32 @@ export function updateDraftScreenUI(draftState) {
     if (elements.characterGridContainer) {
       elements.characterGridContainer.innerHTML =
         '<p class="text-center text-muted fst-italic mt-4">-- Draft Finished --</p>'; // Replace grid content
-      // OR disable all buttons within it if preferred
-      // const allButtons = elements.characterGridContainer.querySelectorAll('button');
-      // allButtons.forEach(btn => btn.disabled = true);
     }
     // Optionally hide filter controls
     const filterControls = document.getElementById("draft-filter-controls");
     if (filterControls) filterControls.style.display = "none";
 
-    // Optionally add a 'Back to Lobby/Welcome' button or message here
-    // (Requires further logic)
-
     stopTimerDisplay(); // Explicitly stop timer on completion
     return; // Stop further UI updates for active turn display etc.
   }
-  // --- END DRAFT COMPLETE HANDLING ---
+
+  // --- Update Host Controls Visibility ---
+  if (elements.draftHostControls) {
+    if (state.isCurrentUserHost) {
+      elements.draftHostControls.classList.remove("d-none");
+    } else {
+      elements.draftHostControls.classList.add("d-none");
+    }
+  }
+
+  // --- Update Player Controls Visibility ---
+  if (elements.draftPlayerControls) {
+    if (!state.isCurrentUserHost) {
+      elements.draftPlayerControls.classList.remove("d-none");
+    } else {
+      elements.draftPlayerControls.classList.add("d-none");
+    }
+  }
 
   // --- Original UI Update Logic (for ongoing draft) ---
   // Update Phase and Turn Status (This will now only run if draft is NOT complete)
@@ -694,12 +689,11 @@ export function initializeCopyButton() {
 }
 
 export function applyCharacterFilter(filterElement) {
-  console.log(`UI: Applying filter: ${filterElement}`);
-  state.setActiveElementFilter(filterElement); // Update state
+  // console.log(`UI: Applying filter: ${filterElement}`);
+  state.setActiveElementFilter(filterElement);
 
-  // Re-render the grid using the latest stored draft state
   if (state.currentDraftState) {
-    renderCharacterGrid(state.currentDraftState); // Re-render with the new filter active
+    renderCharacterGrid(state.currentDraftState);
   } else {
     console.warn("Cannot re-render grid, current draft state unknown.");
     if (elements.characterGridContainer)
@@ -714,27 +708,25 @@ function renderCharacterGrid(draftState) {
     return;
   }
 
-  // Get active filter from state
   const activeFilter = state.activeElementFilter || "All";
-  console.log(`UI: Rendering grid with filter: ${activeFilter}`);
+  // console.log(`UI: Rendering grid with filter: ${activeFilter}`);
 
-  console.log(
-    "UI: Rendering character grid. Raw draftState:",
-    draftState // Log the full state for debugging
-  );
-  elements.characterGridContainer.innerHTML = ""; // Clear previous grid
+  // console.log(
+  //   "UI: Rendering character grid. Raw draftState:",
+  //   draftState
+  // );
+  elements.characterGridContainer.innerHTML = "";
 
-  // Ensure draftState has the necessary fields, provide defaults if missing
   const availableResonators = draftState.availableResonators || [];
   const player1Picks = draftState.player1Picks || [];
   const player2Picks = draftState.player2Picks || [];
   const bans = draftState.bans || [];
-  const currentTurn = draftState.currentTurn || state.currentTurn; // Use state from message if available, else local state
+  const currentTurn = draftState.currentTurn || state.currentTurn;
 
   const isMyTurn = state.myAssignedSlot === currentTurn;
-  console.log(
-    `UI: Rendering grid. Is it my turn? ${isMyTurn} (MySlot: ${state.myAssignedSlot}, CurrentTurn: ${currentTurn})`
-  );
+  // console.log(
+  //   `UI: Rendering grid. Is it my turn? ${isMyTurn} (MySlot: ${state.myAssignedSlot}, CurrentTurn: ${currentTurn})`
+  // );
 
   const availableSet = new Set(availableResonators);
   const p1PicksSet = new Set(player1Picks);
@@ -782,12 +774,12 @@ function renderCharacterGrid(draftState) {
     // --- ADD DEBUG LOG ---
     if (resonator.name === "Yuanwu") {
       // Or the name you are testing with
-      console.log(
-        `DEBUG (${resonator.name}): isBanned=${isBanned}, isPickedP1=${isPickedByP1}, isPickedP2=${isPickedByP2}, isAvailable=${isAvailable}, availableSet:`,
-        availableSet,
-        "bansSet:",
-        bansSet
-      );
+      // console.log(
+      //   `DEBUG (${resonator.name}): isBanned=${isBanned}, isPickedP1=${isPickedByP1}, isPickedP2=${isPickedByP2}, isAvailable=${isAvailable}, availableSet:`,
+      //   availableSet,
+      //   "bansSet:",
+      //   bansSet
+      // );
     }
     // --- END DEBUG LOG ---
 
@@ -849,13 +841,11 @@ function handleCharacterSelection(event) {
     return;
   }
 
-  // Disable button immediately to prevent double clicks
   button.disabled = true;
-  button.classList.add("just-selected"); // Optional: temporary visual feedback
+  button.classList.add("just-selected");
 
-  // Determine action based on current phase from state
   let action = null;
-  const phase = state.currentPhase; // Get phase from state.js module
+  const phase = state.currentPhase;
 
   if (phase?.startsWith("BAN")) {
     action = "makeBan";
@@ -863,38 +853,19 @@ function handleCharacterSelection(event) {
     action = "makePick";
   } else {
     console.error(`Unknown phase (${phase}) - cannot determine action.`);
-    // Re-enable button if phase is unknown? Or leave disabled?
-    button.disabled = false; // Let's re-enable for now
+    button.disabled = false;
     button.classList.remove("just-selected");
-    return; // Don't send message
+    return;
   }
 
-  // Construct and send message
   const message = {
     action: action,
     resonatorName: resonatorName,
-    // Lobby ID is not needed, backend gets it from connectionId
   };
-  console.log(`UI: Sending action: ${action}, Resonator: ${resonatorName}`);
+  // console.log(`UI: Sending action: ${action}, Resonator: ${resonatorName}`);
   sendMessageToServer(message);
 
-  // --- COMMENT OUT FOLLOW-UP TEST MESSAGE ---
-  /*
-  console.log("UI: Sending follow-up test message");
-  sendMessageToServer({
-    action: "testAfterAction",
-    originalAction: action,
-    resonator: resonatorName,
-  });
-  */
-  // --- END COMMENT OUT ---
-
-  // Note: The button state (disabled, class) will be fully updated
-  // when the lobbyStateUpdate message comes back from the server.
-  // The immediate disabling is just for quick feedback.
-
-  // --- ADDITION: Disable ALL character buttons immediately ---
-  console.log("UI: Disabling all character buttons pending state update.");
+  // console.log("UI: Disabling all character buttons pending state update.");
   const allCharacterButtons =
     elements.characterGridContainer?.querySelectorAll(".character-button");
   if (allCharacterButtons) {
@@ -904,5 +875,4 @@ function handleCharacterSelection(event) {
       // btn.style.opacity = '0.5';
     });
   }
-  // --- END ADDITION ---
 }

@@ -1,7 +1,65 @@
 // frontend/js/uiElements.js
 
 // Object to hold references after initialization
-export const elements = {};
+export const elements = {
+  header: null,
+  welcomeScreen: null,
+  createLobbyScreen: null,
+  joinLobbyScreen: null,
+  lobbyWaitScreen: null,
+  draftScreen: null,
+  screensNodeList: null,
+  actionCreateBtn: null,
+  actionJoinBtn: null,
+  actionRandomizeBtn: null,
+  createNameInput: null,
+  createStartBtn: null,
+  createBackBtn: null,
+  joinNameInput: null,
+  joinLobbyIdInput: null,
+  toggleLobbyIdVisibilityBtn: null,
+  joinStartBtn: null,
+  joinBackBtn: null,
+  lobbyIdDisplay: null,
+  toggleLobbyIdDisplayBtn: null,
+  copyLobbyIdBtn: null,
+  hostNameDisplay: null,
+  player1NameDisplay: null,
+  player2NameDisplay: null,
+  player1StatusElement: null,
+  player2StatusElement: null,
+  lobbyStatusDisplay: null,
+  player1ReadyBtn: null,
+  player2ReadyBtn: null,
+  lobbyBackBtn: null,
+  hostDeleteLobbyBtn: null,
+  hostJoinSlotBtn: null,
+  hostKickP1Btn: null,
+  hostKickP2Btn: null,
+  draftBackBtn: null,
+  draftPhaseStatus: null,
+  draftTimer: null,
+  draftP1Name: null,
+  draftP2Name: null,
+  characterGridContainer: null,
+  draftBansSlotsContainer: null,
+  draftP1PicksList: null,
+  p1Pick1: null,
+  p1Pick2: null,
+  p1Pick3: null,
+  draftP2PicksList: null,
+  p2Pick1: null,
+  p2Pick2: null,
+  p2Pick3: null,
+  banSlots: null,
+  banSlot1: null,
+  banSlot2: null,
+  banSlot3: null,
+  banSlot4: null,
+  draftHostControls: null,
+  hostDeleteDraftLobbyBtn: null,
+  draftPlayerControls: null,
+};
 
 // Function to populate the elements object
 export function initializeElements() {
@@ -14,7 +72,7 @@ export function initializeElements() {
   elements.createLobbyScreen = document.getElementById("create-lobby-screen");
   elements.joinLobbyScreen = document.getElementById("join-lobby-screen");
   elements.lobbyWaitScreen = document.getElementById("lobby-wait-screen");
-  elements.draftScreen = document.getElementById("draft-screen"); // Assuming this exists now
+  elements.draftScreen = document.getElementById("draft-screen");
   elements.screensNodeList = document.querySelectorAll(".screen"); // Get NodeList
 
   // Welcome Screen Buttons
@@ -123,4 +181,12 @@ export function initializeElements() {
       console.warn(`UI: No elements found with class="screen"`);
     }
   }
+
+  elements.draftHostControls = document.getElementById("draft-host-controls");
+  elements.hostDeleteDraftLobbyBtn = document.getElementById(
+    "host-delete-draft-lobby-btn"
+  );
+  elements.draftPlayerControls = document.getElementById(
+    "draft-player-controls"
+  );
 }

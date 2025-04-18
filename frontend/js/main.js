@@ -325,4 +325,39 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Show Initial Screen ---
   showScreen("welcome-screen");
   console.log("Main script initialization complete.");
+
+  // Add event listeners for draft screen
+  elements.draftBackBtn.addEventListener("click", () => {
+    if (state.isHost) {
+      // Host can delete lobby when leaving
+      if (confirm("Are you sure you want to delete this lobby?")) {
+        sendMessageToServer({
+          action: "deleteLobby",
+          lobbyId: state.currentLobbyId,
+        });
+        state.resetClientState();
+        showScreen("welcome-screen");
+      }
+    } else {
+      // Regular players just leave
+      sendMessageToServer({
+        action: "leaveLobby",
+        lobbyId: state.currentLobbyId,
+      });
+      state.resetClientState();
+      showScreen("welcome-screen");
+    }
+  });
+
+  // Add event listener for host delete draft lobby button
+  elements.hostDeleteDraftLobbyBtn.addEventListener("click", () => {
+    if (confirm("Are you sure you want to delete this lobby?")) {
+      sendMessageToServer({
+        action: "deleteLobby",
+        lobbyId: state.currentLobbyId,
+      });
+      state.resetClientState();
+      showScreen("welcome-screen");
+    }
+  });
 }); // End of DOMContentLoaded listener

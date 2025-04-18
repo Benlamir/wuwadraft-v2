@@ -135,8 +135,10 @@
         </div>
         <p id="lobby-status" class="mt-3">Waiting for players to join...</p>
 
-        <div class="button-group mt-4">
-          <button id="host-delete-lobby-btn" class="btn btn-danger stylish-button d-none">Delete Lobby</button>
+        <div class="button-group mt-4 d-flex justify-content-center gap-2">
+          <button id="host-delete-lobby-btn" class="btn btn-danger stylish-button d-none">
+            <i class="bi bi-trash"></i> Delete Lobby
+          </button>
           <button id="lobby-back-btn" class="btn btn-secondary stylish-button d-none">
             Back to Welcome
           </button>
@@ -196,6 +198,17 @@
               </div>
           </div>
           <button id="draft-back-btn" class="stylish-button mt-3">Back to Welcome (TEMP)</button>
+
+          <div class="draft-controls mt-4 text-center">
+              <div id="draft-host-controls" class="button-group d-none">
+                  <button id="host-delete-draft-lobby-btn" class="btn btn-danger stylish-button ms-2">
+                      <i class="bi bi-trash"></i> Delete Lobby
+                  </button>
+              </div>
+
+              <div id="draft-player-controls" class="button-group d-none">
+              </div>
+          </div>
       </div>
     </div>
 
