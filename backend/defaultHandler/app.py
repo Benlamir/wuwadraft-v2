@@ -1843,6 +1843,68 @@ def handler(event, context):
                 return {'statusCode': 500, 'body': 'Failed to join slot.'}
         # --- END hostJoinSlot Handler ---
 
+        elif action == 'resetDraft':
+            logger.info(f"Processing 'resetDraft' for connection {connection_id}")
+            lobby_id = message_data.get('lobbyId')
+            if not lobby_id:
+                logger.warning(f"resetDraft request from {connection_id} missing lobbyId.")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby ID missing."})
+                return {'statusCode': 400, 'body': 'Missing lobbyId.'}
+
+            try:
+                # 1. Get lobby item (ConsistentRead recommended for checks)
+                response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                lobby_item = response.get('Item')
+                if not lobby_item:
+                    logger.warning(f"Lobby {lobby_id} not found for reset attempt by {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby not found."})
+                    return {'statusCode': 404, 'body': 'Lobby not found.'}
+
+                # 2. Verify requester is the host
+                host_connection_id = lobby_item.get('hostConnectionId')
+                if connection_id != host_connection_id:
+                    logger.warning(f"Unauthorized reset draft attempt on lobby {lobby_id} by non-host {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can reset the draft."})
+                    return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
+
+                # 3. Reset the lobby state back to WAITING and clear draft fields
+                last_action_msg = "Draft was reset by the host."
+                update_expression = """
+                    SET lobbyState = :waitState,
+                        player1Ready = :falseVal,
+                        player2Ready = :falseVal,
+                        lastAction = :lastAct
+                    REMOVE currentPhase, currentTurn, currentStepIndex, turnExpiresAt,
+                           bans, player1Picks, player2Picks, availableResonators
+                """
+                expression_values = {
+                    ':waitState': 'WAITING',
+                    ':falseVal': False,
+                    ':lastAct': last_action_msg
+                }
+
+                logger.info(f"Resetting draft for lobby {lobby_id}. Update: {update_expression}, Values: {expression_values}")
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=update_expression,
+                    ExpressionAttributeValues=expression_values
+                )
+                logger.info(f"Lobby {lobby_id} draft reset successfully.")
+
+                # 4. Broadcast the reset state to all participants
+                broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg)
+
+                return {'statusCode': 200, 'body': 'Draft reset successfully.'}
+
+            except ClientError as e:
+                logger.error(f"Error processing resetDraft for {connection_id} on lobby {lobby_id} (ClientError): {str(e)}", exc_info=True)
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to reset draft: {str(e)}"})
+                return {'statusCode': 500, 'body': 'Failed to reset draft (database error).'}
+            except Exception as e:
+                logger.error(f"Unexpected error processing resetDraft for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Internal server error during draft reset."})
+                return {'statusCode': 500, 'body': 'Failed to reset draft (server error).'}
+
         else:
             # Unknown action - echo back or send error/info
             logger.info(f"Received unknown action '{action}' or no action from {connection_id}. Echoing.")

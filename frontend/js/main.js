@@ -360,4 +360,29 @@ document.addEventListener("DOMContentLoaded", () => {
       showScreen("welcome-screen");
     }
   });
+
+  // Add event listener for host reset draft button
+  if (elements.hostResetDraftBtn) {
+    elements.hostResetDraftBtn.addEventListener("click", () => {
+      console.log("Host: Reset Draft button clicked.");
+      if (state.isCurrentUserHost && state.currentLobbyId) {
+        if (
+          confirm(
+            "Are you sure you want to reset the draft? This will cancel the current picks/bans and return everyone to the lobby waiting screen."
+          )
+        ) {
+          sendMessageToServer({
+            action: "resetDraft",
+            lobbyId: state.currentLobbyId,
+          });
+        }
+      } else {
+        console.warn(
+          "Reset Draft button clicked but user is not host or lobbyId is missing."
+        );
+      }
+    });
+  } else {
+    console.warn("Host Reset Draft Button not found during listener setup.");
+  }
 }); // End of DOMContentLoaded listener

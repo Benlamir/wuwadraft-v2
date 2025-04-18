@@ -58,6 +58,7 @@ export const elements = {
   banSlot4: null,
   draftHostControls: null,
   hostDeleteDraftLobbyBtn: null,
+  hostResetDraftBtn: null,
   draftPlayerControls: null,
 };
 
@@ -186,6 +187,7 @@ export function initializeElements() {
   elements.hostDeleteDraftLobbyBtn = document.getElementById(
     "host-delete-draft-lobby-btn"
   );
+  elements.hostResetDraftBtn = document.getElementById("host-reset-draft-btn");
   elements.draftPlayerControls = document.getElementById(
     "draft-player-controls"
   );
