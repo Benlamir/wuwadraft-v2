@@ -116,25 +116,35 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("Lobby Back Button not found during listener setup.");
   }
   if (elements.draftBackBtn) {
+    // Log that the element was found and listener is being attached
+    console.log("[main.js] DEBUG: Attaching 'click' listener to draftBackBtn.");
+
     elements.draftBackBtn.addEventListener("click", () => {
-      console.log("Draft Back Button (Player Leave - Draft Screen) clicked.");
-      // --- UPDATE THIS LATER per plan (send leaveLobby, handle response) ---
-      if (state.currentLobbyId) {
-        sendMessageToServer({
-          action: "leaveLobby", // Backend will handle state based on lobbyState
-          lobbyId: state.currentLobbyId,
-        });
+      // Log immediately when clicked
+      console.log("[main.js] Leave Draft button clicked.");
+
+      // Check the conditions NECESSARY to leave as a player during draft
+      console.log(
+        `[main.js] Checking conditions: isHost=${state.isCurrentUserHost}, lobbyId=${state.currentLobbyId}`
+      );
+      if (!state.isCurrentUserHost && state.currentLobbyId) {
+        // Conditions are met (User is a player AND they have a lobby ID)
+        console.log("[main.js] Conditions met (is Player, has Lobby ID).");
+        // We will add the real logic here in the next steps
+        alert("Leave Draft clicked and conditions met! (No action taken yet)"); // Temporary feedback for testing
       } else {
-        console.warn("Cannot leave lobby, currentLobbyId is null.");
+        // Conditions are NOT met
+        console.warn(
+          `[main.js] Leave Draft button action stopped. Conditions not met: isHost=${state.isCurrentUserHost}, lobbyId=${state.currentLobbyId}`
+        );
+        alert("Cannot leave (maybe you are the host or not in a lobby?)"); // Temporary feedback for testing
       }
-      // Navigate self immediately, backend handles notifying others/cleanup
-      closeWebSocket();
-      state.clearLobbyState();
-      showScreen("welcome-screen");
-      // --- END UPDATE ---
     });
   } else {
-    console.warn("Draft Back Button not found during listener setup.");
+    // Log if the button element reference wasn't found initially
+    console.error(
+      "[main.js] ERROR: Draft Back Button element not found during listener setup."
+    );
   }
 
   // Ready Buttons

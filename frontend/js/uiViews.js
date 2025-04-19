@@ -512,6 +512,26 @@ export function updateDraftScreenUI(draftState) {
     return;
   }
 
+  // Show/hide controls based on host status
+  const isHost = state.isCurrentUserHost;
+  console.log(
+    `[uiViews] updateDraftScreenUI: Setting visibility. isHost = ${isHost}`
+  );
+
+  // Show host controls ONLY if host
+  toggleElementVisibility(elements.draftHostControls, isHost);
+  // Show player controls ONLY if NOT host (i.e., is a player)
+  toggleElementVisibility(elements.draftPlayerControls, !isHost);
+  // Hide the back button if host
+  toggleElementVisibility(elements.draftBackBtn, !isHost);
+
+  // If draft is complete, hide both control sets
+  if (draftState.currentPhase === "DRAFT_COMPLETE") {
+    toggleElementVisibility(elements.draftHostControls, false);
+    toggleElementVisibility(elements.draftPlayerControls, false);
+    toggleElementVisibility(elements.draftBackBtn, false);
+  }
+
   // --- ADD HANDLING FOR DRAFT COMPLETE STATE ---
   if (draftState.currentPhase === "DRAFT_COMPLETE") {
     console.log("UI: Rendering Draft Complete state.");
@@ -537,33 +557,6 @@ export function updateDraftScreenUI(draftState) {
 
     stopTimerDisplay(); // Explicitly stop timer on completion
     return; // Stop further UI updates for active turn display etc.
-  }
-
-  // --- Update Host Controls Visibility ---
-  if (elements.draftHostControls) {
-    if (state.isCurrentUserHost) {
-      elements.draftHostControls.classList.remove("d-none");
-    } else {
-      elements.draftHostControls.classList.add("d-none");
-    }
-  }
-
-  // --- Update Player Controls Visibility ---
-  if (elements.draftPlayerControls) {
-    if (!state.isCurrentUserHost) {
-      elements.draftPlayerControls.classList.remove("d-none");
-    } else {
-      elements.draftPlayerControls.classList.add("d-none");
-    }
-  }
-
-  // --- Update Back Button Visibility ---
-  if (elements.draftBackBtn) {
-    if (state.isCurrentUserHost) {
-      elements.draftBackBtn.classList.add("d-none");
-    } else {
-      elements.draftBackBtn.classList.remove("d-none");
-    }
   }
 
   // --- Original UI Update Logic (for ongoing draft) ---

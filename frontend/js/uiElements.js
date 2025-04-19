@@ -132,6 +132,16 @@ export function initializeElements() {
   elements.draftBansSlotsContainer =
     document.getElementById("draft-bans-slots");
 
+  // Draft Control Elements
+  elements.draftHostControls = document.getElementById("draft-host-controls");
+  elements.hostDeleteDraftLobbyBtn = document.getElementById(
+    "host-delete-draft-lobby-btn"
+  );
+  elements.hostResetDraftBtn = document.getElementById("host-reset-draft-btn");
+  elements.draftPlayerControls = document.getElementById(
+    "draft-player-controls"
+  );
+
   // Player 1 Pick Slots
   elements.draftP1PicksList = document.getElementById("draft-p1-picks-list");
   elements.p1Pick1 = document.getElementById("p1-pick-1");
@@ -151,10 +161,6 @@ export function initializeElements() {
   elements.banSlot2 = document.getElementById("ban-slot-2");
   elements.banSlot3 = document.getElementById("ban-slot-3");
   elements.banSlot4 = document.getElementById("ban-slot-4");
-
-  // --- ADD HOST CONTROL BUTTONS (Draft Screen - Add later if needed) ---
-  // elements.hostResetDraftBtn = document.getElementById("host-reset-draft-btn");
-  // --- END ADD ---
 
   // Optional: Add logs to verify
   console.log("Check element - draftP1Name:", elements.draftP1Name);
@@ -183,12 +189,15 @@ export function initializeElements() {
     }
   }
 
-  elements.draftHostControls = document.getElementById("draft-host-controls");
-  elements.hostDeleteDraftLobbyBtn = document.getElementById(
-    "host-delete-draft-lobby-btn"
-  );
-  elements.hostResetDraftBtn = document.getElementById("host-reset-draft-btn");
-  elements.draftPlayerControls = document.getElementById(
-    "draft-player-controls"
-  );
+  // Add error logging for draft elements
+  if (!elements.draftPlayerControls)
+    console.error("[Init Check] draftPlayerControls element not found!");
+  if (!elements.draftBackBtn)
+    console.error("[Init Check] draftBackBtn element not found!");
+  if (!elements.draftTimer)
+    console.error("[Init Check] draftTimer element not found!");
+  if (!elements.characterGridContainer)
+    console.error("[Init Check] characterGridContainer element not found!");
+  if (!elements.draftPhaseStatus)
+    console.error("[Init Check] draftPhaseStatus element not found!");
 }
