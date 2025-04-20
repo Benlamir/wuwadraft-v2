@@ -202,36 +202,21 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   if (elements.player1ReadyBtn) {
     const shouldShowP1Ready =
       mySlot === "P1" && lobbyStateData.player1Ready !== true;
-    // console.log("DEBUG P1 Button: Setting visibility =", shouldShowP1Ready);
-    if (shouldShowP1Ready) {
-      elements.player1ReadyBtn.classList.remove("d-none");
-    } else {
-      elements.player1ReadyBtn.classList.add("d-none");
-    }
+    toggleElementVisibility(elements.player1ReadyBtn, shouldShowP1Ready);
     elements.player1ReadyBtn.disabled = !shouldShowP1Ready;
   }
 
   if (elements.player2ReadyBtn) {
     const shouldShowP2Ready =
       mySlot === "P2" && lobbyStateData.player2Ready !== true;
-    // console.log("DEBUG P2 Button: Setting visibility =", shouldShowP2Ready);
-    if (shouldShowP2Ready) {
-      elements.player2ReadyBtn.classList.remove("d-none");
-    } else {
-      elements.player2ReadyBtn.classList.add("d-none");
-    }
+    toggleElementVisibility(elements.player2ReadyBtn, shouldShowP2Ready);
     elements.player2ReadyBtn.disabled = !shouldShowP2Ready;
   }
 
   // Player Back Button
   if (elements.lobbyBackBtn) {
     const shouldShowBackBtn = !isHost;
-    // console.log("DEBUG Back Button: Setting visibility =", shouldShowBackBtn);
-    if (shouldShowBackBtn) {
-      elements.lobbyBackBtn.classList.remove("d-none");
-    } else {
-      elements.lobbyBackBtn.classList.add("d-none");
-    }
+    toggleElementVisibility(elements.lobbyBackBtn, shouldShowBackBtn);
   }
 
   // --- Update Host Controls Visibility ---

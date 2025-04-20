@@ -593,3 +593,33 @@ header {
 #lobby-status {
   transition: color 0.3s ease; /* Smooth transition when changing back */
 }
+
+/* Lobby Wait Screen Layout */
+.player-list-container {
+  background-color: var(--bg-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.host-row,
+.player-row {
+  min-height: 40px;
+}
+
+/* Remove conflicting visibility rules */
+.player-kick-area,
+.player-status-area,
+.player-ready-area {
+  /* Remove visibility: hidden */
+}
+
+/* Remove visibility classes since we're using d-none */
+.player-kick-area.visible,
+.player-status-area.visible,
+.player-ready-area.visible {
+  /* Remove visibility: visible */
+}
+
+/* Remove utility class since we're using d-none */
+.visibility-hidden {
+  /* Remove visibility: hidden !important */
+}

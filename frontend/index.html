@@ -95,46 +95,64 @@
 
         <div class="lobby-info mb-3">
           Lobby ID:
-          <div
-            class="lobby-id-container d-inline-block ms-2"
-            style="max-width: 200px"
-          >
+          <div class="lobby-id-container d-inline-block ms-2" style="max-width: 200px;">
             <span id="lobby-id-display" class="lobby-id-text">••••••••</span>
             <span id="toggle-lobby-id-display" class="lobby-id-toggle-icon">
               <i class="bi bi-eye-fill"></i>
             </span>
           </div>
-          <button
-            id="copy-lobby-id-btn"
-            class="btn btn-sm btn-outline-secondary ms-1"
-            title="Copy Lobby ID"
-          >
+          <button id="copy-lobby-id-btn" class="btn btn-sm btn-outline-secondary ms-1" title="Copy Lobby ID">
             <i class="bi bi-clipboard"></i>
           </button>
         </div>
-        <div class="player-list">
-          <p>Host: <span id="host-name">[Host Name]</span>
-             <button id="host-join-slot-btn" class="btn btn-sm btn-outline-primary stylish-button ms-3 d-none">Join as Player</button>
-             <button id="host-leave-slot-btn" class="btn btn-sm btn-outline-warning stylish-button ms-3 d-none">Leave Player Slot</button>
-          </p>
-          <p>
-            <button id="host-kick-p1-btn" class="btn btn-sm btn-outline-danger host-kick-btn me-1 d-none" title="Kick Player 1">
-              <i class="bi bi-x-circle-fill"></i>
-            </button>
-            Player 1: <span id="player1-name">Waiting...</span>
-            <span id="player1-status" class="player-status text-muted ms-2"></span>
-            <button id="player1-ready-btn" class="btn btn-sm btn-success stylish-button player-ready-btn ms-2">Ready</button>
-          </p>
-          <p>
-            <button id="host-kick-p2-btn" class="btn btn-sm btn-outline-danger host-kick-btn me-1 d-none" title="Kick Player 2">
-              <i class="bi bi-x-circle-fill"></i>
-            </button>
-            Player 2: <span id="player2-name">Waiting...</span>
-            <span id="player2-status" class="player-status text-muted ms-2"></span>
-            <button id="player2-ready-btn" class="btn btn-sm btn-success stylish-button player-ready-btn ms-2">Ready</button>
-          </p>
+
+        <div class="player-list-container border rounded p-3 mb-3">
+          <div class="host-row d-flex align-items-center mb-2">
+            <div class="host-name-area flex-grow-1">
+              Host: <span id="host-name">[Host Name]</span>
+            </div>
+            <div class="host-action-area ms-auto">
+              <button id="host-join-slot-btn" class="btn btn-sm btn-outline-primary stylish-button ms-2 d-none">Join as Player</button>
+              <button id="host-leave-slot-btn" class="btn btn-sm btn-outline-warning stylish-button ms-2 d-none">Leave Player Slot</button>
+            </div>
+          </div>
+          <hr/>
+          <div class="player-row d-flex align-items-center mb-2">
+            <div class="player-kick-area" style="min-width: 40px; text-align: center;">
+              <button id="host-kick-p1-btn" class="btn btn-sm btn-outline-danger host-kick-btn d-none" title="Kick Player 1">
+                <i class="bi bi-x-circle-fill"></i>
+              </button>
+            </div>
+            <div class="player-name-area flex-grow-1 ms-2">
+              Player 1: <span id="player1-name">Waiting...</span>
+            </div>
+            <div class="player-status-area ms-2" style="min-width: 30px; text-align: center;">
+              <span id="player1-status" class="player-status text-muted"></span>
+            </div>
+            <div class="player-ready-area ms-2" style="min-width: 80px; text-align: center;">
+              <button id="player1-ready-btn" class="btn btn-sm btn-success stylish-button player-ready-btn d-none">Ready</button>
+            </div>
+          </div>
+
+          <div class="player-row d-flex align-items-center">
+            <div class="player-kick-area" style="min-width: 40px; text-align: center;">
+              <button id="host-kick-p2-btn" class="btn btn-sm btn-outline-danger host-kick-btn d-none" title="Kick Player 2">
+                <i class="bi bi-x-circle-fill"></i>
+              </button>
+            </div>
+            <div class="player-name-area flex-grow-1 ms-2">
+              Player 2: <span id="player2-name">Waiting...</span>
+            </div>
+            <div class="player-status-area ms-2" style="min-width: 30px; text-align: center;">
+              <span id="player2-status" class="player-status text-muted"></span>
+            </div>
+            <div class="player-ready-area ms-2" style="min-width: 80px; text-align: center;">
+              <button id="player2-ready-btn" class="btn btn-sm btn-success stylish-button player-ready-btn d-none">Ready</button>
+            </div>
+          </div>
         </div>
-        <p id="lobby-status" class="mt-3">Waiting for players to join...</p>
+
+        <p id="lobby-status" class="mt-3 text-center">Waiting for players to join...</p>
 
         <div class="button-group mt-4 d-flex justify-content-center gap-2">
           <button id="host-delete-lobby-btn" class="btn btn-danger stylish-button d-none">
