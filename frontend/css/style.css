@@ -555,3 +555,41 @@ header {
     max-width: stretch;
   }
 }
+
+/* Define the pulsing animation */
+@keyframes pulseRed {
+  0% {
+    color: #ff4d4d;
+    transform: scale(1.02);
+    opacity: 1;
+  }
+  50% {
+    color: #ff0000;
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    color: #ff4d4d;
+    transform: scale(1.02);
+    opacity: 1;
+  }
+}
+
+.lobby-status-info {
+  color: #16ab1b; /* Bootstrap's standard --bs-info color */
+  font-weight: bold; /* Make it stand out a bit */
+  text-align: center;
+}
+
+/* Class to apply the animation */
+.lobby-status-highlight {
+  color: #ff4d4d; /* Starting/Ending color after animation */
+  font-weight: bold; /* Keep it bold */
+  animation: pulseRed 1.5s ease-in-out 2 forwards; /* Run animation twice and keep final state */
+  text-align: center;
+}
+
+/* Optional: Ensure default state doesn't conflict */
+#lobby-status {
+  transition: color 0.3s ease; /* Smooth transition when changing back */
+}

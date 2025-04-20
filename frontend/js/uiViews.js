@@ -141,10 +141,41 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
   // --- Update Lobby Status Text (Including lastAction) ---
   if (elements.lobbyStatusDisplay) {
+    // Remove ALL potentially conflicting styling classes first
+    elements.lobbyStatusDisplay.classList.remove(
+      "text-muted",
+      "text-info", // Remove the default Bootstrap blue class
+      "lobby-status-highlight", // Remove red pulse class
+      "lobby-status-info" // Remove custom blue info class
+    );
+
     if (lobbyStateData.lastAction) {
-      elements.lobbyStatusDisplay.textContent = lobbyStateData.lastAction;
-      elements.lobbyStatusDisplay.classList.add("text-info");
+      const actionText = lobbyStateData.lastAction.toLowerCase(); // Use lowercase for matching
+      elements.lobbyStatusDisplay.textContent = lobbyStateData.lastAction; // Set the text
+
+      // Conditionally apply the correct styling class
+      if (
+        actionText.includes("left") ||
+        actionText.includes("kicked") ||
+        actionText.includes("reset") ||
+        actionText.includes("timed out")
+      ) {
+        // Apply the red pulsing class for negative/warning events
+        elements.lobbyStatusDisplay.classList.add("lobby-status-highlight");
+        console.log("Applying lobby-status-highlight class"); // Debug log
+      } else if (actionText.includes("joined as player")) {
+        // Apply the blue info class for the host joining
+        elements.lobbyStatusDisplay.classList.add("lobby-status-info");
+        console.log("Applying lobby-status-info class"); // Debug log
+      } else {
+        // Default case for other lastAction messages (uses default text color)
+        console.log(
+          "Applying default style for lastAction:",
+          lobbyStateData.lastAction
+        );
+      }
     } else {
+      // No specific lastAction, show default status text based on lobbyState
       let statusText = lobbyStateData.lobbyState || "WAITING";
       if (statusText === "WAITING" && (!p1Name || !p2Name)) {
         statusText = "Waiting for players...";
@@ -152,7 +183,8 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
         statusText = "Waiting for players to ready up...";
       }
       elements.lobbyStatusDisplay.textContent = statusText;
-      elements.lobbyStatusDisplay.classList.remove("text-info");
+      // Optionally add back a default class like text-muted if desired for standard waiting messages
+      // elements.lobbyStatusDisplay.classList.add("text-muted");
     }
   }
 
