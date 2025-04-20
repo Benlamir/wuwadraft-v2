@@ -341,6 +341,31 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     console.warn("Host Kick P2 Button not found during listener setup.");
   }
+
+  // NEW: Host Leave Slot Button Listener
+  if (elements.hostLeaveSlotBtn) {
+    elements.hostLeaveSlotBtn.addEventListener("click", () => {
+      console.log("Host: Leave Player Slot button clicked.");
+      // Verify user is host and currently in a slot
+      if (
+        state.isCurrentUserHost &&
+        (state.myAssignedSlot === "P1" || state.myAssignedSlot === "P2") &&
+        state.currentLobbyId
+      ) {
+        sendMessageToServer({
+          action: "hostLeaveSlot",
+          lobbyId: state.currentLobbyId,
+        });
+        // UI update will be handled by the lobbyStateUpdate message received back
+      } else {
+        console.warn(
+          "Leave slot button clicked, but conditions not met (not host, not in slot, or no lobbyId)."
+        );
+      }
+    });
+  } else {
+    console.warn("Host Leave Slot Button not found during listener setup.");
+  }
   // --- END HOST CONTROL LISTENERS ---
 
   // --- Show Initial Screen ---

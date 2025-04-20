@@ -34,6 +34,7 @@ export const elements = {
   lobbyBackBtn: null,
   hostDeleteLobbyBtn: null,
   hostJoinSlotBtn: null,
+  hostLeaveSlotBtn: null,
   hostKickP1Btn: null,
   hostKickP2Btn: null,
   draftBackBtn: null,
@@ -116,6 +117,7 @@ export function initializeElements() {
     "host-delete-lobby-btn"
   );
   elements.hostJoinSlotBtn = document.getElementById("host-join-slot-btn");
+  elements.hostLeaveSlotBtn = document.getElementById("host-leave-slot-btn");
   elements.hostKickP1Btn = document.getElementById("host-kick-p1-btn");
   elements.hostKickP2Btn = document.getElementById("host-kick-p2-btn");
   // --- END ADD ---

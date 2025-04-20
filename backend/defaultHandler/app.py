@@ -1911,6 +1911,99 @@ def handler(event, context):
                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Internal server error during draft reset."})
                 return {'statusCode': 500, 'body': 'Failed to reset draft (server error).'}
 
+        # --- ADD hostLeaveSlot Handler ---
+        elif action == 'hostLeaveSlot':
+            logger.info(f"Processing 'hostLeaveSlot' for connection {connection_id}")
+            lobby_id = message_data.get('lobbyId')
+            if not lobby_id:
+                logger.warning(f"hostLeaveSlot request from {connection_id} missing lobbyId.")
+                # Don't send error back, host state might be desynced, just fail silently server-side.
+                return {'statusCode': 400, 'body': 'Missing lobbyId.'}
+
+            try:
+                # Get lobby item (ConsistentRead recommended)
+                response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                lobby_item = response.get('Item')
+                if not lobby_item:
+                    logger.warning(f"Lobby {lobby_id} not found for hostLeaveSlot by {connection_id}.")
+                    return {'statusCode': 404, 'body': 'Lobby not found.'}
+
+                # Verify requester is the host
+                host_connection_id = lobby_item.get('hostConnectionId')
+                if connection_id != host_connection_id:
+                    logger.warning(f"Unauthorized hostLeaveSlot attempt on lobby {lobby_id} by non-host {connection_id}.")
+                    # Send error back to prevent unexpected UI state if non-host clicks somehow
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can perform this action."})
+                    return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
+
+                # Find which slot the host occupies
+                host_slot_key = None
+                host_name_key = None
+                host_ready_key = None
+                if lobby_item.get('player1ConnectionId') == host_connection_id:
+                    host_slot_key = 'player1ConnectionId'
+                    host_name_key = 'player1Name'
+                    host_ready_key = 'player1Ready'
+                elif lobby_item.get('player2ConnectionId') == host_connection_id:
+                    host_slot_key = 'player2ConnectionId'
+                    host_name_key = 'player2Name'
+                    host_ready_key = 'player2Ready'
+                else:
+                    logger.warning(f"Host {connection_id} tried to leave slot in lobby {lobby_id}, but is not currently in a player slot.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "info", "message": "You are not currently in a player slot."})
+                    return {'statusCode': 400, 'body': 'Host not in a player slot.'}
+
+                # Prepare update to remove host from slot
+                last_action_msg = f"{lobby_item.get('hostName', 'Host')} left the player slot."
+                update_expression = f"REMOVE {host_slot_key}, {host_name_key} SET {host_ready_key} = :falseVal, lastAction = :lastAct"
+                expression_values = {
+                    ':falseVal': False,
+                    ':lastAct': last_action_msg,
+                    ':host_conn_id': host_connection_id # Value for condition
+                }
+                # Condition ensures we only remove if the host is still in that specific slot
+                condition_expression = f"{host_slot_key} = :host_conn_id"
+
+                logger.info(f"Host {connection_id} leaving slot. Update: {update_expression}, Condition: {condition_expression}")
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=update_expression,
+                    ConditionExpression=condition_expression,
+                    ExpressionAttributeValues=expression_values
+                )
+                logger.info(f"Lobby {lobby_id} updated successfully (host left slot).")
+
+                # Send lobbyJoined message back to host to update their state *immediately*
+                # This ensures their state.myAssignedSlot becomes null quickly.
+                send_message_to_client(apigw_management_client, connection_id, {
+                    "type": "lobbyJoined", # Re-use lobbyJoined type
+                    "lobbyId": lobby_id,
+                    "assignedSlot": None, # Explicitly set slot to None
+                    "isHost": True,
+                    "message": "You left the player slot."
+                })
+
+                # Broadcast the updated state to all participants (including host)
+                broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg)
+
+                return {'statusCode': 200, 'body': 'Host left slot successfully.'}
+
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                    logger.warning(f"Conditional check failed for hostLeaveSlot in lobby {lobby_id}. Host might have already left.")
+                    # Maybe broadcast current state? Or just let host UI update from subsequent broadcast.
+                    broadcast_lobby_state(lobby_id, apigw_management_client) # Ensure everyone gets latest state
+                    return {'statusCode': 409, 'body': 'Conflict, slot state changed.'}
+                else:
+                    logger.error(f"Error processing hostLeaveSlot (ClientError): {str(e)}", exc_info=True)
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Database error leaving slot."})
+                    return {'statusCode': 500, 'body': 'Failed to leave slot (database error).'}
+            except Exception as e:
+                logger.error(f"Error processing hostLeaveSlot for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to leave slot: {str(e)}"})
+                return {'statusCode': 500, 'body': 'Failed to leave slot.'}
+        # --- END hostLeaveSlot Handler ---
+
         else:
             # Unknown action - echo back or send error/info
             logger.info(f"Received unknown action '{action}' or no action from {connection_id}. Echoing.")

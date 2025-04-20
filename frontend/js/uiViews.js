@@ -234,44 +234,30 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
     }
   }
 
-  // Host Controls
-  if (elements.hostDeleteLobbyBtn) {
-    // console.log("DEBUG Delete Button: Setting visibility =", isHost);
-    if (isHost) {
-      elements.hostDeleteLobbyBtn.classList.remove("d-none");
-    } else {
-      elements.hostDeleteLobbyBtn.classList.add("d-none");
-    }
-  }
+  // --- Update Host Controls Visibility ---
+  if (isHost) {
+    // Show "Join Slot" button only if host is NOT in a slot AND a slot is free
+    const hostIsInSlot = mySlot === "P1" || mySlot === "P2";
+    const slotIsFree = !p1Name || !p2Name;
+    toggleElementVisibility(
+      elements.hostJoinSlotBtn,
+      !hostIsInSlot && slotIsFree
+    );
 
-  if (elements.hostJoinSlotBtn) {
-    const canHostJoin = isHost && (!p1Name || !p2Name);
-    // console.log("DEBUG Join Button: Setting visibility =", canHostJoin);
-    if (canHostJoin) {
-      elements.hostJoinSlotBtn.classList.remove("d-none");
-    } else {
-      elements.hostJoinSlotBtn.classList.add("d-none");
-    }
-  }
+    // Show "Leave Slot" button only if host IS in a slot
+    toggleElementVisibility(elements.hostLeaveSlotBtn, hostIsInSlot);
 
-  if (elements.hostKickP1Btn) {
-    const showKickP1 = isHost && !!p1Name;
-    // console.log("DEBUG Kick P1 Button: Setting visibility =", showKickP1);
-    if (showKickP1) {
-      elements.hostKickP1Btn.classList.remove("d-none");
-    } else {
-      elements.hostKickP1Btn.classList.add("d-none");
-    }
-  }
-
-  if (elements.hostKickP2Btn) {
-    const showKickP2 = isHost && !!p2Name;
-    // console.log("DEBUG Kick P2 Button: Setting visibility =", showKickP2);
-    if (showKickP2) {
-      elements.hostKickP2Btn.classList.remove("d-none");
-    } else {
-      elements.hostKickP2Btn.classList.add("d-none");
-    }
+    // Keep existing logic for Delete and Kick buttons
+    toggleElementVisibility(elements.hostDeleteLobbyBtn, true); // Always show delete for host
+    toggleElementVisibility(elements.hostKickP1Btn, !!p1Name);
+    toggleElementVisibility(elements.hostKickP2Btn, !!p2Name);
+  } else {
+    // Hide all host controls if not the host
+    toggleElementVisibility(elements.hostJoinSlotBtn, false);
+    toggleElementVisibility(elements.hostLeaveSlotBtn, false);
+    toggleElementVisibility(elements.hostDeleteLobbyBtn, false);
+    toggleElementVisibility(elements.hostKickP1Btn, false);
+    toggleElementVisibility(elements.hostKickP2Btn, false);
   }
 }
 
