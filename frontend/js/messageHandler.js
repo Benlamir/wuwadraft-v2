@@ -75,19 +75,22 @@ export function handleWebSocketMessage(jsonData) {
         }
 
         // Screen Logic based on updated state
-        if (state.currentPhase) { // Draft is active or complete
+        if (state.currentPhase) {
+          // Draft is active or complete
           console.log(
             `MessageHandler: Phase is '${state.currentPhase}'. Updating/showing draft screen.`
           );
           updateDraftScreenUI(message);
           showScreen("draft-screen");
-        } else if (message.lobbyState === "WAITING") { // Waiting for players/ready
+        } else if (message.lobbyState === "WAITING") {
+          // Waiting for players/ready
           console.log(
             "MessageHandler: State is WAITING. Updating/showing lobby wait screen."
           );
           updateLobbyWaitScreenUI(message);
           showScreen("lobby-wait-screen");
-        } else { // Fallback
+        } else {
+          // Fallback
           console.warn(
             "MessageHandler: Unhandled lobbyStateUpdate screen logic - Phase:",
             state.currentPhase,
@@ -100,32 +103,25 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       // --- NEW CASE ADDED ---
-      case 'forceRedirect':
+      case "forceRedirect":
         console.log("MH_TRACE: Case forceRedirect");
         console.log("Received forceRedirect:", message);
-        const redirectMessage = message.message || "An action requires you to return to the main screen.";
+        const redirectMessage =
+          message.message ||
+          "An action requires you to return to the main screen.";
         alert(redirectMessage); // Inform the user
 
         // Reset client state (lobby ID, role, slot, currentDraftState etc.)
-        // Ensure state.resetClientState() exists in state.js and clears relevant variables
-        if (typeof state.resetClientState === 'function') {
-            state.resetClientState();
-            console.log("MH_TRACE: Client state reset via resetClientState().");
-        } else {
-             // Fallback if resetClientState doesn't exist (implement it in state.js!)
-            console.warn("MH_TRACE: state.resetClientState function not found! Attempting manual reset.");
-            state.setLobbyInfo(null, false, null); // Clears lobbyId, isHost, assignedSlot
-            state.setCurrentDraftState(null); // Clears draft state
-            state.setDraftPhase(null); // Clears phase
-            state.setDraftTurn(null); // Clears turn
-            state.setTurnExpiry(null); // Clears timer expiry
-            // Add any other state variables that need clearing
-        }
+        state.clearLobbyState();
+        console.log("MH_TRACE: Client state reset via clearLobbyState().");
 
         // Navigate back to the welcome screen
         // Ensure uiViews is imported correctly
-        showScreen('welcome-screen');
-        console.log("MH_TRACE: Navigated to welcome screen due to:", message.reason); // Log reason
+        showScreen("welcome-screen");
+        console.log(
+          "MH_TRACE: Navigated to welcome screen due to:",
+          message.reason
+        ); // Log reason
 
         // Optional: Consider closing the WebSocket connection here if desired
         // import { closeWebSocket } from './websocket.js';

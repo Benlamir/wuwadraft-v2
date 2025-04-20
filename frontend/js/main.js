@@ -115,35 +115,46 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     console.warn("Lobby Back Button not found during listener setup.");
   }
-  if (elements.draftBackBtn) {
-    // Log that the element was found and listener is being attached
-    console.log("[main.js] DEBUG: Attaching 'click' listener to draftBackBtn.");
 
-    elements.draftBackBtn.addEventListener("click", () => {
-      // Log immediately when clicked
-      console.log("[main.js] Leave Draft button clicked.");
+  // ----- NEW: Leave Draft Listener -----
+  const draftLeaveButton = document.querySelector(
+    "#draft-player-controls #draft-back-btn"
+  );
 
-      // Check the conditions NECESSARY to leave as a player during draft
-      console.log(
-        `[main.js] Checking conditions: isHost=${state.isCurrentUserHost}, lobbyId=${state.currentLobbyId}`
-      );
+  if (draftLeaveButton) {
+    draftLeaveButton.addEventListener("click", () => {
+      console.log("[main.js] Player Leave Draft button clicked.");
+
+      // Verify user is a player (not host) and has a valid lobby ID
       if (!state.isCurrentUserHost && state.currentLobbyId) {
-        // Conditions are met (User is a player AND they have a lobby ID)
-        console.log("[main.js] Conditions met (is Player, has Lobby ID).");
-        // We will add the real logic here in the next steps
-        alert("Leave Draft clicked and conditions met! (No action taken yet)"); // Temporary feedback for testing
+        console.log(
+          "[main.js] Conditions met (Player, has Lobby ID). Sending leaveLobby and cleaning up locally."
+        );
+
+        // Step 1: Send WebSocket message to the backend
+        sendMessageToServer({
+          action: "leaveLobby",
+          lobbyId: state.currentLobbyId,
+        });
+
+        // Step 2: Immediately perform local cleanup and navigate the UI
+        closeWebSocket(); // Close the WebSocket connection cleanly
+        state.clearLobbyState(); // Reset the client's state variables
+        uiViews.showScreen("welcome-screen"); // Navigate the UI back to the welcome screen
       } else {
-        // Conditions are NOT met
+        // This case should ideally not happen if the button is correctly hidden for the host,
+        // but it's good defensive programming.
         console.warn(
           `[main.js] Leave Draft button action stopped. Conditions not met: isHost=${state.isCurrentUserHost}, lobbyId=${state.currentLobbyId}`
         );
-        alert("Cannot leave (maybe you are the host or not in a lobby?)"); // Temporary feedback for testing
       }
     });
+    console.log(
+      "[main.js] Event listener attached to player's Leave Draft button."
+    );
   } else {
-    // Log if the button element reference wasn't found initially
     console.error(
-      "[main.js] ERROR: Draft Back Button element not found during listener setup."
+      "[main.js] ERROR: Could not find the player's Leave Draft button (#draft-player-controls #draft-back-btn) to attach listener."
     );
   }
 
@@ -345,7 +356,7 @@ document.addEventListener("DOMContentLoaded", () => {
           action: "deleteLobby",
           lobbyId: state.currentLobbyId,
         });
-        state.resetClientState();
+        state.clearLobbyState();
         showScreen("welcome-screen");
       }
     } else {
@@ -354,7 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
         action: "leaveLobby",
         lobbyId: state.currentLobbyId,
       });
-      state.resetClientState();
+      state.clearLobbyState();
       showScreen("welcome-screen");
     }
   });
@@ -366,7 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
         action: "deleteLobby",
         lobbyId: state.currentLobbyId,
       });
-      state.resetClientState();
+      state.clearLobbyState();
       showScreen("welcome-screen");
     }
   });

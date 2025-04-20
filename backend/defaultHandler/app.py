@@ -1427,14 +1427,14 @@ def handler(event, context):
                     leaving_player_slot = 'P1'
                     leaving_player_name = lobby_item.get('player1Name', 'Player 1')
                     remove_expressions.extend(["player1ConnectionId", "player1Name"])
-                    update_expressions.append("player1Ready = :falseVal")
-                    expression_values[':falseVal'] = False
+                   # update_expressions.append("player1Ready = :falseVal")
+                   # expression_values[':falseVal'] = False
                 elif connection_id == player2_conn_id:
                     leaving_player_slot = 'P2'
                     leaving_player_name = lobby_item.get('player2Name', 'Player 2')
                     remove_expressions.extend(["player2ConnectionId", "player2Name"])
-                    update_expressions.append("player2Ready = :falseVal")
-                    expression_values[':falseVal'] = False
+                   # update_expressions.append("player2Ready = :falseVal")
+                   # expression_values[':falseVal'] = False
                 else:
                     logger.warning(f"Connection {connection_id} tried to leave lobby {lobby_id} but is not P1 or P2.")
                     # Handle host leaving later in disconnect handler if needed
