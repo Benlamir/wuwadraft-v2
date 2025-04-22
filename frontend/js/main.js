@@ -100,17 +100,20 @@ document.addEventListener("DOMContentLoaded", () => {
     elements.lobbyBackBtn.addEventListener("click", () => {
       console.log("Lobby Back Button (Player Leave - Wait Screen) clicked.");
       if (state.currentLobbyId) {
-        sendMessageToServer({
-          action: "leaveLobby",
-          lobbyId: state.currentLobbyId,
-        });
+        // Add confirmation dialog
+        if (confirm("Are you sure you want to leave this lobby?")) {
+          sendMessageToServer({
+            action: "leaveLobby",
+            lobbyId: state.currentLobbyId,
+          });
+          // Only clear draft state and keep connection alive
+          state.clearLobbyState();
+          showScreen("welcome-screen");
+        }
       } else {
         console.warn("Cannot leave lobby, currentLobbyId is null.");
+        showScreen("welcome-screen");
       }
-      // Action: Navigate self back, clear state, close WS
-      closeWebSocket(); // Close connection cleanly
-      state.clearLobbyState();
-      showScreen("welcome-screen");
     });
   } else {
     console.warn("Lobby Back Button not found during listener setup.");
