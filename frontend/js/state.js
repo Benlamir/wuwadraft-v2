@@ -80,12 +80,17 @@ export function setTurnExpiry(isoTimestamp) {
 // --- END ADD ---
 
 export function clearLobbyState() {
-  console.log("State: Clearing lobby state");
+  console.log("State: Clearing all lobby state");
   currentLobbyId = null;
   isCurrentUserHost = false;
   myAssignedSlot = null;
+  clearDraftState();
+  // Keep currentUserName for convenience
+}
 
-  // --- MODIFY clearLobbyState TO INCLUDE THESE LINES ---
+// New function to clear only draft-related state
+export function clearDraftState() {
+  console.log("State: Clearing draft-specific state");
   currentPhase = null;
   currentTurn = null;
   activeElementFilter = "All"; // Reset filter
@@ -96,9 +101,6 @@ export function clearLobbyState() {
     clearInterval(timerIntervalId);
     timerIntervalId = null;
   }
-  // --- END MODIFY ---
-
-  // Keep currentUserName? Or clear it too? Let's keep it for now.
 }
 
 // --- NEW FUNCTION ---

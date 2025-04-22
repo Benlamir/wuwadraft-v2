@@ -137,9 +137,8 @@ document.addEventListener("DOMContentLoaded", () => {
           lobbyId: state.currentLobbyId,
         });
 
-        // Step 2: Immediately perform local cleanup and navigate the UI
-        closeWebSocket(); // Close the WebSocket connection cleanly
-        state.clearLobbyState(); // Reset the client's state variables
+        // Only clear draft-related state, keep connection alive
+        state.clearDraftState();
         uiViews.showScreen("welcome-screen"); // Navigate the UI back to the welcome screen
       } else {
         // This case should ideally not happen if the button is correctly hidden for the host,
