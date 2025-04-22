@@ -127,19 +127,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Verify user is a player (not host) and has a valid lobby ID
       if (!state.isCurrentUserHost && state.currentLobbyId) {
-        console.log(
-          "[main.js] Conditions met (Player, has Lobby ID). Sending leaveLobby and cleaning up locally."
-        );
+        // Add confirmation dialog
+        if (confirm("Are you sure you want to leave this draft?")) {
+          console.log(
+            "[main.js] Conditions met (Player, has Lobby ID). Sending leaveLobby and cleaning up locally."
+          );
 
-        // Step 1: Send WebSocket message to the backend
-        sendMessageToServer({
-          action: "leaveLobby",
-          lobbyId: state.currentLobbyId,
-        });
+          // Step 1: Send WebSocket message to the backend
+          sendMessageToServer({
+            action: "leaveLobby",
+            lobbyId: state.currentLobbyId,
+          });
 
-        // Only clear draft-related state, keep connection alive
-        state.clearDraftState();
-        uiViews.showScreen("welcome-screen"); // Navigate the UI back to the welcome screen
+          // Only clear draft-related state, keep connection alive
+          state.clearDraftState();
+          uiViews.showScreen("welcome-screen"); // Navigate the UI back to the welcome screen
+        }
       } else {
         // This case should ideally not happen if the button is correctly hidden for the host,
         // but it's good defensive programming.
