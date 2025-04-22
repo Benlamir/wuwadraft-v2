@@ -113,6 +113,66 @@ header {
   margin: 0 5px;
 }
 
+/* Hero Button Styles */
+.hero-button {
+  position: relative;
+  padding: 15px 30px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: white;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.hero-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.hero-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  color: white;
+}
+
+.hero-button:hover::before {
+  transform: translateX(100%);
+}
+
+.hero-button i {
+  margin-right: 8px;
+}
+
+/* Hero Button Variants */
+.hero-primary {
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.2), rgba(13, 110, 253, 0.4));
+  border: 1px solid rgba(13, 110, 253, 0.3);
+}
+
+.hero-info {
+  background: linear-gradient(135deg, rgba(13, 202, 240, 0.2), rgba(13, 202, 240, 0.4));
+  border: 1px solid rgba(13, 202, 240, 0.3);
+}
+
+.hero-secondary {
+  background: linear-gradient(135deg, rgba(108, 117, 125, 0.2), rgba(108, 117, 125, 0.4));
+  border: 1px solid rgba(108, 117, 125, 0.3);
+}
+
 /* Button styling */
 .stylish-button {
   margin: 10px;
