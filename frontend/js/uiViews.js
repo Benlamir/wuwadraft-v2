@@ -388,25 +388,17 @@ function updateCountdown(expiryTime, intervalId) {
     // );
 
     if (myAssignedSlot === currentTurn) {
-      // console.log(
-      //   `UI: It's MY turn (${myAssignedSlot}), waiting briefly before sending timeout.`
-      // );
-      setTimeout(() => {
-        if (state.currentTurn === myAssignedSlot) {
-          // console.log(
-          //   `UI: Sending timeout action after delay. Expected Phase: ${state.currentPhase}, Expected Turn: ${myAssignedSlot}`
-          // );
-          sendMessageToServer({
-            action: "turnTimeout",
-            expectedPhase: state.currentPhase,
-            expectedTurn: myAssignedSlot,
-          });
-        } else {
-          // console.log(
-          //   `UI: Timeout send cancelled. Turn changed to ${state.currentTurn} during delay.`
-          // );
-        }
-      }, 500);
+      // Send timeout request immediately when timer reaches zero
+      if (state.currentTurn === myAssignedSlot) {
+        // console.log(
+        //   `UI: Sending timeout action. Expected Phase: ${state.currentPhase}, Expected Turn: ${myAssignedSlot}`
+        // );
+        sendMessageToServer({
+          action: "turnTimeout",
+          expectedPhase: state.currentPhase,
+          expectedTurn: myAssignedSlot,
+        });
+      }
     } else {
       // console.log(
       //   `UI: Timer expired, but it was not my turn (${myAssignedSlot} vs ${currentTurn}). Not sending timeout action.`

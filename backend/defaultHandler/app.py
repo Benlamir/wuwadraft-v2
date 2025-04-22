@@ -1213,15 +1213,25 @@ def handler(event, context):
 
             # --- CORRECT THIS CHECK ---
             # b) Check if the expiry time has actually passed
-            now_iso = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(timezone.utc)
             if not turn_expires_at_db:
                  logger.warning(f"Timeout processing failed for lobby {lobby_id}. Missing turnExpiresAt attribute.")
                  return {'statusCode': 500, 'body': 'Internal error: Missing expiry data.'}
-            elif now_iso <= turn_expires_at_db: # Check if current time is BEFORE or EQUAL to expiry
-                 logger.warning(f"Timeout check failed for lobby {lobby_id}. Expiry {turn_expires_at_db} has not passed yet ({now_iso}). Client timer might be fast or message delayed.")
-                 return {'statusCode': 400, 'body': 'Timeout condition not met (time has not passed).'}
-            # If we reach here, time HAS passed
-            logger.info(f"Timeout time condition met for lobby {lobby_id}. Expiry: {turn_expires_at_db}, Current: {now_iso}.")
+            
+            try:
+                # Parse the expiry time string to datetime object
+                expires_at = datetime.fromisoformat(turn_expires_at_db.replace('Z', '+00:00'))
+                # Add a 2-second grace period to account for network delays and timing differences
+                grace_period = timedelta(seconds=2)
+                if now < expires_at - grace_period: # Only reject if we're well before the expiry
+                    logger.warning(f"Timeout check failed for lobby {lobby_id}. Expiry {turn_expires_at_db} has not passed yet ({now.isoformat()}). Client timer might be fast or message delayed.")
+                    return {'statusCode': 400, 'body': 'Timeout condition not met (time has not passed).'}
+            except ValueError as e:
+                logger.error(f"Error parsing expiry time for lobby {lobby_id}: {str(e)}")
+                return {'statusCode': 500, 'body': 'Internal error: Invalid expiry time format.'}
+            
+            # If we reach here, time HAS passed or is within grace period
+            logger.info(f"Timeout time condition met for lobby {lobby_id}. Expiry: {turn_expires_at_db}, Current: {now.isoformat()}.")
             # --- END CORRECTION ---
 
             # c) Convert and check index (Keep fix from Response #87)
