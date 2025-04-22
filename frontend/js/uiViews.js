@@ -520,12 +520,8 @@ export function updateDraftScreenUI(draftState) {
   // Hide the back button if host
   toggleElementVisibility(elements.draftBackBtn, !isHost);
 
-  // If draft is complete, hide both control sets
-  if (draftState.currentPhase === "DRAFT_COMPLETE") {
-    toggleElementVisibility(elements.draftHostControls, false);
-    toggleElementVisibility(elements.draftPlayerControls, false);
-    toggleElementVisibility(elements.draftBackBtn, false);
-  }
+  // Keep controls visible even in draft complete state
+  // (removed code that was hiding controls)
 
   // --- ADD HANDLING FOR DRAFT COMPLETE STATE ---
   if (draftState.currentPhase === "DRAFT_COMPLETE") {
