@@ -158,7 +158,8 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
         actionText.includes("left") ||
         actionText.includes("kicked") ||
         actionText.includes("reset") ||
-        actionText.includes("timed out")
+        actionText.includes("timed out") ||
+        actionText.includes("disconnected")
       ) {
         // Apply the red pulsing class for negative/warning events
         elements.lobbyStatusDisplay.classList.add("lobby-status-highlight");
