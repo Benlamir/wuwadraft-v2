@@ -183,8 +183,60 @@ def handler(event, context):
         # Identify who disconnected and prepare update
         disconnected_player_name = "Player"
         if connection_id == host_connection_id:
-            logger.warning(f"Host ({connection_id}) disconnected from lobby {lobby_id}. Lobby state not changed by disconnect handler.")
-            return {'statusCode': 200, 'body': 'Host disconnected.'}
+            # --- Host Disconnected: Delete the Lobby ---
+            logger.info(f"Host ({connection_id}) disconnected from lobby {lobby_id}. Initiating lobby deletion.")
+
+            # Find remaining participants (P1, P2) BEFORE deleting lobby
+            p1_conn_id = lobby_item.get('player1ConnectionId')
+            p2_conn_id = lobby_item.get('player2ConnectionId')
+            remaining_participants = [pid for pid in [p1_conn_id, p2_conn_id] if pid] # List of P1/P2 connection IDs if they exist
+
+            # Delete the lobby item from DynamoDB
+            try:
+                lobbies_table.delete_item(Key={'lobbyId': lobby_id})
+                logger.info(f"Lobby {lobby_id} deleted successfully due to host disconnect.")
+            except Exception as delete_err:
+                logger.error(f"Failed to delete lobby {lobby_id} after host disconnect: {str(delete_err)}", exc_info=True)
+                # If delete fails, maybe don't proceed with notifications? Or log and continue best-effort.
+                # Let's log and stop here to avoid potentially confusing redirects if lobby still exists.
+                return {'statusCode': 500, 'body': 'Error deleting lobby after host disconnect.'}
+
+            # Notify remaining participants if APIGW client is available
+            if apigw_management_client and remaining_participants:
+                force_redirect_payload = {
+                    "type": "forceRedirect",
+                    "reason": "host_disconnected", # Use a specific reason
+                    "message": f"Lobby {lobby_id} closed because the host disconnected."
+                }
+                logger.info(f"Notifying remaining participants and cleaning up connections for deleted lobby {lobby_id}. Participants: {remaining_participants}")
+                failed_sends = []
+                for pid in remaining_participants:
+                    logger.info(f"Sending forceRedirect to {pid} and cleaning up connection.")
+                    # Send redirect message first
+                    if not send_message_to_client(apigw_management_client, pid, force_redirect_payload):
+                        failed_sends.append(pid)
+
+                    # Cleanup participant's connection entry (best effort)
+                    try:
+                        connections_table.update_item(
+                            Key={'connectionId': pid},
+                            UpdateExpression="REMOVE currentLobbyId"
+                        )
+                        logger.info(f"Removed currentLobbyId from connection {pid}")
+                    except Exception as conn_clean_err:
+                        logger.error(f"Failed to cleanup remaining participant connection {pid} after host disconnect: {conn_clean_err}")
+
+                if failed_sends:
+                    logger.warning(f"Failed to send forceRedirect to some participants: {failed_sends}")
+
+            elif not remaining_participants:
+                logger.info(f"No remaining participants in lobby {lobby_id} to notify after host disconnect.")
+            else: # apigw_management_client was None
+                 logger.warning(f"Cannot notify remaining participants for lobby {lobby_id} after host disconnect - APIGW client not available.")
+
+            # Disconnected host's connection was already deleted from connections table earlier in the handler
+            return {'statusCode': 200, 'body': 'Host disconnected, lobby deleted.'}
+            # --- End Host Disconnect Logic ---
 
         elif connection_id == p1_connection_id:
             disconnected_player_name = lobby_item.get('player1Name', 'Player 1')
