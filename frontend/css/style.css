@@ -680,7 +680,7 @@ header {
     flex-direction: column;
   }
   .player-area {
-    flex-basis: 200px;
+    flex-basis: 400px;
   }
 }
 
@@ -781,7 +781,7 @@ header {
 
 /* Hero Section Styling */
 .hero-description {
-  position: relative; /* For the separator positioning */
+  position: relative;
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
@@ -790,15 +790,15 @@ header {
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  text-align: center; /* Center all text content */
 }
-
-  /* Decorative Separator */
 
 .hero-description .lead {
   font-size: 1.5rem;
   font-weight: 300;
   color: #fff;
   margin-bottom: 1.5rem;
+  text-align: center;
 }
 
 .hero-description .text-light {
@@ -838,22 +838,28 @@ header {
 .features-list {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap; /* Allow wrapping on small screens */
   gap: 1rem;
-  margin-top: 2rem;
+  margin: 2rem auto; /* Center with auto margins */
   padding: 1.5rem;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 1rem;
   backdrop-filter: blur(10px);
+  max-width: 100%; /* Ensure it doesn't overflow */
 }
 
 .features-list .feature-item {
   display: flex;
   align-items: center;
+  justify-content: center; /* Center items horizontally */
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 0.5rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  flex: 1 1 auto; /* Allow items to grow and shrink */
+  min-width: 150px; /* Minimum width before wrapping */
+  text-align: center;
 }
 
 .features-list i[class*="text-"] {
@@ -882,4 +888,36 @@ header {
 /* Adjust header background when draft screen is active */
 body.draft-active-background header {
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0));
+}
+
+/* Add responsive adjustments */
+@media (max-width: 767.98px) {
+  .hero-description {
+    padding: 1.5rem;
+    margin: 1rem;
+    width: auto;
+  }
+
+  #welcome-screen h2 {
+    font-size: 2.5rem; /* Slightly smaller on mobile */
+    text-align: center;
+    margin: 1.5rem 0;
+  }
+
+  .features-list {
+    padding: 1rem;
+    flex-direction: column; /* Stack items vertically on very small screens */
+    align-items: center;
+  }
+
+  .features-list .feature-item {
+    width: 100%; /* Full width on mobile */
+    justify-content: center;
+  }
+
+  .hero-description .small {
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+  }
 }
