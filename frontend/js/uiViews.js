@@ -26,25 +26,11 @@ export function showScreen(screenIdToShow) {
     console.error("Screens NodeList not initialized yet in uiViews!");
     return;
   }
-  // console.log(`UI: Navigating to screen: ${screenIdToShow}`);
-
-  // --- Toggle Header Visibility ---
-  if (elements.header) {
-    if (screenIdToShow === "draft-screen") {
-      elements.header.classList.add("visually-hidden");
-    } else {
-      elements.header.classList.remove("visually-hidden");
-    }
-  } else {
-    console.warn("UI: Header element not found, cannot toggle visibility.");
-  }
 
   // --- Toggle Background Class ---
   if (screenIdToShow === "draft-screen") {
-    // console.log("UI: Adding draft background class to body.");
     document.body.classList.add("draft-active-background");
   } else {
-    // console.log("UI: Removing draft background class from body.");
     document.body.classList.remove("draft-active-background");
   }
 

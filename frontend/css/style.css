@@ -37,10 +37,88 @@ body.draft-active-background::before {
 
 /* Persistent Header Styling */
 header {
-  text-align: center;
-  padding: 20px;
-  font-size: 24px;
-  color: white;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 1rem 2rem;
+  z-index: 1000;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0));
+  backdrop-filter: blur(8px);
+}
+
+.site-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  text-align: left;
+  font-family: "Rajdhani", -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 1px;
+  position: relative;
+  display: inline-block;
+  text-transform: uppercase;
+}
+
+.site-title .main-title {
+  color: #fff;
+  background-image: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #d0d0d0 20%,
+    #ffffff 39%,
+    #909090 50%,
+    #ffffff 60%,
+    #e0e0e0 80%,
+    #ffffff 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.site-title .domain {
+  background-image: linear-gradient(
+    180deg,
+    #6dd5ed 0%,
+    #2193b0 20%,
+    #6dd5ed 39%,
+    #2193b0 50%,
+    #6dd5ed 60%,
+    #2193b0 80%,
+    #6dd5ed 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  font-weight: 600;
+}
+
+.site-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 2px;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #2193b0, #6dd5ed, transparent);
+  transform: scaleX(0.7);
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.site-title:hover::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+/* Add gaming font */
+@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap");
+
+/* Adjust main container to account for fixed header */
+.container-fluid {
+  margin-top: 5rem;
 }
 
 /* Screen Visibility Control */
@@ -132,13 +210,18 @@ header {
 }
 
 .hero-button::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
   transform: translateX(-100%);
   transition: transform 0.6s ease;
 }
@@ -159,17 +242,29 @@ header {
 
 /* Hero Button Variants */
 .hero-primary {
-  background: linear-gradient(135deg, rgba(13, 110, 253, 0.2), rgba(13, 110, 253, 0.4));
+  background: linear-gradient(
+    135deg,
+    rgba(13, 110, 253, 0.2),
+    rgba(13, 110, 253, 0.4)
+  );
   border: 1px solid rgba(13, 110, 253, 0.3);
 }
 
 .hero-info {
-  background: linear-gradient(135deg, rgba(13, 202, 240, 0.2), rgba(13, 202, 240, 0.4));
+  background: linear-gradient(
+    135deg,
+    rgba(13, 202, 240, 0.2),
+    rgba(13, 202, 240, 0.4)
+  );
   border: 1px solid rgba(13, 202, 240, 0.3);
 }
 
 .hero-secondary {
-  background: linear-gradient(135deg, rgba(108, 117, 125, 0.2), rgba(108, 117, 125, 0.4));
+  background: linear-gradient(
+    135deg,
+    rgba(108, 117, 125, 0.2),
+    rgba(108, 117, 125, 0.4)
+  );
   border: 1px solid rgba(108, 117, 125, 0.3);
 }
 
@@ -682,4 +777,112 @@ header {
 /* Remove utility class since we're using d-none */
 .visibility-hidden {
   /* Remove visibility: hidden !important */
+}
+
+/* Hero Section Styling */
+.hero-description {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.hero-description .lead {
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: #fff;
+  margin-bottom: 1.5rem;
+}
+
+.hero-description .text-light {
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.hero-description .small {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  display: inline-block;
+}
+
+#welcome-screen h2 {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  background: linear-gradient(120deg, #fff, #a8a8a8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.hero-badge {
+  margin-bottom: 1.5rem;
+}
+
+.hero-badge .badge {
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(45deg, #ffd700, #ffa500);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.features-list {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.features-list .feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.features-list i[class*="text-"] {
+  font-size: 1.2rem;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.features-list .text-success {
+  color: #00ff9d !important;
+}
+.features-list .text-danger {
+  color: #ff4d4d !important;
+}
+.features-list .text-info {
+  color: #00d4ff !important;
+}
+.features-list .text-warning {
+  color: #ffd700 !important;
+}
+
+/* Gradient background for the badge */
+.bg-gradient {
+  background: linear-gradient(45deg, #2193b0, #6dd5ed);
+}
+
+/* Adjust header background when draft screen is active */
+body.draft-active-background header {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0));
+}
+
+/* Hide future features */
+[data-feature="randomize-pick"],
+.randomize-pick-btn {
+  display: none !important;
 }
