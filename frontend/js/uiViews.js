@@ -239,10 +239,28 @@ function findResonatorByName(name) {
 }
 // --- END HELPER FUNCTION ---
 
+// Function to manage slot glow states
+function updateSlotGlowState(slot, isActive, isFilled, type) {
+  if (!slot) return;
+
+  // Remove all possible state classes first
+  slot.classList.remove("pulse-ban", "pulse-pick", "glow-ban", "glow-pick");
+
+  if (isFilled) {
+    // Add fixed glow for filled slots
+    slot.classList.add(type === "ban" ? "glow-ban" : "glow-pick");
+  } else if (isActive) {
+    // Add pulsing effect for active empty slots
+    slot.classList.add(type === "ban" ? "pulse-ban" : "pulse-pick");
+  }
+}
+
 // --- ADD NEW FUNCTION for Pick Slots ---
 function updatePickSlots(draftState) {
   const p1Picks = draftState.player1Picks || [];
   const p2Picks = draftState.player2Picks || [];
+  const currentPhase = draftState.currentPhase;
+  const currentTurn = draftState.currentTurn;
 
   // Assuming 3 pick slots per player for now
   const p1SlotElements = [elements.p1Pick1, elements.p1Pick2, elements.p1Pick3];
@@ -252,77 +270,84 @@ function updatePickSlots(draftState) {
   p1SlotElements.forEach((slot, index) => {
     if (!slot) return; // Skip if element wasn't found
     const pickName = p1Picks[index];
+    const isActive =
+      currentPhase?.startsWith("PICK") &&
+      currentTurn === "P1" &&
+      !pickName &&
+      index === p1Picks.length;
+
     if (pickName) {
       const resonator = findResonatorByName(pickName);
       if (resonator && resonator.image_pick) {
-        slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`; // Use contain for portrait picks
-        slot.style.border = "1px solid #66f"; // Example: Add border to filled slot
+        slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
       } else {
-        slot.innerHTML = `<span>?</span>`; // Fallback if image not found
-        slot.style.border = "1px dashed rgba(255, 255, 255, 0.3)";
+        slot.innerHTML = `<span>?</span>`;
       }
     } else {
-      slot.innerHTML = ""; // Clear slot if no pick for this index
-      slot.style.border = "1px dashed rgba(255, 255, 255, 0.3)"; // Reset border
+      slot.innerHTML = "";
     }
+
+    updateSlotGlowState(slot, isActive, !!pickName, "pick");
   });
 
   // Update Player 2 slots
   p2SlotElements.forEach((slot, index) => {
     if (!slot) return;
     const pickName = p2Picks[index];
+    const isActive =
+      currentPhase?.startsWith("PICK") &&
+      currentTurn === "P2" &&
+      !pickName &&
+      index === p2Picks.length;
+
     if (pickName) {
       const resonator = findResonatorByName(pickName);
       if (resonator && resonator.image_pick) {
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
-        slot.style.border = "1px solid #f66"; // Example: Add border to filled slot
       } else {
         slot.innerHTML = `<span>?</span>`;
-        slot.style.border = "1px dashed rgba(255, 255, 255, 0.3)";
       }
     } else {
       slot.innerHTML = "";
-      slot.style.border = "1px dashed rgba(255, 255, 255, 0.3)";
     }
+
+    updateSlotGlowState(slot, isActive, !!pickName, "pick");
   });
 }
-// --- END Pick Slot Function ---
 
 // --- ADD NEW FUNCTION for Ban Slots ---
 function updateBanSlots(draftState) {
   const bans = draftState.bans || [];
-  // Use the NodeList directly if using querySelectorAll, or build array from IDs
+  const currentPhase = draftState.currentPhase;
+  const currentTurn = draftState.currentTurn;
+
   const banSlotElements = elements.banSlots || [
     elements.banSlot1,
     elements.banSlot2,
     elements.banSlot3,
     elements.banSlot4,
-  ]; // Use querySelectorAll result or array of IDs
+  ];
 
   banSlotElements.forEach((slot, index) => {
-    if (!slot) return; // Skip if element somehow null/undefined
+    if (!slot) return;
     const banName = bans[index];
+    const isActive =
+      currentPhase?.startsWith("BAN") && !banName && index === bans.length;
+
     if (banName) {
       const resonator = findResonatorByName(banName);
-      // Use smaller button image for bans? Or pick image? Let's use button image.
       if (resonator && resonator.image_button) {
         slot.innerHTML = `<img src="${resonator.image_button}" alt="${banName}" title="${banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`;
-        slot.style.borderColor = "#888"; // Example style change
-        slot.style.backgroundColor = "rgba(255, 50, 50, 0.2)";
       } else {
-        slot.innerHTML = `<span>X</span>`; // Fallback
-        slot.style.borderColor = "rgba(255, 255, 255, 0.3)";
-        slot.style.backgroundColor = "rgba(255, 255, 255, 0.08)";
+        slot.innerHTML = `<span>X</span>`;
       }
     } else {
-      slot.innerHTML = ""; // Clear slot
-      // Reset styles if needed
-      slot.style.borderColor = "rgba(255, 255, 255, 0.3)";
-      slot.style.backgroundColor = "rgba(255, 255, 255, 0.08)";
+      slot.innerHTML = "";
     }
+
+    updateSlotGlowState(slot, isActive, !!banName, "ban");
   });
 }
-// --- END Ban Slot Function ---
 
 // --- ADD TIMER DISPLAY FUNCTIONS ---
 

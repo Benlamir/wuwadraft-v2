@@ -921,3 +921,94 @@ body.draft-active-background header {
     box-sizing: border-box;
   }
 }
+
+/* --- Slot Glow Effects --- */
+
+/* Remove duplicate definitions and consolidate slot styles */
+.pick-slot,
+.ban-slot {
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  position: relative; /* Add this to ensure pseudo-elements are positioned correctly */
+  overflow: hidden;
+}
+
+/* Enhanced Glow Effects with higher specificity */
+.pick-slot.glow-pick,
+.ban-slot.glow-ban {
+  border-width: 2px;
+  border-style: solid;
+  transition: all 0.3s ease;
+}
+
+.pick-slot.glow-pick {
+  border-color: #4a90e2;
+  box-shadow: 0 0 15px rgba(74, 144, 226, 0.5);
+  background-color: rgba(74, 144, 226, 0.1);
+}
+
+.ban-slot.glow-ban {
+  border-color: #e24a4a;
+  box-shadow: 0 0 15px rgba(226, 74, 74, 0.5);
+  background-color: rgba(226, 74, 74, 0.1);
+}
+
+/* Enhanced Pulse Animations */
+@keyframes pulse-pick {
+  0% {
+    box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7);
+    border-color: rgba(74, 144, 226, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px 10px rgba(74, 144, 226, 0.3);
+    border-color: rgba(74, 144, 226, 1);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(74, 144, 226, 0);
+    border-color: rgba(74, 144, 226, 0.7);
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-ban {
+  0% {
+    box-shadow: 0 0 0 0 rgba(226, 74, 74, 0.7);
+    border-color: rgba(226, 74, 74, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px 10px rgba(226, 74, 74, 0.3);
+    border-color: rgba(226, 74, 74, 1);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(226, 74, 74, 0);
+    border-color: rgba(226, 74, 74, 0.7);
+    transform: scale(1);
+  }
+}
+
+/* Enhanced Pulse Classes with higher specificity */
+.pick-slot.pulse-pick {
+  border: 2px solid rgba(74, 144, 226, 0.7);
+  animation: pulse-pick 2s infinite;
+  background-color: rgba(74, 144, 226, 0.1);
+}
+
+.ban-slot.pulse-ban {
+  border: 2px solid rgba(226, 74, 74, 0.7);
+  animation: pulse-ban 2s infinite;
+  background-color: rgba(226, 74, 74, 0.1);
+}
+
+/* Remove any conflicting styles */
+.pick-slot:not(.pulse-pick):not(.glow-pick),
+.ban-slot:not(.pulse-ban):not(.glow-ban) {
+  animation: none;
+  box-shadow: none;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  background-color: rgba(0, 0, 0, 0.3);
+}
