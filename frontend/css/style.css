@@ -781,6 +781,7 @@ header {
 
 /* Hero Section Styling */
 .hero-description {
+  position: relative; /* For the separator positioning */
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
@@ -789,6 +790,42 @@ header {
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Decorative Separator */
+.hero-separator {
+  position: relative;
+  height: 40px;
+  margin: 2rem auto;
+  max-width: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-separator::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+}
+
+.hero-separator::after {
+  content: "✦";
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.6);
+  background-color: rgb(26, 28, 46);
+  padding: 0 1rem;
+  position: relative;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 .hero-description .lead {
@@ -879,10 +916,4 @@ header {
 /* Adjust header background when draft screen is active */
 body.draft-active-background header {
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0));
-}
-
-/* Hide future features */
-[data-feature="randomize-pick"],
-.randomize-pick-btn {
-  display: none !important;
 }
