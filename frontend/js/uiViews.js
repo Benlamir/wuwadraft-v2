@@ -243,16 +243,40 @@ function findResonatorByName(name) {
 function updateSlotGlowState(slot, isActive, isFilled, type) {
   if (!slot) return;
 
-  // Remove all possible state classes first
-  slot.classList.remove("pulse-ban", "pulse-pick", "glow-ban", "glow-pick");
+  // Determine pulse class
+  const pulseClass = isActive
+    ? type === "ban"
+      ? "pulse-ban"
+      : "pulse-pick"
+    : null;
+  // Determine if static ban glow should be applied
+  const showStaticBanGlow = type === "ban" && isFilled && !isActive;
+  // Determine if static past pick style should be applied
+  const showPastPickStyle = type === "pick" && isFilled && !isActive;
 
-  if (isFilled) {
-    // Add fixed glow for filled slots
-    slot.classList.add(type === "ban" ? "glow-ban" : "glow-pick");
-  } else if (isActive) {
-    // Add pulsing effect for active empty slots
-    slot.classList.add(type === "ban" ? "pulse-ban" : "pulse-pick");
+  // --- Glow/Pulse Logic ---
+  // Remove all previous state classes first
+  slot.classList.remove(
+    "pulse-ban",
+    "pulse-pick",
+    "glow-ban",
+    "glow-pick",
+    "past-pick"
+  );
+
+  // 1. Apply PULSE if it's the currently active slot
+  if (pulseClass) {
+    slot.classList.add(pulseClass);
   }
+  // 2. Apply static BAN glow if it's a filled ban slot (and not active)
+  else if (showStaticBanGlow) {
+    slot.classList.add("glow-ban");
+  }
+  // 3. Apply static PAST PICK style if it's a filled pick slot (and not active)
+  else if (showPastPickStyle) {
+    slot.classList.add("past-pick");
+  }
+  // 4. Otherwise (empty, non-active slot), no class is added, showing the default dashed border.
 }
 
 // --- ADD NEW FUNCTION for Pick Slots ---
