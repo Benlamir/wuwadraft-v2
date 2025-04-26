@@ -761,13 +761,17 @@ function renderCharacterGrid(draftState) {
   // Loop over the filtered list
   resonatorsToDisplay.forEach((resonator) => {
     const button = document.createElement("button");
-    button.classList.add("character-button", "stylish-button"); // Add base classes
-    button.dataset.resonatorId = resonator.id; // Use resonator.id if defined in data
-    button.dataset.resonatorName = resonator.name; // Use resonator.name
+    button.classList.add("character-button", "stylish-button");
+    button.dataset.resonatorId = resonator.id;
+    button.dataset.resonatorName = resonator.name;
 
-    // Ensure image source exists
     const imgSrc = resonator.image_button || ""; // Use button image, provide fallback
-    button.innerHTML = `<img src="${imgSrc}" alt="${resonator.name}" title="${resonator.name}" onerror="this.style.display='none'; this.parentElement.textContent='?';" />`; // Add basic error handling for image load
+
+    // Create structure with image and name span
+    button.innerHTML = `
+        <img src="${imgSrc}" alt="${resonator.name}" title="${resonator.name}" class="character-icon" onerror="this.style.display='none'; this.parentElement.textContent='?';" />
+        <span class="character-name">${resonator.name}</span>
+    `;
 
     // Determine button state based on draftState
     let isAvailable = availableSet.has(resonator.name);
