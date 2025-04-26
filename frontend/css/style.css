@@ -1136,3 +1136,47 @@ body.draft-active-background header {
     opacity: 0.5;
   }
 }
+
+/* --- Phase Status Container Styling --- */
+#draft-phase-status {
+  /* Frame Appearance */
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background-color: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  margin: 0 auto 15px auto;
+  max-width: 600px;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.25);
+
+  /* Text Styling */
+  color: #e8e8e8;
+  font-size: 1.2rem;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+
+  /* Add transition for color changes */
+  transition: border-color 0.3s ease, background-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+/* --- Phase-Specific Styling --- */
+#draft-phase-status.phase-ban {
+  border-color: #e24a4a;
+  background-color: rgba(180, 50, 50, 0.2);
+  box-shadow: 0 0 10px rgba(226, 74, 74, 0.4);
+}
+
+#draft-phase-status.phase-pick {
+  border-color: #4a90e2;
+  background-color: rgba(74, 144, 226, 0.15);
+  box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
+}
+
+/* Optional: Style for draft complete */
+#draft-phase-status.phase-complete {
+  border-color: #198754;
+  background-color: rgba(25, 135, 84, 0.2);
+  box-shadow: 0 0 10px rgba(25, 135, 84, 0.4);
+  color: #2fcc71;
+}

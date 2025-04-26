@@ -567,17 +567,41 @@ export function updateDraftScreenUI(draftState) {
     return;
   }
 
-  // Update Phase and Turn Status
+  // Update Phase and Turn Status & Apply Class
   if (elements.draftPhaseStatus) {
+    // Reset phase styling classes first
+    elements.draftPhaseStatus.classList.remove(
+      "phase-ban",
+      "phase-pick",
+      "phase-complete",
+      "text-success",
+      "fw-bold"
+    );
+
+    const currentPhase = draftState.currentPhase || "N/A";
     const turnPlayerName =
       draftState.currentTurn === "P1"
         ? draftState.player1Name || "Player 1"
         : draftState.player2Name || "Player 2";
     const isMyTurnText =
       state.myAssignedSlot === draftState.currentTurn ? " (Your Turn)" : "";
-    elements.draftPhaseStatus.textContent = `Phase: ${
-      draftState.currentPhase || "N/A"
-    } | ${turnPlayerName}'s Turn${isMyTurnText}`;
+
+    // Set text content
+    if (currentPhase === "DRAFT_COMPLETE") {
+      elements.draftPhaseStatus.textContent = "Draft Complete!";
+      elements.draftPhaseStatus.classList.add("phase-complete");
+    } else {
+      elements.draftPhaseStatus.textContent = `Phase: ${currentPhase} | ${turnPlayerName}'s Turn${isMyTurnText}`;
+
+      // Add class based on current phase
+      if (currentPhase.startsWith("BAN")) {
+        elements.draftPhaseStatus.classList.add("phase-ban");
+      } else if (currentPhase.startsWith("PICK")) {
+        elements.draftPhaseStatus.classList.add("phase-pick");
+      }
+    }
+  } else {
+    console.warn("UI Update Warning: Draft phase status element not found");
   }
 
   // Update Player Names
