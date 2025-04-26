@@ -503,11 +503,11 @@ header {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background-color: rgba(0, 0, 0, 0.5);
   border: 1px solid #555;
   transition: opacity 0.2s ease-in-out, border-color 0.2s ease-in-out,
-    transform 0.2s ease-in-out;
+    transform 0.2s ease-in-out, background-image 0.2s ease-in-out;
   min-height: 80px;
+  background-color: rgba(0, 0, 0, 0.5); /* Fallback background */
 }
 
 .character-button img.character-icon {
@@ -517,6 +517,7 @@ header {
   display: block;
   border-radius: 3px;
   margin-bottom: 3px;
+  background-color: transparent;
 }
 
 .character-name {
@@ -530,52 +531,80 @@ header {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  background-color: transparent;
 }
 
-/* Style for AVAILABLE characters (optional, for contrast) */
-.character-button.available:not(:disabled):hover {
-  border-color: #fff;
-  transform: scale(1.05);
+/* Rarity Backgrounds */
+.character-button.rarity-5 {
+  background-image: linear-gradient(
+    to bottom,
+    #a88b32 0%,
+    #c8a84a 70%,
+    black 70%,
+    black 100%
+  );
+  border-color: #c8a84a;
 }
 
-/* Style for UNAVAILABLE characters (general dimming) */
+.character-button.rarity-4 {
+  background-image: linear-gradient(
+    to bottom,
+    #6a4e91 0%,
+    #8c6dba 70%,
+    black 70%,
+    black 100%
+  );
+  border-color: #8c6dba;
+}
+
+/* State Overrides */
 .character-button.unavailable {
-  opacity: 0.4; /* Dim significantly */
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Style for BANNED characters (overrides some unavailable styles) */
 .character-button.banned {
-  opacity: 0.3; /* Even more dim? */
-  border: 2px solid #dc3545; /* Red border */
-  /* Add maybe a grayscale filter or cross-out effect? */
+  opacity: 0.3;
+  border: 2px solid #dc3545 !important;
   filter: grayscale(80%);
-  position: relative; /* Needed for pseudo-element */
+  position: relative;
+  background-image: linear-gradient(
+    to bottom,
+    #555 0%,
+    #333 70%,
+    black 70%,
+    black 100%
+  ) !important;
 }
 
-/* Optional: Add a cross-out line for banned characters */
 .character-button.banned::after {
   content: "";
   position: absolute;
   top: 50%;
   left: 5%;
   right: 5%;
-  border-top: 2px solid rgba(220, 53, 69, 0.8); /* Semi-transparent red line */
-  transform: rotate(-10deg); /* Slight angle */
+  border-top: 2px solid rgba(220, 53, 69, 0.8);
+  transform: rotate(-10deg);
 }
 
-/* Style for P1 PICKS */
 .character-button.picked-p1 {
-  opacity: 0.6; /* Less dim than banned */
-  border: 2px solid #0d6efd; /* Blue border */
-  filter: grayscale(30%); /* Slight grayscale */
+  opacity: 0.2;
+  filter: grayscale(30%);
+  border: 2px solid #0d6efd !important;
+  filter: grayscale(80%);
 }
 
-/* Style for P2 PICKS */
 .character-button.picked-p2 {
-  opacity: 0.6; /* Less dim than banned */
-  border: 2px solid #ffc107; /* Yellow/Orange border */
-  filter: grayscale(30%); /* Slight grayscale */
+  opacity: 0.2;
+  filter: grayscale(30%);
+  border: 2px solid #ffc107 !important;
+  filter: grayscale(80%);
+}
+
+/* Style for AVAILABLE characters (optional, for contrast) */
+.character-button.available:not(:disabled):hover {
+  border-color: #fff;
+  transform: scale(1.05);
 }
 
 /* Style for buttons that are disabled because it's not your turn (if needed) */

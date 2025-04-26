@@ -765,6 +765,13 @@ function renderCharacterGrid(draftState) {
     button.dataset.resonatorId = resonator.id;
     button.dataset.resonatorName = resonator.name;
 
+    // Add rarity class
+    if (resonator.rarity === 5) {
+      button.classList.add("rarity-5");
+    } else if (resonator.rarity === 4) {
+      button.classList.add("rarity-4");
+    }
+
     const imgSrc = resonator.image_button || ""; // Use button image, provide fallback
 
     // Create structure with image and name span
