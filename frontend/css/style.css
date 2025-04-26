@@ -701,7 +701,7 @@ header {
 }
 
 /* --- Media Queries for Draft Layout --- */
-@media (max-width: 1500px) {
+@media (max-width: 1600px) {
   .pick-slots-container {
     flex-direction: column;
   }
