@@ -494,67 +494,59 @@ header {
   flex-direction: column;
 }
 
-/* Character Button */
+/* Character Button Base Styles */
 .character-button {
-  padding: 2px;
-  margin: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px solid #555;
-  transition: opacity 0.2s ease-in-out, border-color 0.2s ease-in-out,
-    transform 0.2s ease-in-out, background-image 0.2s ease-in-out;
-  min-height: 80px;
-  background-color: rgba(0, 0, 0, 0.5); /* Fallback background */
-}
-
-.character-button img.character-icon {
-  max-width: 100%;
-  height: 65%;
-  object-fit: contain;
-  display: block;
-  border-radius: 3px;
-  margin-bottom: 3px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background-color: transparent;
 }
 
-.character-name {
-  display: block;
-  width: 100%;
-  font-size: 0.65rem;
-  color: #ccc;
-  text-align: center;
-  padding: 0 2px;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  background-color: transparent;
-}
-
-/* Rarity Backgrounds */
+/* Rarity Gradients */
 .character-button.rarity-5 {
-  background-image: linear-gradient(
-    to bottom,
-    #a88b32 0%,
-    #c8a84a 70%,
-    black 70%,
-    black 100%
-  );
-  border-color: #c8a84a;
+  background: linear-gradient(to bottom, #ff9800, black);
 }
 
 .character-button.rarity-4 {
-  background-image: linear-gradient(
-    to bottom,
-    #6a4e91 0%,
-    #8c6dba 70%,
-    black 70%,
-    black 100%
-  );
-  border-color: #8c6dba;
+  background: linear-gradient(to bottom, #9c27b0, black);
+}
+
+.character-button.rarity-3 {
+  background: linear-gradient(to bottom, #2196f3, black);
+}
+
+.character-button.rarity-2 {
+  background: linear-gradient(to bottom, #4caf50, black);
+}
+
+.character-button.rarity-1 {
+  background: linear-gradient(to bottom, #cccccc, black);
+}
+
+/* Character Icon Container */
+.character-button img.character-icon {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  background-color: transparent;
+}
+
+/* Character Name */
+.character-name {
+  color: white;
+  font-weight: bold;
+  font-size: 0.9em;
+  text-align: center;
+  margin-top: 5px;
+  background-color: transparent;
 }
 
 /* State Overrides */
@@ -568,13 +560,7 @@ header {
   border: 2px solid #dc3545 !important;
   filter: grayscale(80%);
   position: relative;
-  background-image: linear-gradient(
-    to bottom,
-    #555 0%,
-    #333 70%,
-    black 70%,
-    black 100%
-  ) !important;
+  background: linear-gradient(to bottom, #dc3545, black) !important;
 }
 
 .character-button.banned::after {
