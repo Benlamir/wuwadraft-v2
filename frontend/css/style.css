@@ -624,15 +624,16 @@ header {
   }
   .center-area {
     width: 100%;
-    order: 0;
+    order: 1;
     min-height: auto;
   }
   .character-grid-container {
     grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
-    max-height: none;
+    max-height: 40vh;
     min-height: 250px;
     overflow-y: auto;
     scrollbar-gutter: auto;
+    width: 100%;
   }
 }
 
