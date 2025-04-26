@@ -474,14 +474,16 @@ header {
 /* Character Grid Container */
 .character-grid-container {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 5px;
   padding: 5px;
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
   width: 100%;
+  min-height: 480px;
   max-height: 480px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .center-area {
@@ -579,41 +581,65 @@ header {
 
 /* Medium devices (tablets, less than 1400px) */
 @media (max-width: 1399.98px) {
-  .character-grid-container {
-    grid-template-columns: repeat(7, 1fr);
+  .player-area {
+    flex: 0 0 500px;
   }
 }
 
 /* Medium devices (tablets, less than 1200px) */
 @media (max-width: 1199.98px) {
-  .character-grid-container {
-    grid-template-columns: repeat(6, 1fr);
+  .player-area {
+    flex: 0 0 450px;
   }
 }
 
 /* Medium devices (tablets, less than 992px) */
 @media (max-width: 991.98px) {
-  .character-grid-container {
-    grid-template-columns: repeat(5, 1fr);
+  .player-area {
+    flex: 0 0 400px;
   }
 }
 
 /* Small devices (landscape phones, less than 768px) */
 @media (max-width: 767.98px) {
-  .character-grid-container {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 3px;
+  .draft-main-flex-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
   }
-  .character-button {
-    padding: 1px;
+  .player-area {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+    order: 1;
+  }
+  .pick-slots-container {
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .pick-slot {
+    flex: 0 1 150px;
+  }
+  .center-area {
+    width: 100%;
+    order: 0;
+    min-height: auto;
+  }
+  .character-grid-container {
+    grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+    max-height: none;
+    min-height: 250px;
+    overflow-y: auto;
+    scrollbar-gutter: auto;
   }
 }
 
 /* Extra small devices (portrait phones, less than 576px) */
 @media (max-width: 575.98px) {
-  .character-grid-container {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2px;
+  .pick-slot {
+    flex-basis: 120px;
   }
 }
 
@@ -634,8 +660,7 @@ header {
 }
 
 .player-area {
-  flex-basis: 600px;
-  flex-shrink: 1;
+  flex: 0 0 600px; /* Base size, no shrink */
 }
 
 .center-area {
@@ -680,7 +705,7 @@ header {
     flex-direction: column;
   }
   .player-area {
-    flex-basis: 400px;
+    flex-basis: 200px;
   }
 }
 
