@@ -1082,3 +1082,57 @@ body.draft-active-background header {
   border: 1px dashed rgba(255, 255, 255, 0.3);
   background-color: rgba(0, 0, 0, 0.3);
 }
+
+/* --- Player Name Frame Styling --- */
+.player-area h4 {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  color: #e0e0e0;
+  font-size: 1.1rem;
+  text-align: center;
+  font-weight: 600;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease,
+    background-color 0.3s ease;
+}
+
+.player-area h4 span {
+  color: #fff;
+  font-weight: bold;
+}
+
+/* --- Active Turn Indicator Styling --- */
+.player-area.active-turn {
+  box-shadow: 0 0 15px 5px rgba(0, 150, 255, 0.3);
+  border-radius: 8px;
+}
+
+.player-area.active-turn h4 {
+  border-color: #00aaff;
+  background-color: rgba(0, 120, 200, 0.25);
+  box-shadow: 0 0 8px rgba(0, 150, 255, 0.5);
+}
+
+.player-area.active-turn h4 span::after {
+  content: " ●";
+  color: #00d4ff;
+  font-size: 0.8em;
+  vertical-align: middle;
+  margin-left: 5px;
+  animation: pulseIndicator 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseIndicator {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}

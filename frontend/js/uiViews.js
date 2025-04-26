@@ -535,7 +535,7 @@ export function updateDraftScreenUI(draftState) {
   // Keep controls visible even in draft complete state
   // (removed code that was hiding controls)
 
-  // --- ADD HANDLING FOR DRAFT COMPLETE STATE ---
+  // If draft is complete, return early
   if (draftState.currentPhase === "DRAFT_COMPLETE") {
     console.log("UI: Rendering Draft Complete state.");
     if (elements.draftPhaseStatus) {
@@ -559,29 +559,28 @@ export function updateDraftScreenUI(draftState) {
     if (filterControls) filterControls.style.display = "none";
 
     stopTimerDisplay(); // Explicitly stop timer on completion
-    return; // Stop further UI updates for active turn display etc.
+    // Remove active turn class if draft completes
+    const playerAreas = document.querySelectorAll(
+      ".draft-main-flex-container .player-area"
+    );
+    playerAreas.forEach((area) => area.classList.remove("active-turn"));
+    return;
   }
 
-  // --- Original UI Update Logic (for ongoing draft) ---
-  // Update Phase and Turn Status (This will now only run if draft is NOT complete)
+  // Update Phase and Turn Status
   if (elements.draftPhaseStatus) {
-    // Reset any completion styling if somehow reapplied
-    elements.draftPhaseStatus.classList.remove("text-success", "fw-bold");
-
     const turnPlayerName =
       draftState.currentTurn === "P1"
         ? draftState.player1Name || "Player 1"
         : draftState.player2Name || "Player 2";
-    const turnIndicator =
+    const isMyTurnText =
       state.myAssignedSlot === draftState.currentTurn ? " (Your Turn)" : "";
     elements.draftPhaseStatus.textContent = `Phase: ${
       draftState.currentPhase || "N/A"
-    } (${turnPlayerName}'s Turn)${turnIndicator}`;
-  } else {
-    console.warn("UI Update Warning: Draft phase status element not found");
+    } | ${turnPlayerName}'s Turn${isMyTurnText}`;
   }
 
-  // Update Player Names (Keep)
+  // Update Player Names
   if (elements.draftP1Name) {
     elements.draftP1Name.textContent = draftState.player1Name || "[P1 Name]";
   }
@@ -589,23 +588,43 @@ export function updateDraftScreenUI(draftState) {
     elements.draftP2Name.textContent = draftState.player2Name || "[P2 Name]";
   }
 
-  // Update Timer (Keep placeholder)
-  // if (elements.draftTimer) { ... }
-
-  // Update Pick and Ban Slots (Keep)
+  // Update Pick and Ban Slots
   updatePickSlots(draftState);
   updateBanSlots(draftState);
 
-  // Re-enable filter controls if they were hidden
-  const filterControls = document.getElementById("draft-filter-controls");
-  if (filterControls) filterControls.style.display = "flex"; // Or original display value
-
-  // Render Character Grid (Keep)
+  // Render Character Grid
   try {
-    renderCharacterGrid(draftState); // Render grid based on current non-complete state
+    renderCharacterGrid(draftState);
   } catch (gridError) {
     console.error("Error calling renderCharacterGrid:", gridError);
   }
+
+  // Update Active Turn Class
+  try {
+    const mainContainer = document.querySelector(".draft-main-flex-container");
+    const p1Area = mainContainer?.querySelector(".player-area:first-of-type");
+    const p2Area = mainContainer?.querySelector(".player-area:last-of-type");
+
+    if (p1Area && p2Area) {
+      // Remove class from both first
+      p1Area.classList.remove("active-turn");
+      p2Area.classList.remove("active-turn");
+
+      // Add class to the active player's area
+      if (draftState.currentTurn === "P1") {
+        p1Area.classList.add("active-turn");
+      } else if (draftState.currentTurn === "P2") {
+        p2Area.classList.add("active-turn");
+      }
+    } else {
+      console.warn("Could not find player areas to update active turn status.");
+    }
+  } catch (e) {
+    console.error("Error updating active turn UI:", e);
+  }
+
+  // Start/Update Timer
+  startOrUpdateTimerDisplay();
 }
 // --- END FUNCTION MODIFICATION ---
 
