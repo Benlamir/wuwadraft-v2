@@ -376,15 +376,13 @@ function updateBanSlots(draftState) {
 // --- ADD TIMER DISPLAY FUNCTIONS ---
 
 export function stopTimerDisplay() {
-  // console.log(
-  //   `UI DEBUG: stopTimerDisplay START. Current state interval ID: ${state.timerIntervalId}`
-  // );
   state.clearTimerInterval();
-
   if (elements.draftTimer) {
-    elements.draftTimer.textContent = "Time Remaining: --:--";
-    elements.draftTimer.classList.remove("text-danger", "fw-bold");
-    // console.log("UI DEBUG: stopTimerDisplay reset timer text.");
+    const timerTextSpan = elements.draftTimer.querySelector("span");
+    if (timerTextSpan) {
+      timerTextSpan.textContent = "Time Remaining: --:--";
+    }
+    elements.draftTimer.classList.remove("timer-low");
   }
 }
 
@@ -397,48 +395,40 @@ function updateCountdown(expiryTime, intervalId) {
     timerIntervalId: activeTimerId,
   } = state;
 
-  // console.log(
-  //   `UI DEBUG: updateCountdown TICK for interval ID ${intervalId}. Active state ID: ${activeTimerId}`
-  // );
-
+  // Timer ID check (keep existing)
   if (intervalId !== activeTimerId) {
-    // console.log(
-    //   `UI DEBUG: Stale timer callback DETECTED (ID ${intervalId}, Active ID ${activeTimerId}). Clearing ${intervalId} and exiting.`
-    // );
     clearInterval(intervalId);
     return;
   }
 
   const now = Date.now();
   const remainingMs = expiryTime - now;
+  const timerElement = elements.draftTimer; // Get the <p> element
+  const timerTextSpan = timerElement?.querySelector("span"); // Get the <span> inside
+
+  if (!timerElement || !timerTextSpan) {
+    console.warn("Timer element or text span not found in updateCountdown.");
+    clearInterval(intervalId);
+    state.clearTimerInterval(); // Clear state interval ID too
+    return;
+  }
 
   if (remainingMs <= 0) {
-    if (elements.draftTimer) {
-      elements.draftTimer.textContent = "Time Remaining: 00:00";
-      elements.draftTimer.classList.add("text-danger", "fw-bold");
-    }
+    timerTextSpan.textContent = "Time Remaining: 00:00";
+    timerElement.classList.add("timer-low");
 
     clearInterval(intervalId);
-    // console.log(
-    //   `UI: Timer visually reached zero (Interval ID: ${intervalId}). Clearing interval.`
-    // );
 
+    // Restore timeout action logic
     if (myAssignedSlot === currentTurn) {
       // Send timeout request immediately when timer reaches zero
       if (state.currentTurn === myAssignedSlot) {
-        // console.log(
-        //   `UI: Sending timeout action. Expected Phase: ${state.currentPhase}, Expected Turn: ${myAssignedSlot}`
-        // );
         sendMessageToServer({
           action: "turnTimeout",
           expectedPhase: state.currentPhase,
           expectedTurn: myAssignedSlot,
         });
       }
-    } else {
-      // console.log(
-      //   `UI: Timer expired, but it was not my turn (${myAssignedSlot} vs ${currentTurn}). Not sending timeout action.`
-      // );
     }
   } else {
     const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000));
@@ -449,17 +439,13 @@ function updateCountdown(expiryTime, intervalId) {
       "0"
     )}:${String(seconds).padStart(2, "0")}`;
 
-    if (elements.draftTimer) {
-      elements.draftTimer.textContent = displayString;
-      if (remainingSeconds <= 10) {
-        elements.draftTimer.classList.add("text-danger", "fw-bold");
-      } else {
-        elements.draftTimer.classList.remove("text-danger", "fw-bold");
-      }
+    timerTextSpan.textContent = displayString;
+
+    // Low Time Check
+    if (remainingSeconds <= 10) {
+      timerElement.classList.add("timer-low");
     } else {
-      console.warn(
-        `UI DEBUG: updateCountdown (ID ${intervalId}) - elements.draftTimer is null/undefined!`
-      );
+      timerElement.classList.remove("timer-low");
     }
   }
 }
