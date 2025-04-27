@@ -6,6 +6,28 @@ Welcome! This is a fan-made, **real-time** web app simulating a "Pick/Ban" phase
 
 > **Note:** This project was primarily developed using AI tools as an experiment by someone **new to programming and AWS**. See the [Development Process & AI Usage](#-development-process--ai-usage) section for transparency.
 
+## 📑 Table of Contents
+
+- [🖼️ App Screenshots](#-app-screenshots)
+- [✨ Features](#-features)
+- [🏗️ Architecture](#-architecture)
+  - [Backend (AWS Serverless)](#backend-aws-serverless)
+  - [Frontend (Vanilla JS)](#frontend-vanilla-js)
+  - [Communication Flow](#communication-flow-simplified)
+- [🤖 Development Process & AI Usage](#-development-process--ai-usage)
+- [🚀 Live Demo](#-live-demo)
+- [🛠️ Setup & Deployment](#-setup--deployment)
+  - [Prerequisites](#prerequisites)
+  - [Backend Deployment Steps](#backend-deployment-steps)
+  - [Frontend Deployment](#frontend-deployment-s3--cloudfront)
+  - [Configuration](#configuration)
+- [▶️ Usage](#-usage)
+- [⚠️ Known Issues & Limitations](#-known-issues--limitations)
+- [🌱 Future Improvements](#-future-improvements)
+- [👋 Contributing](#-contributing)
+- [📜 License](#-license)
+- [🙏 Acknowledgements](#-acknowledgements)
+
 ---
 
 ## 🖼️ App Screenshots
