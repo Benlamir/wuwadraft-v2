@@ -8,28 +8,42 @@ Welcome! This is a fan-made, **real-time** web app simulating a "Pick/Ban" phase
 
 ---
 
-![Application Screenshot](images/lobby-screenshot.png)
-*(Consider updating the screenshot)*
+## 🖼️ App Screenshots
+
+<div class="row g-3">
+  <div class="col-md-4">
+    <img src="https://wuwadraft.s3.us-east-1.amazonaws.com/images/welcom+screen.webp" alt="Welcome Screen" class="img-fluid rounded shadow-sm" />
+    <div class="text-center mt-2"><small>Welcome Screen</small></div>
+  </div>
+  <div class="col-md-4">
+    <img src="https://wuwadraft.s3.us-east-1.amazonaws.com/images/waiting+screen.webp" alt="Waiting Room" class="img-fluid rounded shadow-sm" />
+    <div class="text-center mt-2"><small>Waiting Room</small></div>
+  </div>
+  <div class="col-md-4">
+    <img src="https://wuwadraft.s3.us-east-1.amazonaws.com/images/draft+screen.webp" alt="Draft Screen" class="img-fluid rounded shadow-sm" />
+    <div class="text-center mt-2"><small>Draft Screen</small></div>
+  </div>
+</div>
 
 ---
 
 ## ✨ Features
 
-* **Real-time Lobby:** Create/Join lobbies instantly via WebSockets.
-* **Live Updates:** See player joins, readiness, picks, bans, and timer changes immediately.
-* **Organizer Role:** Manage the lobby (create, delete, reset, join as player).
-* **Ready Check:** Simple ready-up system before starting.
-* **Pick/Ban Sequence:** Follows Ban1 -> Pick1 -> Ban2 -> Pick2.
-* **Hybrid Turn Timer:**
-    * Backend sends turn expiry time (`turnExpiresAt`).
-    * Frontend displays a countdown.
-    * Frontend notifies backend on local timeout (`turnTimeout`).
-* **Automatic Timeout Handling:** Backend assigns random pick/ban if a player times out.
-* **Character Filtering:** Filter the grid by element.
-* **Visual Cues:** Highlights active turns, shows selections, timer status.
-* **Connection Keep-Alive:** Heartbeats maintain the WebSocket connection.
-* **Improved Disconnect Handling:** Server instantly knows when clients leave cleanly.
-* **Auto-Cleanup:** Old lobbies removed automatically via DynamoDB TTL.
+- **Real-time Lobby:** Create/Join lobbies instantly via WebSockets.
+- **Live Updates:** See player joins, readiness, picks, bans, and timer changes immediately.
+- **Organizer Role:** Manage the lobby (create, delete, reset, join as player).
+- **Ready Check:** Simple ready-up system before starting.
+- **Pick/Ban Sequence:** Follows Ban1 -> Pick1 -> Ban2 -> Pick2.
+- **Hybrid Turn Timer:**
+  - Backend sends turn expiry time (`turnExpiresAt`).
+  - Frontend displays a countdown.
+  - Frontend notifies backend on local timeout (`turnTimeout`).
+- **Automatic Timeout Handling:** Backend assigns random pick/ban if a player times out.
+- **Character Filtering:** Filter the grid by element.
+- **Visual Cues:** Highlights active turns, shows selections, timer status.
+- **Connection Keep-Alive:** Heartbeats maintain the WebSocket connection.
+- **Improved Disconnect Handling:** Server instantly knows when clients leave cleanly.
+- **Auto-Cleanup:** Old lobbies removed automatically via DynamoDB TTL.
 
 ---
 
@@ -104,32 +118,32 @@ class A clientStyle;
 
 ### Backend (AWS Serverless)
 
-* **API Gateway (WebSocket API):** Manages persistent client connections and routes messages (`$connect`, `$disconnect`, `sendMessage`, `ping`, etc.) to Lambda.
-* **AWS Lambda (Python/Node.js):** Handles the core logic triggered by WebSocket events:
-    * Connection management (`$connect`, `$disconnect`).
-    * Processing client actions (create, join, ready, pick, ban).
-    * Calculating and sending `turnExpiresAt` timestamps.
-    * Handling `turnTimeout` messages from clients.
-    * Broadcasting state updates back to clients via API Gateway.
-    * Responding to heartbeat `ping` messages.
-* **DynamoDB:** NoSQL database storing lobby state (players, picks, bans, game phase) and active connection IDs. Uses TTL for auto-cleanup.
-* **S3:** Hosts static frontend files (`index.html`, `css`, `js`, images) and `resonators.json`.
-* **CloudFront:** CDN for the frontend. Provides HTTPS (required for `wss://`), caching, and serves the site.
-* **IAM:** Manages permissions between AWS services.
+- **API Gateway (WebSocket API):** Manages persistent client connections and routes messages (`$connect`, `$disconnect`, `sendMessage`, `ping`, etc.) to Lambda.
+- **AWS Lambda (Python/Node.js):** Handles the core logic triggered by WebSocket events:
+  - Connection management (`$connect`, `$disconnect`).
+  - Processing client actions (create, join, ready, pick, ban).
+  - Calculating and sending `turnExpiresAt` timestamps.
+  - Handling `turnTimeout` messages from clients.
+  - Broadcasting state updates back to clients via API Gateway.
+  - Responding to heartbeat `ping` messages.
+- **DynamoDB:** NoSQL database storing lobby state (players, picks, bans, game phase) and active connection IDs. Uses TTL for auto-cleanup.
+- **S3:** Hosts static frontend files (`index.html`, `css`, `js`, images) and `resonators.json`.
+- **CloudFront:** CDN for the frontend. Provides HTTPS (required for `wss://`), caching, and serves the site.
+- **IAM:** Manages permissions between AWS services.
 
 ### Frontend (Vanilla JS)
 
-* **HTML (`index.html`):** Basic page structure.
-* **CSS (`styles.css`):** Styling, layout (Flexbox/Grid), dark theme.
-* **JavaScript (`script.js`):**
-    * Manages WebSocket connection (`new WebSocket('wss://...')`).
-    * Handles UI interactions.
-    * Sends/Receives JSON messages over WebSocket.
-    * Updates the DOM in real-time based on server messages.
-    * Displays the countdown timer based on `turnExpiresAt`.
-    * Sends `turnTimeout` message if local timer expires.
-    * Sends periodic `ping` messages for heartbeat.
-* **Data (`resonators.json`):** Fetched on load, contains character details.
+- **HTML (`index.html`):** Basic page structure.
+- **CSS (`styles.css`):** Styling, layout (Flexbox/Grid), dark theme.
+- **JavaScript (`script.js`):**
+  - Manages WebSocket connection (`new WebSocket('wss://...')`).
+  - Handles UI interactions.
+  - Sends/Receives JSON messages over WebSocket.
+  - Updates the DOM in real-time based on server messages.
+  - Displays the countdown timer based on `turnExpiresAt`.
+  - Sends `turnTimeout` message if local timer expires.
+  - Sends periodic `ping` messages for heartbeat.
+- **Data (`resonators.json`):** Fetched on load, contains character details.
 
 ### Communication Flow (Simplified)
 
@@ -149,9 +163,9 @@ class A clientStyle;
 
 This project was an experiment in AI-assisted development by a non-programmer.
 
-* **AI Tools:** Conversational AI (like Gemini) for planning & debugging; Code-focused AI (like Cursor) for implementation.
-* **Process:** Defined requirements -> Prompted AI -> Evaluated architecture/code -> Identified issues -> Guided AI through iterations & debugging -> Refactored from REST/polling to WebSockets with AI guidance.
-* **Goal:** Explore AI's capability to build a full-stack, real-time app for a novice.
+- **AI Tools:** Conversational AI (like Gemini) for planning & debugging; Code-focused AI (like Cursor) for implementation.
+- **Process:** Defined requirements -> Prompted AI -> Evaluated architecture/code -> Identified issues -> Guided AI through iterations & debugging -> Refactored from REST/polling to WebSockets with AI guidance.
+- **Goal:** Explore AI's capability to build a full-stack, real-time app for a novice.
 
 ---
 
@@ -159,7 +173,7 @@ This project was an experiment in AI-assisted development by a non-programmer.
 
 Try it out here:
 [**Wuthering Waves Pick/Ban Lobby**](https://YOUR_CLOUDFRONT_DOMAIN_HERE)
-*(Update with your actual CloudFront domain)*
+_(Update with your actual CloudFront domain)_
 
 ---
 
@@ -169,23 +183,23 @@ Deployment involves setting up AWS services manually via the console.
 
 ### Prerequisites
 
-* AWS Account & Console Access
-* Node.js or Python (for Lambda runtime)
+- AWS Account & Console Access
+- Node.js or Python (for Lambda runtime)
 
 ### Backend Deployment Steps
 
 1.  **DynamoDB:** Create table (e.g., `MyLobbyTable`, partition key `lobbyCode` (String), enable TTL on `ttl` attribute).
 2.  **IAM Role (for Lambda):** Create role with permissions for:
-    * DynamoDB actions (`GetItem`, `PutItem`, `UpdateItem`, `DeleteItem` on your table).
-    * S3 `GetObject` (if Lambda reads `resonators.json`).
-    * CloudWatch Logs (`CreateLogGroup`, `CreateLogStream`, `PutLogEvents`).
-    * API Gateway Management API (`execute-api:ManageConnections` on your WebSocket API ARN).
+    - DynamoDB actions (`GetItem`, `PutItem`, `UpdateItem`, `DeleteItem` on your table).
+    - S3 `GetObject` (if Lambda reads `resonators.json`).
+    - CloudWatch Logs (`CreateLogGroup`, `CreateLogStream`, `PutLogEvents`).
+    - API Gateway Management API (`execute-api:ManageConnections` on your WebSocket API ARN).
 3.  **Lambda Functions:** Create functions for WebSocket routes (`$connect`, `$disconnect`, `$default`, `sendMessage`, `ping`, `turnTimeout`). Assign the IAM role. Configure Environment Variables (see below).
 4.  **API Gateway (WebSocket API):**
-    * Create WebSocket API.
-    * Define Route Keys matching your Lambda functions.
-    * Integrate routes with corresponding Lambda functions.
-    * Deploy API to a stage (e.g., `dev`). Note the `WebSocket URL` (`wss://...`) and `API endpoint` (`https://...`).
+    - Create WebSocket API.
+    - Define Route Keys matching your Lambda functions.
+    - Integrate routes with corresponding Lambda functions.
+    - Deploy API to a stage (e.g., `dev`). Note the `WebSocket URL` (`wss://...`) and `API endpoint` (`https://...`).
 5.  **Permissions Check:** Ensure Lambda role allows `execute-api:ManageConnections`.
 
 ### Frontend Deployment (S3 & CloudFront)
@@ -194,19 +208,19 @@ Deployment involves setting up AWS services manually via the console.
 2.  **Upload Files:** Upload `index.html`, `styles.css`, `script.js`, `resonators.json`, `images/`. Grant public read access (or use CloudFront OAI).
 3.  **Update JS:** Set `websocketUrl` in `script.js` to your API Gateway WebSocket URL (`wss://...`). Re-upload.
 4.  **CloudFront Distribution:**
-    * Create/use distribution pointing to S3 origin.
-    * Set Default Root Object: `index.html`.
-    * **Configure WebSocket Caching:** Forward necessary headers (use `Managed-WebSocketOptimized` policy or configure manually: `Origin`, `Sec-WebSocket-*`).
-    * Ensure HTTPS is enabled.
+    - Create/use distribution pointing to S3 origin.
+    - Set Default Root Object: `index.html`.
+    - **Configure WebSocket Caching:** Forward necessary headers (use `Managed-WebSocketOptimized` policy or configure manually: `Origin`, `Sec-WebSocket-*`).
+    - Ensure HTTPS is enabled.
 
 ### Configuration
 
-* **`script.js`:**
-    * `websocketUrl`: Your API Gateway WebSocket URL (`wss://...`).
-* **Lambda Environment Variables:**
-    * `TABLE_NAME`: Your DynamoDB table name.
-    * `WEBSOCKET_ENDPOINT`: API Gateway Management API endpoint (`https://{api-id}.execute-api.{region}.amazonaws.com/{stage}`).
-    * `S3_BUCKET_NAME` / `S3_FILE_KEY`: If Lambda reads `resonators.json`.
+- **`script.js`:**
+  - `websocketUrl`: Your API Gateway WebSocket URL (`wss://...`).
+- **Lambda Environment Variables:**
+  - `TABLE_NAME`: Your DynamoDB table name.
+  - `WEBSOCKET_ENDPOINT`: API Gateway Management API endpoint (`https://{api-id}.execute-api.{region}.amazonaws.com/{stage}`).
+  - `S3_BUCKET_NAME` / `S3_FILE_KEY`: If Lambda reads `resonators.json`.
 
 ---
 
@@ -225,21 +239,21 @@ Deployment involves setting up AWS services manually via the console.
 
 ## ⚠️ Known Issues & Limitations
 
-* **Scalability:** API Gateway WebSocket has connection limits (check AWS docs).
-* **Complexity:** Managing state across Lambda functions for WebSockets can be tricky.
-* **Cost:** Constant connections incur costs (API Gateway connection minutes).
-* **Mobile UI:** CSS needs further refinement for small screens.
-* **Timer Sync:** Minor visual timer discrepancies possible due to network latency.
+- **Scalability:** API Gateway WebSocket has connection limits (check AWS docs).
+- **Complexity:** Managing state across Lambda functions for WebSockets can be tricky.
+- **Cost:** Constant connections incur costs (API Gateway connection minutes).
+- **Mobile UI:** CSS needs further refinement for small screens.
+- **Timer Sync:** Minor visual timer discrepancies possible due to network latency.
 
 ---
 
 ## 🌱 Future Improvements
 
-* Optimize backend logic.
-* Improve error handling/connection recovery.
-* Enhance mobile layout.
-* Allow customization (timers, pick/ban counts).
-* Add spectator mode.
+- Optimize backend logic.
+- Improve error handling/connection recovery.
+- Enhance mobile layout.
+- Allow customization (timers, pick/ban counts).
+- Add spectator mode.
 
 ---
 
@@ -257,6 +271,5 @@ MIT License: [https://opensource.org/licenses/MIT](https://opensource.org/licens
 
 ## 🙏 Acknowledgements
 
-* Wuthering Waves by Kuro Games.
-* AI Tools (e.g., Gemini, Cursor AI) for development assistance.
-
+- Wuthering Waves by Kuro Games.
+- AI Tools (e.g., Gemini, Cursor AI) for development assistance.
