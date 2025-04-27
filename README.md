@@ -39,74 +39,67 @@ This project uses a serverless AWS backend and a static Vanilla JS frontend.
 
 ```mermaid
 graph TD
-    subgraph "User's Browser"
-        A[Frontend JS (script.js)]
-    end
+subgraph "User's Browser"
+A["Frontend JS"]
+end
+subgraph "AWS CloudFront"
+CF["CloudFront Distribution"]
+end
+subgraph "AWS S3"
+S3["S3 Bucket (Static Files)"]
+end
+subgraph "AWS API Gateway"
+APIGW["WebSocket API"]:::apiGWStyle
+end
+subgraph "AWS Lambda"
+L_Connect["Lambda ($connect)"]:::lambdaStyle
+L_Disconnect["Lambda ($disconnect)"]:::lambdaStyle
+L_Default["Lambda ($default/actions)"]:::lambdaStyle
+L_Ping["Lambda (ping)"]:::lambdaStyle
+L_Timeout["Lambda (turnTimeout)"]:::lambdaStyle
+end
+subgraph "AWS DynamoDB"
+DDB["DynamoDB Table"]:::dbStyle
+end
+subgraph "API Gateway Management"
+APIMGMT["Management API"]
+end
 
-    subgraph "AWS CloudFront"
-        CF[CloudFront Distribution]
-    end
+A -- HTTPS Request --> CF;
+CF -- Fetches Files --> S3;
+S3 -- Serves Files --> CF;
+CF -- Serves Files --> A;
 
-    subgraph "AWS S3"
-        S3[S3 Bucket (Static Files)]
-    end
+A -- WebSocket --> APIGW;
+APIGW -- Route: $connect --> L_Connect;
+APIGW -- Route: $disconnect --> L_Disconnect;
+APIGW -- Route: $default/actions --> L_Default;
+APIGW -- Route: ping --> L_Ping;
+APIGW -- Route: turnTimeout --> L_Timeout;
 
-    subgraph "AWS API Gateway"
-        APIGW[WebSocket API]:::apiGWStyle
-    end
+L_Connect -- Read/Write --> DDB;
+L_Disconnect -- Read/Write --> DDB;
+L_Default -- Read/Write --> DDB;
+L_Timeout -- Read/Write --> DDB;
 
-    subgraph "AWS Lambda"
-        L_Connect["Lambda ($connect)"]:::lambdaStyle
-        L_Disconnect["Lambda ($disconnect)"]:::lambdaStyle
-        L_Default["Lambda ($default/actions)"]:::lambdaStyle
-        L_Ping["Lambda (ping)"]:::lambdaStyle
-        L_Timeout["Lambda (turnTimeout)"]:::lambdaStyle
-    end
+L_Default -- Uses --> APIMGMT;
+L_Timeout -- Uses --> APIMGMT;
+APIMGMT -- Sends Message --> APIGW;
+APIGW -- Pushes Message --> A;
 
-    subgraph "AWS DynamoDB"
-        DDB[DynamoDB Table (Lobby State, Connections)]:::dbStyle
-    end
+classDef apiGWStyle fill:#FF9900,stroke:#333,stroke-width:2px,color:#fff;
+classDef lambdaStyle fill:#AE4DFF,stroke:#333,stroke-width:2px,color:#fff;
+classDef dbStyle fill:#2777C7,stroke:#333,stroke-width:2px,color:#fff;
+classDef s3Style fill:#D84B4B,stroke:#333,stroke-width:2px,color:#fff;
+classDef cfStyle fill:#4AB0C1,stroke:#333,stroke-width:2px,color:#fff;
+classDef clientStyle fill:#60BF65,stroke:#333,stroke-width:2px,color:#000;
 
-    subgraph "API Gateway Management"
-        APIMGMT[Management API (for sending messages)]
-    end
-
-    A -- HTTPS Request --> CF;
-    CF -- Fetches Files --> S3;
-    S3 -- Serves Files --> CF;
-    CF -- Serves Files --> A;
-
-    A -- WebSocket (wss://) --> APIGW;
-    APIGW -- Route: $connect --> L_Connect;
-    APIGW -- Route: $disconnect --> L_Disconnect;
-    APIGW -- Route: $default/actions --> L_Default;
-    APIGW -- Route: ping --> L_Ping;
-    APIGW -- Route: turnTimeout --> L_Timeout;
-
-    L_Connect -- Read/Write --> DDB;
-    L_Disconnect -- Read/Write --> DDB;
-    L_Default -- Read/Write --> DDB;
-    L_Timeout -- Read/Write --> DDB;
-
-    L_Default -- Uses --> APIMGMT;
-    L_Timeout -- Uses --> APIMGMT;
-    APIMGMT -- Sends Message via ConnectionID --> APIGW;
-    APIGW -- Pushes Message --> A;
-
-    classDef apiGWStyle fill:#FF9900,stroke:#333,stroke-width:2px,color:#fff;
-    classDef lambdaStyle fill:#AE4DFF,stroke:#333,stroke-width:2px,color:#fff;
-    classDef dbStyle fill:#2777C7,stroke:#333,stroke-width:2px,color:#fff;
-    classDef s3Style fill:#D84B4B,stroke:#333,stroke-width:2px,color:#fff;
-    classDef cfStyle fill:#4AB0C1,stroke:#333,stroke-width:2px,color:#fff;
-    classDef clientStyle fill:#60BF65,stroke:#333,stroke-width:2px,color:#000;
-
-    class APIGW apiGWStyle;
-    class L_Connect,L_Disconnect,L_Default,L_Ping,L_Timeout lambdaStyle;
-    class DDB dbStyle;
-    class S3 s3Style;
-    class CF cfStyle;
-    class A clientStyle;
-
+class APIGW apiGWStyle;
+class L_Connect,L_Disconnect,L_Default,L_Ping,L_Timeout lambdaStyle;
+class DDB dbStyle;
+class S3 s3Style;
+class CF cfStyle;
+class A clientStyle;
 ```
 
 ### Backend (AWS Serverless)
