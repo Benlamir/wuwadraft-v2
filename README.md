@@ -172,8 +172,7 @@ This project was an experiment in AI-assisted development by a non-programmer.
 ## 🚀 Live Demo
 
 Try it out here:
-[**Wuthering Waves Pick/Ban Lobby**](https://YOUR_CLOUDFRONT_DOMAIN_HERE)
-_(Update with your actual CloudFront domain)_
+[**Wuthering Waves Pick/Ban Lobby**](https://d23g90uwgh8nfk.cloudfront.net)
 
 ---
 
