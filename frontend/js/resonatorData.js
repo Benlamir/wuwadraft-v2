@@ -338,7 +338,7 @@ const ALL_RESONATORS_DATA = [
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/zani.webp",
     rarity: 5,
     element: ["Spectro"],
-    weapon: "Rectifier",
+    weapon: "Broadblade",
   },
 ];
 
