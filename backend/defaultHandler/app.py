@@ -77,7 +77,8 @@ ALL_RESONATOR_NAMES = sorted([
     'Roccia',
     'Brant',
     'Cantarella',
-    'Phoebe'
+    'Phoebe',
+    'Zani'
 ])
 
 # --- Define the Draft Order ---
