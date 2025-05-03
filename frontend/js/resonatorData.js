@@ -329,6 +329,17 @@ const ALL_RESONATORS_DATA = [
     element: ["Spectro"],
     weapon: "Rectifier",
   },
+  {
+    id: "resonator_id_31",
+    name: "Zani",
+    image_button:
+      "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_zani.webp",
+    image_pick:
+      "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/zani.webp",
+    rarity: 5,
+    element: ["Spectro"],
+    weapon: "Rectifier",
+  },
 ];
 
 export { ALL_RESONATORS_DATA };
