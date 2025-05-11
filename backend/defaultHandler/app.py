@@ -100,8 +100,8 @@ DRAFT_COMPLETE_PHASE = 'DRAFT_COMPLETE' # Constant for completed state
 # --- End Draft Order Definition ---
 
 # --- Configuration ---
-CONNECTIONS_TABLE_NAME = 'WuwaDraftConnections'
-LOBBIES_TABLE_NAME = 'WuwaDraftLobbies' # Use your exact table name
+CONNECTIONS_TABLE_NAME = os.environ.get('CONNECTIONS_TABLE_NAME', 'WuwaDraftConnections')
+LOBBIES_TABLE_NAME = os.environ.get('LOBBIES_TABLE_NAME', 'WuwaDraftLobbies')
 TURN_DURATION_SECONDS = 30  # 30 seconds per turn
 # -------------------
 

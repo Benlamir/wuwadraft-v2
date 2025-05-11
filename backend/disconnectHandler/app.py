@@ -24,8 +24,8 @@ class DecimalEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 # --- DynamoDB Setup ---
-CONNECTIONS_TABLE_NAME = 'WuwaDraftConnections'
-LOBBIES_TABLE_NAME = 'WuwaDraftLobbies'
+CONNECTIONS_TABLE_NAME = os.environ.get('CONNECTIONS_TABLE_NAME', 'WuwaDraftConnections')
+LOBBIES_TABLE_NAME = os.environ.get('LOBBIES_TABLE_NAME', 'WuwaDraftLobbies')
 dynamodb = boto3.resource('dynamodb')
 connections_table = dynamodb.Table(CONNECTIONS_TABLE_NAME)
 lobbies_table = dynamodb.Table(LOBBIES_TABLE_NAME)

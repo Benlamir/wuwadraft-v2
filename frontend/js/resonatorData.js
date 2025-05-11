@@ -1,3 +1,13 @@
+export const SEQUENCE_POINTS = {
+  0: 2,  // S0
+  1: 4,  // S1
+  2: 8,  // S2
+  3: 10, // S3
+  4: 11, // S4
+  5: 12, // S5
+  6: 16  // S6
+};
+
 const ALL_RESONATORS_DATA = [
   {
     id: "resonator_id_1",
@@ -7,6 +17,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/jiyan.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Aero"],
     weapon: "Broadblade",
   },
@@ -18,6 +29,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/lingyang.webp",
     rarity: 5,
+    isLimited: false,
     element: ["Glacio"],
     weapon: "Gauntlets",
   },
@@ -29,6 +41,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/rover-aero.webp",
     rarity: 5,
+    isLimited: false,
     element: ["Havoc", "Aero", "Spectro"],
     weapon: "Sword",
   },
@@ -40,6 +53,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/yangyang.webp",
     rarity: 4,
+    isLimited: false,
     element: ["Aero"],
     weapon: "Sword",
   },
@@ -51,6 +65,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/chixia.webp",
     rarity: 4,
+    isLimited: false,
     element: ["Fusion"],
     weapon: "Pistols",
   },
@@ -62,6 +77,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/baizhi.webp",
     rarity: 4,
+    isLimited: false,
     element: ["Glacio"],
     weapon: "Rectifier",
   },
@@ -73,6 +89,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/sanhua.webp",
     rarity: 4,
+    isLimited: false,
     element: ["Glacio"],
     weapon: "Sword",
   },
@@ -84,6 +101,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/yuanwu.webp",
     rarity: 4,
+    isLimited: false,
     element: ["Electro"],
     weapon: "Gauntlets",
   },
@@ -95,6 +113,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/aalto.webp",
     rarity: 4,
+    isLimited: false,
     element: ["Aero"],
     weapon: "Pistols",
   },
@@ -106,6 +125,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/danjin.webp",
     rarity: 4,
+    isLimited: false,
     element: ["Havoc"],
     weapon: "Sword",
   },
@@ -117,6 +137,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/mortefi.webp",
     rarity: 4,
+    isLimited: false,
     element: ["Fusion"],
     weapon: "Pistols",
   },
@@ -128,6 +149,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/taoqi.webp",
     rarity: 4,
+    isLimited: false,
     element: ["Havoc"],
     weapon: "Broadblade",
   },
@@ -139,6 +161,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/calcharo.webp",
     rarity: 5,
+    isLimited: false,
     element: ["Electro"],
     weapon: "Broadblade",
   },
@@ -150,6 +173,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/encore.webp",
     rarity: 5,
+    isLimited: false,
     element: ["Fusion"],
     weapon: "Rectifier",
   },
@@ -161,6 +185,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/jianxin.webp",
     rarity: 5,
+    isLimited: false,
     element: ["Aero"],
     weapon: "Gauntlets",
   },
@@ -172,6 +197,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/verina.webp",
     rarity: 5,
+    isLimited: false,
     element: ["Spectro"],
     weapon: "Rectifier",
   },
@@ -183,6 +209,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/yinlin.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Electro"],
     weapon: "Rectifier",
   },
@@ -194,6 +221,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/jinhsi.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Spectro"],
     weapon: "Broadblade",
   },
@@ -205,6 +233,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/changli.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Fusion"],
     weapon: "Sword",
   },
@@ -216,6 +245,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/zhezhi.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Glacio"],
     weapon: "Rectifier",
   },
@@ -227,6 +257,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/xiangli-yao.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Electro"],
     weapon: "Gauntlets",
   },
@@ -238,6 +269,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/shorekeeper.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Spectro"],
     weapon: "Rectifier",
   },
@@ -260,6 +292,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/camellya.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Havoc"],
     weapon: "Sword",
   },
@@ -282,6 +315,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/carlotta.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Glacio"],
     weapon: "Pistols",
   },
@@ -293,6 +327,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/roccia.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Havoc"],
     weapon: "Broadblade",
   },
@@ -304,6 +339,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/brant.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Fusion"],
     weapon: "Sword",
   },
@@ -315,6 +351,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/cantarella.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Havoc"],
     weapon: "Rectifier",
   },
@@ -326,6 +363,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/phoebe.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Spectro"],
     weapon: "Rectifier",
   },
@@ -337,6 +375,7 @@ const ALL_RESONATORS_DATA = [
     image_pick:
       "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/zani.webp",
     rarity: 5,
+    isLimited: true,
     element: ["Spectro"],
     weapon: "Broadblade",
   },

@@ -10,7 +10,7 @@ logger.setLevel(logging.INFO)
 # Initialize DynamoDB client (Boto3 will use the Lambda's execution role credentials)
 dynamodb = boto3.resource('dynamodb')
 # Use the exact table name you created in DynamoDB
-TABLE_NAME = 'WuwaDraftConnections' # Make sure this matches your table name!
+TABLE_NAME = os.environ.get('CONNECTIONS_TABLE_NAME', 'WuwaDraftConnections')
 table = dynamodb.Table(TABLE_NAME)
 
 def handler(event, context):
