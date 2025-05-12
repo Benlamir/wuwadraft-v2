@@ -29,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize WebSocket connection and message handling
   initializeWebSocket();
 
+
   // --- Attach Event Listeners that Trigger Actions ---
 
   // Welcome Screen Actions
@@ -376,6 +377,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Show Initial Screen ---
   showScreen("welcome-screen");
   console.log("Main script initialization complete.");
+
+  // TEMPORARY FOR TESTING BOX SCORE SCREEN
+// Use the setter function from state.js
+state.setLobbyInfo("testLobby123", true, "P1"); // This will set isCurrentUserHost and myAssignedSlot
+showScreen('box-score-screen');
+// END TEMPORARY
 
   // Add event listeners for draft screen
   elements.draftBackBtn.addEventListener("click", () => {

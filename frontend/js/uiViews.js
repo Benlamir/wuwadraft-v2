@@ -2,7 +2,7 @@
 import { elements } from "./uiElements.js";
 import * as state from "./state.js"; // Use state variables
 import { sendMessageToServer } from "./websocket.js"; // Import function to send messages
-import { ALL_RESONATORS_DATA } from "./resonatorData.js";
+import { ALL_RESONATORS_DATA, SEQUENCE_POINTS } from "./resonatorData.js";
 
 // --- ADD HELPER FUNCTION ---
 // Helper function to toggle visibility using Bootstrap's d-none class
@@ -41,6 +41,22 @@ export function showScreen(screenIdToShow) {
   const screenToShow = document.getElementById(screenIdToShow);
   if (screenToShow && screenToShow.classList.contains("screen")) {
     screenToShow.classList.add("active");
+
+    // --- NEW LOGIC FOR BOX SCORE SCREEN ---
+    if (screenIdToShow === 'box-score-screen') {
+      populateBoxScoreScreen(); // Populate when shown
+      // Manage visibility of host's "Leave Player Slot" button on this screen
+      if (state.isCurrentUserHost && (state.myAssignedSlot === 'P1' || state.myAssignedSlot === 'P2')) {
+        toggleElementVisibility(elements.boxScoreLeaveSlotBtn, true);
+      } else {
+        toggleElementVisibility(elements.boxScoreLeaveSlotBtn, false);
+      }
+    } else {
+      // Ensure host's leave slot button is hidden if not on box score screen
+      toggleElementVisibility(elements.boxScoreLeaveSlotBtn, false);
+    }
+    // --- END NEW LOGIC ---
+
   } else {
     console.error(
       `Screen with ID ${screenIdToShow} not found or missing 'screen' class! Falling back to welcome.`
@@ -897,16 +913,102 @@ function renderCharacterGrid(draftState) {
   });
 }
 
-// Add other UI specific functions here (e.g., renderCharacterGrid later)
+// --- NEW FUNCTION: updateTotalBoxScore ---
+export function updateTotalBoxScore() {
+  if (!elements.limitedResonatorsList || !elements.totalBoxScoreDisplay || !SEQUENCE_POINTS) {
+    return;
+  }
 
-function handleCharacterSelection(event) {
+  let totalScore = 0;
+  const inputs = elements.limitedResonatorsList.querySelectorAll('.sequence-input');
+
+  inputs.forEach(input => {
+    const resonatorName = input.dataset.resonatorName;
+    let sequenceValue = parseInt(input.value, 10);
+
+    // Validate and clamp sequenceValue between 0 and 6
+    if (isNaN(sequenceValue) || sequenceValue < 0) {
+      sequenceValue = 0;
+      input.value = 0; // Correct invalid input in the UI
+    } else if (sequenceValue > 6) {
+      sequenceValue = 6;
+      input.value = 6; // Correct invalid input in the UI
+    }
+
+    const charPoints = SEQUENCE_POINTS[sequenceValue] || 0;
+    
+    const pointsDisplayElement = input.closest('.row')?.querySelector('.resonator-points-display');
+    if (pointsDisplayElement) {
+      pointsDisplayElement.innerHTML = `<small>Points: ${charPoints}</small>`;
+    }
+
+    totalScore += charPoints;
+  });
+
+  elements.totalBoxScoreDisplay.textContent = totalScore;
+}
+
+// --- NEW FUNCTION: populateBoxScoreScreen ---
+export function populateBoxScoreScreen() {
+  if (!elements.limitedResonatorsList || !ALL_RESONATORS_DATA || !SEQUENCE_POINTS) {
+    console.error("Cannot populate box score screen, critical elements or data missing.");
+    return;
+  }
+
+  elements.limitedResonatorsList.innerHTML = ''; // Clear previous entries
+
+  const limitedResonators = ALL_RESONATORS_DATA.filter(resonator => resonator.isLimited === true);
+
+  if (limitedResonators.length === 0) {
+    elements.limitedResonatorsList.innerHTML = '<p class="text-muted">No limited resonators found in data to declare sequences for.</p>';
+    updateTotalBoxScore(); // Ensure score is 0
+    return;
+  }
+
+  limitedResonators.forEach(resonator => {
+    const initialSequence = 0; // Default to S0
+    const initialPoints = SEQUENCE_POINTS[initialSequence];
+
+    const resonatorRow = document.createElement('div');
+    resonatorRow.className = 'row mb-3 align-items-center justify-content-center border-bottom pb-2';
+
+    const nameLabel = document.createElement('label');
+    nameLabel.className = 'col-md-4 col-form-label text-md-end fw-bold';
+    nameLabel.textContent = `${resonator.name}:`;
+
+    const inputDiv = document.createElement('div');
+    inputDiv.className = 'col-md-3';
+    const inputElement = document.createElement('input');
+    inputElement.type = 'number';
+    inputElement.min = '0';
+    inputElement.max = '6';
+    inputElement.value = initialSequence.toString();
+    inputElement.className = 'form-control sequence-input text-center';
+    inputElement.dataset.resonatorName = resonator.name;
+    inputElement.addEventListener('input', updateTotalBoxScore);
+    inputElement.addEventListener('change', updateTotalBoxScore);
+    inputDiv.appendChild(inputElement);
+
+    const pointsDisplay = document.createElement('div');
+    pointsDisplay.className = 'col-md-3 resonator-points-display text-md-start';
+    pointsDisplay.innerHTML = `<small>Points: ${initialPoints}</small>`;
+
+    resonatorRow.appendChild(nameLabel);
+    resonatorRow.appendChild(inputDiv);
+    resonatorRow.appendChild(pointsDisplay);
+
+    elements.limitedResonatorsList.appendChild(resonatorRow);
+  });
+
+  updateTotalBoxScore(); // Calculate initial total score
+}
+
+export function handleCharacterSelection(event) {
   const button = event.currentTarget;
   const resonatorName = button.dataset.resonatorName;
 
   if (!resonatorName) {
-    console.error(
-      "Character button clicked, but missing resonator name dataset!"
-    );
+    console.error("Character button clicked, but missing resonator name dataset!");
     return;
   }
 

@@ -5,6 +5,13 @@ export const elements = {
   header: null,
   welcomeScreen: null,
   createLobbyScreen: null,
+  // Box Score Feature Elements
+  enableEquilibrationToggle: null,
+  boxScoreScreen: null,
+  limitedResonatorsList: null,
+  totalBoxScoreDisplay: null,
+  submitBoxScoreBtn: null,
+  boxScoreLeaveSlotBtn: null,
   joinLobbyScreen: null,
   lobbyWaitScreen: null,
   draftScreen: null,
@@ -74,6 +81,7 @@ export function initializeElements() {
   elements.createLobbyScreen = document.getElementById("create-lobby-screen");
   elements.joinLobbyScreen = document.getElementById("join-lobby-screen");
   elements.lobbyWaitScreen = document.getElementById("lobby-wait-screen");
+  elements.boxScoreScreen = document.getElementById("box-score-screen");
   elements.draftScreen = document.getElementById("draft-screen");
   elements.screensNodeList = document.querySelectorAll(".screen"); // Get NodeList
 
@@ -84,6 +92,7 @@ export function initializeElements() {
 
   // Create/Join Inputs & Buttons
   elements.createNameInput = document.getElementById("create-name-input");
+  elements.enableEquilibrationToggle = document.getElementById("enable-equilibration-toggle");
   elements.createStartBtn = document.getElementById("create-start-btn");
   elements.createBackBtn = document.getElementById("create-back-btn");
   elements.joinNameInput = document.getElementById("join-name-input");
@@ -165,6 +174,15 @@ export function initializeElements() {
   elements.banSlot4 = document.getElementById("ban-slot-4");
 
   // Optional: Add logs to verify
+  // Box Score Screen Elements
+  elements.limitedResonatorsList = document.getElementById("limited-resonators-list");
+  elements.totalBoxScoreDisplay = document.getElementById("total-box-score-display");
+  elements.submitBoxScoreBtn = document.getElementById("submit-box-score-btn");
+  elements.boxScoreLeaveSlotBtn = document.getElementById("box-score-leave-slot-btn");
+
+  // Debug logs for new elements
+  console.log("Check element - boxScoreScreen:", elements.boxScoreScreen);
+  console.log("Check element - enableEquilibrationToggle:", elements.enableEquilibrationToggle);
   console.log("Check element - draftP1Name:", elements.draftP1Name);
   console.log("Check element - draftP2Name:", elements.draftP2Name);
 
