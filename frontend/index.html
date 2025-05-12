@@ -78,6 +78,11 @@
           class="form-control mb-3"
           maxlength="12"
         />
+
+        <div class="form-check form-switch mb-3" style="max-width: 300px; margin-left: auto; margin-right: auto; text-align: left;">
+          <input class="form-check-input" type="checkbox" role="switch" id="enable-equilibration-toggle" checked>
+          <label class="form-check-label" for="enable-equilibration-toggle">Enable Box Score Equilibration</label>
+        </div>
         <div class="button-group">
           <button id="create-start-btn" class="btn btn-outline-primary stylish-button">
            Start Lobby
@@ -194,7 +199,31 @@
           </button>
         </div>
       </div>
-      </div> <div id="draft-screen" class="screen">
+      </div>
+
+      <div id="box-score-screen" class="screen text-center">
+        <h2 class="mb-3">Declare Resonator Sequences</h2>
+        <p class="text-muted small mb-3" style="max-width: 600px; margin-left: auto; margin-right: auto;">
+          Enter the sequence (S0-S6) for each of your <strong>Limited 5-Star Resonators</strong>.
+          This will be used to calculate your weighted Box Score for draft balancing.
+        </p>
+        
+        <div id="limited-resonators-list" class="container mt-3 mb-4" style="max-width: 700px; background-color: rgba(255,255,255,0.05); border-radius: 8px; padding: 20px;">
+        </div>
+        
+        <h4 class="mt-2 mb-4">Total Weighted Box Score: <strong id="total-box-score-display" class="text-info">0</strong></h4>
+        
+        <div class="button-group mt-4 d-flex justify-content-center flex-wrap gap-2">
+          <button id="submit-box-score-btn" class="btn btn-lg btn-success stylish-button">
+            <i class="bi bi-check-circle-fill me-2"></i>Submit Score & Proceed
+          </button>
+          <button id="box-score-leave-slot-btn" class="btn btn-lg btn-outline-warning stylish-button d-none">
+            <i class="bi bi-box-arrow-left me-2"></i>Leave Player Slot
+          </button>
+        </div>
+      </div>
+
+      <div id="draft-screen" class="screen">
           <h2 id="draft-phase-status">[Phase - Turn Loading...]</h2>
           <p id="draft-timer">
               <i class="bi bi-clock timer-icon me-1"></i> <span>Time Remaining: --:--</span>
