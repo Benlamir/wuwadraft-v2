@@ -50,15 +50,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Create Lobby Screen Action
-  if (elements.createStartBtn && elements.createNameInput) {
+  if (elements.createStartBtn && elements.createNameInput && elements.enableEquilibrationToggle) {
     elements.createStartBtn.addEventListener("click", () => {
       const name = elements.createNameInput.value.trim();
+      const enableEquilibration = elements.enableEquilibrationToggle.checked;
+
       if (!name) {
         alert("Please enter your name.");
         return;
       }
       state.setUserName(name); // Store user name in state module
-      sendMessageToServer({ action: "createLobby", name: name });
+
+      console.log("Frontend: Attempting to create lobby with settings:", {
+        action: "createLobby",
+        name: name,
+        enableEquilibration: enableEquilibration
+      });
+
+      sendMessageToServer({ action: "createLobby", name: name, enableEquilibration: enableEquilibration });
       // UI transition will be handled by the onmessage handler now
     });
   }
@@ -403,8 +412,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // TEMPORARY FOR TESTING BOX SCORE SCREEN
 // Use the setter function from state.js
-state.setLobbyInfo("testLobby123", true, "P1"); // This will set isCurrentUserHost and myAssignedSlot
-showScreen('box-score-screen');
+// state.setLobbyInfo("testLobby123", true, "P1"); // This will set isCurrentUserHost and myAssignedSlot
+// showScreen('box-score-screen'); // UNCOMMENT TO TEST
 // END TEMPORARY
 
   // Add event listeners for draft screen

@@ -81,6 +81,23 @@ ALL_RESONATOR_NAMES = sorted([
     'Zani'
 ])
 
+# --- Equilibration System Constants ---
+# Weighted points for sequences S0-S6
+SEQUENCE_POINTS = {
+    0: 2,  # S0
+    1: 4,  # S1
+    2: 8,  # S2
+    3: 10, # S3
+    4: 11, # S4
+    5: 12, # S5
+    6: 16  # S6
+}
+
+# Thresholds for different equilibration actions
+SCORE_DIFF_THRESHOLD_MINOR_P1_PRIORITY = 6
+SCORE_DIFF_THRESHOLD_MAJOR_ONE_EQ_BAN = 12
+SCORE_DIFF_THRESHOLD_EXTREME_TWO_EQ_BANS = 24
+
 # --- Define the Draft Order ---
 # Structure: (Phase Name, Player Turn)
 DRAFT_ORDER = [
@@ -96,6 +113,37 @@ DRAFT_ORDER = [
     ('PICK2', 'P1'),   # Step 9
     # Add more steps if needed (e.g., for BAN3/PICK3 if structure changes)
 ]
+
+# Draft Order Templates
+P1_FAVORED_DRAFT_ORDER = [
+    {'phase': 'BAN1', 'turnPlayerDesignation': 'P1_ROLE'},
+    {'phase': 'BAN1', 'turnPlayerDesignation': 'P2_ROLE'},
+    {'phase': 'PICK1', 'turnPlayerDesignation': 'P1_ROLE'},
+    {'phase': 'PICK1', 'turnPlayerDesignation': 'P2_ROLE'},
+    {'phase': 'PICK1', 'turnPlayerDesignation': 'P1_ROLE'},
+    {'phase': 'PICK1', 'turnPlayerDesignation': 'P2_ROLE'},
+    {'phase': 'BAN2', 'turnPlayerDesignation': 'P1_ROLE'},
+    {'phase': 'BAN2', 'turnPlayerDesignation': 'P2_ROLE'},
+    {'phase': 'PICK2', 'turnPlayerDesignation': 'P2_ROLE'},
+    {'phase': 'PICK2', 'turnPlayerDesignation': 'P1_ROLE'}
+]
+
+NEUTRAL_DRAFT_ORDER_TEMPLATE_V2 = [
+    {'phase': 'BAN1', 'turnPlayerDesignation': 'ROLE_A'},
+    {'phase': 'BAN1', 'turnPlayerDesignation': 'ROLE_B'},
+    {'phase': 'PICK1', 'turnPlayerDesignation': 'ROLE_B'},
+    {'phase': 'PICK1', 'turnPlayerDesignation': 'ROLE_A'},
+    {'phase': 'PICK1', 'turnPlayerDesignation': 'ROLE_A'},
+    {'phase': 'PICK1', 'turnPlayerDesignation': 'ROLE_B'},
+    {'phase': 'BAN2', 'turnPlayerDesignation': 'ROLE_B'},
+    {'phase': 'BAN2', 'turnPlayerDesignation': 'ROLE_A'},
+    {'phase': 'PICK2', 'turnPlayerDesignation': 'ROLE_A'},
+    {'phase': 'PICK2', 'turnPlayerDesignation': 'ROLE_B'}
+]
+
+EQUILIBRATION_PHASE_NAME = 'EQUILIBRATE_BANS'
+EQUILIBRATION_PHASE_TIMEOUT_SECONDS = 300 # 5 minutes
+
 DRAFT_COMPLETE_PHASE = 'DRAFT_COMPLETE' # Constant for completed state
 # --- End Draft Order Definition ---
 
@@ -170,9 +218,23 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
             "player1Picks": final_lobby_item.get('player1Picks', []),
             "player2Picks": final_lobby_item.get('player2Picks', []),
             "availableResonators": final_lobby_item.get('availableResonators', []),
-            "turnExpiresAt": final_lobby_item.get('turnExpiresAt')
+            "turnExpiresAt": final_lobby_item.get('turnExpiresAt'),
+            # Add equilibration fields
+            "equilibrationEnabled": final_lobby_item.get('equilibrationEnabled', True),
+            "player1ScoreSubmitted": final_lobby_item.get('player1ScoreSubmitted', False),
+            "player2ScoreSubmitted": final_lobby_item.get('player2ScoreSubmitted', False)
             # currentStepIndex is removed - client doesn't need it
         }
+        
+        # Include box score fields if we're in DRAFTING state or later
+        if final_lobby_item.get('lobbyState') == 'DRAFTING' or final_lobby_item.get('currentPhase'):
+            # Include these values if they exist, otherwise null values will be sent
+            state_payload["player1Sequences"] = final_lobby_item.get('player1Sequences')
+            state_payload["player2Sequences"] = final_lobby_item.get('player2Sequences')
+            state_payload["player1WeightedBoxScore"] = final_lobby_item.get('player1WeightedBoxScore')
+            state_payload["player2WeightedBoxScore"] = final_lobby_item.get('player2WeightedBoxScore')
+            state_payload["equilibrationBansTarget"] = final_lobby_item.get('equilibrationBansTarget')
+            state_payload["equilibrationBansMade"] = final_lobby_item.get('equilibrationBansMade')
         # Add lastAction if provided
         if last_action:
             state_payload["lastAction"] = last_action
@@ -252,46 +314,74 @@ def handler(event, context):
     # --- Route based on action ---
     try:
         if action == 'createLobby':
+            player_name = message_data.get('name', 'UnknownHost')
             logger.info(f"Processing 'createLobby' action for {connection_id} ({player_name})")
 
-            # 1. Generate a unique Lobby ID (using first 8 chars of UUID4)
             lobby_id = str(uuid.uuid4())[:8].upper()
-            logger.info(f"Generated lobbyId: {lobby_id}")
-
-            # 2. Create the lobby item in WuwaDraftLobbies table
             timestamp = datetime.now(timezone.utc).isoformat()
+            
+            # Get equilibration setting from client message_data
+            enable_equilibration = message_data.get('enableEquilibration', True)
+            logger.info(f"Lobby {lobby_id} will have equilibration system enabled: {enable_equilibration}")
+
             new_lobby_item = {
                 'lobbyId': lobby_id,
                 'hostConnectionId': connection_id,
-                'lobbyState': 'WAITING', # Initial state
-                'player1ConnectionId': None,
-                'player2ConnectionId': None,
-                'player1Name': None,
-                'player2Name': None,
+                'hostName': player_name,
+                'lobbyState': 'WAITING',
                 'createdAt': timestamp,
-                'hostName': player_name # Store host's name
-                # Add other initial state fields later: picks, bans, turn, timer etc.
-            }
-            lobbies_table.put_item(Item=new_lobby_item)
-            logger.info(f"Lobby item created in {LOBBIES_TABLE_NAME}")
+                'equilibrationEnabled': enable_equilibration,
+                
+                # Initialize all player-related fields
+                'player1ConnectionId': None,
+                'player1Name': None,
+                'player1Ready': False,
+                'player1Sequences': None,
+                'player1WeightedBoxScore': None,
+                'player1ScoreSubmitted': False,
 
-            # 3. Update the connection item in WuwaDraftConnections table
+                'player2ConnectionId': None,
+                'player2Name': None,
+                'player2Ready': False,
+                'player2Sequences': None,
+                'player2WeightedBoxScore': None,
+                'player2ScoreSubmitted': False,
+                
+                # Draft state fields
+                'currentPhase': None,
+                'currentTurn': None,
+                'currentStepIndex': None,
+                'turnExpiresAt': None,
+                'bans': [],
+                'player1Picks': [],
+                'player2Picks': [],
+                'availableResonators': list(ALL_RESONATOR_NAMES),
+                
+                # Equilibration-specific fields
+                'effectiveDraftOrder': None,
+                'equilibrationBansTarget': 0,
+                'equilibrationBansMade': 0,
+                'lastAction': f"{player_name} created the lobby (Equilibration: {'ON' if enable_equilibration else 'OFF'})."
+            }
+            
+            lobbies_table.put_item(Item=new_lobby_item)
+            logger.info(f"Lobby item created in {LOBBIES_TABLE_NAME} with ID {lobby_id}")
+
+            # Update the connection item for the host
             connections_table.update_item(
                 Key={'connectionId': connection_id},
                 UpdateExpression="SET currentLobbyId = :lid, playerName = :pn",
-                ExpressionAttributeValues={
-                    ':lid': lobby_id,
-                    ':pn': player_name
-                }
+                ExpressionAttributeValues={':lid': lobby_id, ':pn': player_name}
             )
-            logger.info(f"Connection item updated in {CONNECTIONS_TABLE_NAME}")
+            logger.info(f"Connection item for host {connection_id} updated in {CONNECTIONS_TABLE_NAME}")
 
-            # 4. Send confirmation back to the host
+            # Send confirmation back to the host
             response_payload = {
                 "type": "lobbyCreated",
                 "lobbyId": lobby_id,
-                "isHost": True, # Let the client know they are the host
-                "message": f"Lobby {lobby_id} created successfully."
+                "isHost": True,
+                "message": f"Lobby {lobby_id} created successfully.",
+                "equilibrationEnabled": enable_equilibration
             }
             send_message_to_client(apigw_management_client, connection_id, response_payload)
 
@@ -1931,89 +2021,164 @@ def handler(event, context):
                 # Don't send error back, host state might be desynced, just fail silently server-side.
                 return {'statusCode': 400, 'body': 'Missing lobbyId.'}
 
+            if not lobby_id:
+                return {'statusCode': 400, 'body': 'Missing lobbyId parameter.'}
+
             try:
-                # Get lobby item (ConsistentRead recommended)
-                response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
-                lobby_item = response.get('Item')
+                # Verify requester is host of the lobby
+                lobby_response = lobbies_table.get_item(Key={'lobbyId': lobby_id})
+                lobby_item = lobby_response.get('Item')
+
                 if not lobby_item:
-                    logger.warning(f"Lobby {lobby_id} not found for hostLeaveSlot by {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {
+                        "type": "error", "message": "Lobby not found."
+                    })
                     return {'statusCode': 404, 'body': 'Lobby not found.'}
 
-                # Verify requester is the host
-                host_connection_id = lobby_item.get('hostConnectionId')
-                if connection_id != host_connection_id:
-                    logger.warning(f"Unauthorized hostLeaveSlot attempt on lobby {lobby_id} by non-host {connection_id}.")
-                    # Send error back to prevent unexpected UI state if non-host clicks somehow
-                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can perform this action."})
-                    return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
+                if lobby_item.get('hostConnectionId') != connection_id:
+                    send_message_to_client(apigw_management_client, connection_id, {
+                        "type": "error", "message": "Only the host can perform this action."
+                    })
+                    return {'statusCode': 403, 'body': 'Not authorized as host.'}
 
-                # Find which slot the host occupies
-                host_slot_key = None
-                host_name_key = None
-                host_ready_key = None
-                if lobby_item.get('player1ConnectionId') == host_connection_id:
-                    host_slot_key = 'player1ConnectionId'
-                    host_name_key = 'player1Name'
-                    host_ready_key = 'player1Ready'
-                elif lobby_item.get('player2ConnectionId') == host_connection_id:
-                    host_slot_key = 'player2ConnectionId'
-                    host_name_key = 'player2Name'
-                    host_ready_key = 'player2Ready'
+                # Determine which slot the host is in
+                player_slot_conn = None
+                player_slot_name = None
+                player_slot_label = None
+
+                if lobby_item.get('player1ConnectionId') == connection_id:
+                    player_slot_conn = 'player1ConnectionId'
+                    player_slot_name = 'player1Name'
+                    player_slot_label = 'player1'
+                elif lobby_item.get('player2ConnectionId') == connection_id:
+                    player_slot_conn = 'player2ConnectionId'
+                    player_slot_name = 'player2Name'
+                    player_slot_label = 'player2'
                 else:
-                    logger.warning(f"Host {connection_id} tried to leave slot in lobby {lobby_id}, but is not currently in a player slot.")
-                    send_message_to_client(apigw_management_client, connection_id, {"type": "info", "message": "You are not currently in a player slot."})
+                    send_message_to_client(apigw_management_client, connection_id, {
+                        "type": "error", "message": "You are not in any player slot to leave."
+                    })
                     return {'statusCode': 400, 'body': 'Host not in a player slot.'}
 
-                # Prepare update to remove host from slot
-                last_action_msg = f"{lobby_item.get('hostName', 'Host')} left the player slot."
-                update_expression = f"REMOVE {host_slot_key}, {host_name_key} SET {host_ready_key} = :falseVal, lastAction = :lastAct"
+                host_name = lobby_item.get('hostName', 'Host') # For action message
+                player_name = lobby_item.get(player_slot_name, f"Player {player_slot_label[-1]}") # For action message
+
+                # Update lobby item to remove host from the player slot and clear score data
+                remove_fields = [player_slot_conn, player_slot_name, 
+                               f"{player_slot_label}Sequences", 
+                               f"{player_slot_label}WeightedBoxScore"]
+                
+                remove_expr = "REMOVE " + ", ".join(remove_fields)
+                set_expr = f"SET {player_slot_label}Ready = :falseVal, {player_slot_label}ScoreSubmitted = :falseVal, lastAction = :lastAct"
+                
+                update_expression = f"{remove_expr} {set_expr}"
                 expression_values = {
                     ':falseVal': False,
-                    ':lastAct': last_action_msg,
-                    ':host_conn_id': host_connection_id # Value for condition
+                    ':lastAct': f"{host_name} left {player_name}'s slot."
                 }
-                # Condition ensures we only remove if the host is still in that specific slot
-                condition_expression = f"{host_slot_key} = :host_conn_id"
 
-                logger.info(f"Host {connection_id} leaving slot. Update: {update_expression}, Condition: {condition_expression}")
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
                     UpdateExpression=update_expression,
-                    ConditionExpression=condition_expression,
                     ExpressionAttributeValues=expression_values
                 )
-                logger.info(f"Lobby {lobby_id} updated successfully (host left slot).")
 
-                # Send lobbyJoined message back to host to update their state *immediately*
-                # This ensures their state.myAssignedSlot becomes null quickly.
+                logger.info(f"Host left slot {player_slot_label}. Clearing score data for that slot.")
+
+                # Send lobbyJoined with slot: null to indicate user is no longer in a slot
                 send_message_to_client(apigw_management_client, connection_id, {
-                    "type": "lobbyJoined", # Re-use lobbyJoined type
+                    "type": "lobbyJoined",
                     "lobbyId": lobby_id,
-                    "assignedSlot": None, # Explicitly set slot to None
-                    "isHost": True,
-                    "message": "You left the player slot."
+                    "slot": None, # Not in a specific slot
+                    "isHost": True # Still the host
                 })
 
-                # Broadcast the updated state to all participants (including host)
-                broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg)
+                # Broadcast new state to all (which now shows an empty slot)
+                broadcast_lobby_state(lobby_id, apigw_management_client, 
+                                      last_action=f"{host_name} left {player_name}'s slot.")
 
-                return {'statusCode': 200, 'body': 'Host left slot successfully.'}
+                return {'statusCode': 200, 'body': 'Host left player slot.'}
 
-            except ClientError as e:
-                if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-                    logger.warning(f"Conditional check failed for hostLeaveSlot in lobby {lobby_id}. Host might have already left.")
-                    # Maybe broadcast current state? Or just let host UI update from subsequent broadcast.
-                    broadcast_lobby_state(lobby_id, apigw_management_client) # Ensure everyone gets latest state
-                    return {'statusCode': 409, 'body': 'Conflict, slot state changed.'}
-                else:
-                    logger.error(f"Error processing hostLeaveSlot (ClientError): {str(e)}", exc_info=True)
-                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Database error leaving slot."})
-                    return {'statusCode': 500, 'body': 'Failed to leave slot (database error).'}
             except Exception as e:
-                logger.error(f"Error processing hostLeaveSlot for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
-                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Failed to leave slot: {str(e)}"})
-                return {'statusCode': 500, 'body': 'Failed to leave slot.'}
-        # --- END hostLeaveSlot Handler ---
+                logger.error(f"Error processing hostLeaveSlot: {str(e)}", exc_info=True)
+                send_message_to_client(apigw_management_client, connection_id, {
+                    "type": "error", "message": "Failed to process hostLeaveSlot action."
+                })
+                return {'statusCode': 500, 'body': 'Failed to process hostLeaveSlot.'}
+
+        elif action == 'submitBoxScore':
+            lobby_id = message_data.get('lobbyId')
+            received_sequences = message_data.get('sequences', {}) # Dict: {'CharName': S_val}
+            # client_total_score = message_data.get('totalScore', 0) # For logging/debug if needed
+
+            if not lobby_id or not connection_id:
+                return {'statusCode': 400, 'body': 'Missing lobbyId or connectionId.'}
+
+            logger.info(f"Processing 'submitBoxScore' from {connection_id} for lobby {lobby_id}")
+
+            try:
+                lobby_item = lobbies_table.get_item(Key={'lobbyId': lobby_id}).get('Item')
+                if not lobby_item:
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby not found."})
+                    return {'statusCode': 404, 'body': 'Lobby not found.'}
+
+                player_slot_label = None
+                player_name_for_action = "Unknown Player"
+                if lobby_item.get('player1ConnectionId') == connection_id:
+                    player_slot_label = 'player1'
+                    player_name_for_action = lobby_item.get('player1Name', 'Player 1')
+                elif lobby_item.get('player2ConnectionId') == connection_id:
+                    player_slot_label = 'player2'
+                    player_name_for_action = lobby_item.get('player2Name', 'Player 2')
+                else:
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "You are not an active player in this lobby."})
+                    return {'statusCode': 403, 'body': 'Not an active player.'}
+
+                # Recalculate weighted score on backend for security/consistency
+                backend_calculated_score = 0
+                valid_sequences_to_store = {}
+                for char_name, s_value in received_sequences.items():
+                    if isinstance(s_value, int) and 0 <= s_value <= 6:
+                        backend_calculated_score += SEQUENCE_POINTS.get(s_value, 0)
+                        valid_sequences_to_store[char_name] = s_value
+                    else:
+                        logger.warning(f"Lobby {lobby_id}: Invalid sequence value {s_value} for {char_name} from {connection_id}. Ignoring for score.")
+                
+                logger.info(f"Lobby {lobby_id}: Player {player_name_for_action} ({player_slot_label}) submitted sequences. Backend calculated score: {backend_calculated_score}")
+
+                update_expression_parts = []
+                expression_attribute_values = {}
+                
+                update_expression_parts.append(f"{player_slot_label}Sequences = :seq")
+                expression_attribute_values[':seq'] = valid_sequences_to_store
+                
+                update_expression_parts.append(f"{player_slot_label}WeightedBoxScore = :score")
+                expression_attribute_values[':score'] = backend_calculated_score
+                
+                update_expression_parts.append(f"{player_slot_label}ScoreSubmitted = :trueVal")
+                expression_attribute_values[':trueVal'] = True
+                
+                last_action_msg = f"{player_name_for_action} submitted their Resonator sequences."
+                update_expression_parts.append(f"lastAction = :lastAct")
+                expression_attribute_values[':lastAct'] = last_action_msg
+
+                update_expression = "SET " + ", ".join(update_expression_parts)
+
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=update_expression,
+                    ExpressionAttributeValues=expression_attribute_values
+                )
+
+                send_message_to_client(apigw_management_client, connection_id, {"type": "boxScoreSubmitted"})
+                broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg)
+                
+                return {'statusCode': 200, 'body': 'Box score submitted.'}
+
+            except Exception as e:
+                logger.error(f"Error processing submitBoxScore for {lobby_id}: {str(e)}", exc_info=True)
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Failed to submit box score."})
+                return {'statusCode': 500, 'body': 'Failed to process box score.'}
 
         else:
             # Unknown action - echo back or send error/info
@@ -2026,9 +2191,10 @@ def handler(event, context):
 
     except Exception as e:
         # Catch-all for errors during action processing
-        logger.error(f"Error processing action '{action}' for {connection_id}: {str(e)}", exc_info=True)
-        send_message_to_client(apigw_management_client, connection_id, {
-            "type": "error",
-            "message": f"Failed to process action '{action}': {str(e)}"
-        })
+        logger.error(f"Error processing message action: {str(e)}", exc_info=True)
+        if connection_id:
+            send_message_to_client(apigw_management_client, connection_id, {
+                "type": "error",
+                "message": "Server error processing your request."
+            })
         return {'statusCode': 500, 'body': f'Failed to process action {action}.'}
