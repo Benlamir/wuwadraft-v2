@@ -194,6 +194,29 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // --- Box Score Submit Button ---
+  if (elements.submitBoxScoreBtn) {
+    elements.submitBoxScoreBtn.addEventListener('click', () => {
+      const sequences = {};
+      const selects = elements.limitedResonatorsList.querySelectorAll('.sequence-select');
+      selects.forEach(select => {
+        const resonatorName = select.dataset.resonatorName;
+        const sequenceValue = parseInt(select.value, 10);
+        if (sequenceValue >= 0) { // Only include if owned (S0 or higher)
+          sequences[resonatorName] = sequenceValue;
+        }
+      });
+      const totalScore = parseInt(elements.totalBoxScoreDisplay.textContent);
+      
+      sendMessageToServer({
+        action: 'submitBoxScore',
+        lobbyId: state.currentLobbyId,
+        sequences: sequences, // This map now only contains owned characters and their S-value
+        totalScore: totalScore
+      });
+    });
+  }
+
   // --- Attach Event Listeners for Filter Controls ---
   const filterControls = document.querySelectorAll(
     "#draft-filter-controls .filter-btn, #draft-filter-controls .element-filter-icon"

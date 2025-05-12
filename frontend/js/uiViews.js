@@ -908,99 +908,7 @@ function renderCharacterGrid(draftState) {
       // Optionally add a 'not-clickable' class for styling disabled buttons differently
       button.classList.add("not-clickable");
     }
-
-    elements.characterGridContainer.appendChild(button);
   });
-}
-
-// --- NEW FUNCTION: updateTotalBoxScore ---
-export function updateTotalBoxScore() {
-  if (!elements.limitedResonatorsList || !elements.totalBoxScoreDisplay || !SEQUENCE_POINTS) {
-    return;
-  }
-
-  let totalScore = 0;
-  const inputs = elements.limitedResonatorsList.querySelectorAll('.sequence-input');
-
-  inputs.forEach(input => {
-    const resonatorName = input.dataset.resonatorName;
-    let sequenceValue = parseInt(input.value, 10);
-
-    // Validate and clamp sequenceValue between 0 and 6
-    if (isNaN(sequenceValue) || sequenceValue < 0) {
-      sequenceValue = 0;
-      input.value = 0; // Correct invalid input in the UI
-    } else if (sequenceValue > 6) {
-      sequenceValue = 6;
-      input.value = 6; // Correct invalid input in the UI
-    }
-
-    const charPoints = SEQUENCE_POINTS[sequenceValue] || 0;
-    
-    const pointsDisplayElement = input.closest('.row')?.querySelector('.resonator-points-display');
-    if (pointsDisplayElement) {
-      pointsDisplayElement.innerHTML = `<small>Points: ${charPoints}</small>`;
-    }
-
-    totalScore += charPoints;
-  });
-
-  elements.totalBoxScoreDisplay.textContent = totalScore;
-}
-
-// --- NEW FUNCTION: populateBoxScoreScreen ---
-export function populateBoxScoreScreen() {
-  if (!elements.limitedResonatorsList || !ALL_RESONATORS_DATA || !SEQUENCE_POINTS) {
-    console.error("Cannot populate box score screen, critical elements or data missing.");
-    return;
-  }
-
-  elements.limitedResonatorsList.innerHTML = ''; // Clear previous entries
-
-  const limitedResonators = ALL_RESONATORS_DATA.filter(resonator => resonator.isLimited === true);
-
-  if (limitedResonators.length === 0) {
-    elements.limitedResonatorsList.innerHTML = '<p class="text-muted">No limited resonators found in data to declare sequences for.</p>';
-    updateTotalBoxScore(); // Ensure score is 0
-    return;
-  }
-
-  limitedResonators.forEach(resonator => {
-    const initialSequence = 0; // Default to S0
-    const initialPoints = SEQUENCE_POINTS[initialSequence];
-
-    const resonatorRow = document.createElement('div');
-    resonatorRow.className = 'row mb-3 align-items-center justify-content-center border-bottom pb-2';
-
-    const nameLabel = document.createElement('label');
-    nameLabel.className = 'col-md-4 col-form-label text-md-end fw-bold';
-    nameLabel.textContent = `${resonator.name}:`;
-
-    const inputDiv = document.createElement('div');
-    inputDiv.className = 'col-md-3';
-    const inputElement = document.createElement('input');
-    inputElement.type = 'number';
-    inputElement.min = '0';
-    inputElement.max = '6';
-    inputElement.value = initialSequence.toString();
-    inputElement.className = 'form-control sequence-input text-center';
-    inputElement.dataset.resonatorName = resonator.name;
-    inputElement.addEventListener('input', updateTotalBoxScore);
-    inputElement.addEventListener('change', updateTotalBoxScore);
-    inputDiv.appendChild(inputElement);
-
-    const pointsDisplay = document.createElement('div');
-    pointsDisplay.className = 'col-md-3 resonator-points-display text-md-start';
-    pointsDisplay.innerHTML = `<small>Points: ${initialPoints}</small>`;
-
-    resonatorRow.appendChild(nameLabel);
-    resonatorRow.appendChild(inputDiv);
-    resonatorRow.appendChild(pointsDisplay);
-
-    elements.limitedResonatorsList.appendChild(resonatorRow);
-  });
-
-  updateTotalBoxScore(); // Calculate initial total score
 }
 
 export function handleCharacterSelection(event) {
@@ -1033,17 +941,103 @@ export function handleCharacterSelection(event) {
     action: action,
     resonatorName: resonatorName,
   };
-  // console.log(`UI: Sending action: ${action}, Resonator: ${resonatorName}`);
   sendMessageToServer(message);
 
-  // console.log("UI: Disabling all character buttons pending state update.");
-  const allCharacterButtons =
-    elements.characterGridContainer?.querySelectorAll(".character-button");
+  // Disable all character buttons pending state update
+  const allCharacterButtons = elements.characterGridContainer?.querySelectorAll(".character-button");
   if (allCharacterButtons) {
     allCharacterButtons.forEach((btn) => {
       btn.disabled = true;
-      // Optional: Add a visual style to indicate they are waiting for update
-      // btn.style.opacity = '0.5';
     });
   }
+}
+
+// --- NEW FUNCTION: updateTotalBoxScore ---
+export function updateTotalBoxScore() {
+  if (!elements.limitedResonatorsList || !elements.totalBoxScoreDisplay || !SEQUENCE_POINTS) {
+    return;
+  }
+
+  let totalScore = 0;
+  const selects = elements.limitedResonatorsList.querySelectorAll('.sequence-select');
+
+  selects.forEach(select => {
+    const sequenceValue = parseInt(select.value, 10);
+    let charPoints = 0;
+
+    if (sequenceValue >= 0 && sequenceValue <= 6) {
+      charPoints = SEQUENCE_POINTS[sequenceValue] || 0;
+    }
+
+    const pointsDisplayElement = select.closest('.row')?.querySelector('.resonator-points-display');
+    if (pointsDisplayElement) {
+      pointsDisplayElement.innerHTML = `<small>Points: ${charPoints}</small>`;
+    }
+
+    totalScore += charPoints;
+  });
+
+  elements.totalBoxScoreDisplay.textContent = totalScore;
+}
+
+// --- NEW FUNCTION: populateBoxScoreScreen ---
+export function populateBoxScoreScreen() {
+  if (!elements.limitedResonatorsList || !ALL_RESONATORS_DATA || !SEQUENCE_POINTS) {
+    console.error("Cannot populate box score screen, critical elements or data missing.");
+    return;
+  }
+
+  elements.limitedResonatorsList.innerHTML = ''; // Clear previous entries
+  const limitedResonators = ALL_RESONATORS_DATA.filter(resonator => resonator.isLimited === true);
+
+  if (limitedResonators.length === 0) {
+    elements.limitedResonatorsList.innerHTML = '<p class="text-muted">No limited resonators found in data to declare sequences for.</p>';
+    updateTotalBoxScore();
+    return;
+  }
+
+  limitedResonators.forEach(resonator => {
+    const resonatorRow = document.createElement('div');
+    resonatorRow.className = 'row mb-3 align-items-center justify-content-center border-bottom pb-2';
+
+    const nameLabel = document.createElement('label');
+    nameLabel.className = 'col-md-4 col-form-label text-md-end fw-bold';
+    nameLabel.textContent = `${resonator.name}:`;
+
+    const selectDiv = document.createElement('div');
+    selectDiv.className = 'col-md-3';
+    const selectElement = document.createElement('select');
+    selectElement.className = 'form-select sequence-select text-center';
+    selectElement.dataset.resonatorName = resonator.name;
+
+    // Add "Not Owned" option
+    const notOwnedOption = document.createElement('option');
+    notOwnedOption.value = "-1";
+    notOwnedOption.textContent = "Not Owned";
+    selectElement.appendChild(notOwnedOption);
+
+    // Add S0-S6 options
+    for (let i = 0; i <= 6; i++) {
+      const option = document.createElement('option');
+      option.value = i.toString();
+      option.textContent = `S${i}`;
+      selectElement.appendChild(option);
+    }
+    selectElement.value = "-1"; // Default to "Not Owned"
+
+    selectElement.addEventListener('change', updateTotalBoxScore);
+    selectDiv.appendChild(selectElement);
+
+    const pointsDisplay = document.createElement('div');
+    pointsDisplay.className = 'col-md-3 resonator-points-display text-md-start';
+    pointsDisplay.innerHTML = '<small>Points: 0</small>';
+
+    resonatorRow.appendChild(nameLabel);
+    resonatorRow.appendChild(selectDiv);
+    resonatorRow.appendChild(pointsDisplay);
+
+    elements.limitedResonatorsList.appendChild(resonatorRow);
+  });
+
+  updateTotalBoxScore();
 }
