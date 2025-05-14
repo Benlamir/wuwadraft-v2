@@ -13,6 +13,8 @@ export let activeElementFilter = "All"; // Track the active element filter ('All
 export let currentDraftState = null; // Store the latest full draft state object
 export let currentTurnExpiresAt = null; // Holds the ISO timestamp string or null
 export let timerIntervalId = null; // Holds the ID returned by setInterval
+export let equilibrationEnabledForLobby = false;
+export let localPlayerHasSubmittedScore = false;
 // --- END ADD ---
 
 // Functions to update state
@@ -85,6 +87,8 @@ export function clearLobbyState() {
   isCurrentUserHost = false;
   myAssignedSlot = null;
   clearDraftState();
+  equilibrationEnabledForLobby = false;
+  localPlayerHasSubmittedScore = false;
   // Keep currentUserName for convenience
 }
 
@@ -129,6 +133,17 @@ export function clearTimerInterval() {
   }
 }
 // --- END MODIFIED FUNCTION ---
+
+// Add setter functions for equilibration state
+export function setEquilibrationEnabledForLobby(isEnabled) {
+  equilibrationEnabledForLobby = isEnabled;
+  console.log(`State: equilibrationEnabledForLobby set to ${isEnabled}`);
+}
+
+export function setLocalPlayerHasSubmittedScore(hasSubmitted) {
+  localPlayerHasSubmittedScore = hasSubmitted;
+  console.log(`State: localPlayerHasSubmittedScore set to ${hasSubmitted}`);
+}
 
 // Optional: Getters if needed, though direct import works for 'let'
 // export function getLobbyId() { return currentLobbyId; }

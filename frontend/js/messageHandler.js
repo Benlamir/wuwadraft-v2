@@ -17,88 +17,100 @@ export function handleWebSocketMessage(jsonData) {
 
     switch (message.type) {
       case "lobbyCreated":
-        console.log("MH_TRACE: Case lobbyCreated");
-        state.setLobbyInfo(message.lobbyId, message.isHost);
-        // Assuming currentUserName is set correctly elsewhere before this is called
-        updateLobbyWaitScreenUI({
-          lobbyId: message.lobbyId,
-          hostName: state.currentUserName,
-          player1Name: null,
-          player2Name: null,
-          lobbyState: "WAITING",
-          player1Ready: false,
-          player2Ready: false,
-        });
+        console.log("MessageHandler: Received lobbyCreated message:", message);
+        state.setLobbyInfo(message.lobbyId, true, message.message);
+        if (message.hasOwnProperty("equilibrationEnabled")) {
+          state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
+        }
         showScreen("lobby-wait-screen");
         break;
 
       case "lobbyJoined":
-        console.log("MH_TRACE: Case lobbyJoined");
-        state.setLobbyInfo(
-          message.lobbyId,
-          message.isHost,
-          message.assignedSlot
-        );
-        console.log(
-          "MH_TRACE: After setLobbyInfo, myAssignedSlot=",
-          state.myAssignedSlot
-        );
-        // We need the initial lobby state here to populate the UI correctly
-        // This should ideally come with the lobbyJoined confirmation or via a separate lobbyStateUpdate
-        // For now, showing the screen, but UI might be empty until first state update
-        showScreen("lobby-wait-screen");
+        console.log("MessageHandler: Received lobbyJoined message:", message);
+        state.setLobbyInfo(message.lobbyId, false, message.message);
+        state.setAssignedSlot(message.assignedSlot);
+
+        let wasRedirectedToBSS = false;
+        if (message.hasOwnProperty("equilibrationEnabled")) {
+          state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
+          if (
+            message.equilibrationEnabled &&
+            state.myAssignedSlot &&
+            !message.playerScoreSubmitted
+          ) {
+            console.log(
+              "MH_TRACE: Equilibration ON and scores not submitted, redirecting to Box Score Screen."
+            );
+            state.setLocalPlayerHasSubmittedScore(false);
+            showScreen("box-score-screen");
+            wasRedirectedToBSS = true;
+          } else if (
+            message.equilibrationEnabled &&
+            message.playerScoreSubmitted
+          ) {
+            state.setLocalPlayerHasSubmittedScore(true);
+          }
+        }
+        if (!wasRedirectedToBSS) {
+          showScreen("lobby-wait-screen");
+        }
         break;
 
       case "lobbyStateUpdate":
-        console.log("MH_TRACE: Case lobbyStateUpdate");
-        // Update internal state first
-        state.setCurrentDraftState(message); // Store the whole state
-        if (message.hasOwnProperty("currentPhase")) {
-          state.setDraftPhase(message.currentPhase);
-        }
-        if (message.hasOwnProperty("currentTurn")) {
-          state.setDraftTurn(message.currentTurn);
-        }
-        // Timer Handling
-        if (message.hasOwnProperty("turnExpiresAt")) {
-          console.log(
-            `MessageHandler DEBUG: Found turnExpiresAt: ${message.turnExpiresAt}`
-          );
-          state.setTurnExpiry(message.turnExpiresAt);
-          startOrUpdateTimerDisplay(); // Start/update timer based on new expiry
-        } else {
-          console.log(
-            "MessageHandler DEBUG: No turnExpiresAt found in update."
-          );
-          state.setTurnExpiry(null);
-          stopTimerDisplay(); // Stop timer if no expiry provided
+        console.log(
+          "MessageHandler: Received lobbyStateUpdate message:",
+          message
+        );
+
+        // Store equilibration settings
+        if (message.hasOwnProperty("equilibrationEnabled")) {
+          state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
         }
 
-        // Screen Logic based on updated state
-        if (state.currentPhase) {
-          // Draft is active or complete
+        // Update UI elements
+        updateLobbyWaitScreenUI(message);
+
+        // Handle screen transitions based on lobby state
+        if (message.lobbyState === "DRAFTING") {
           console.log(
-            `MessageHandler: Phase is '${state.currentPhase}'. Updating/showing draft screen.`
+            "MessageHandler: State is DRAFTING. Updating draft screen."
           );
           updateDraftScreenUI(message);
           showScreen("draft-screen");
         } else if (message.lobbyState === "WAITING") {
-          // Waiting for players/ready
           console.log(
-            "MessageHandler: State is WAITING. Updating/showing lobby wait screen."
+            "MessageHandler: State is WAITING. Updating/showing lobby wait screen or BSS."
           );
           updateLobbyWaitScreenUI(message);
-          showScreen("lobby-wait-screen");
-        } else {
-          // Fallback
-          console.warn(
-            "MessageHandler: Unhandled lobbyStateUpdate screen logic - Phase:",
-            state.currentPhase,
-            "LobbyState:",
-            message.lobbyState
-          );
-          updateLobbyWaitScreenUI(message);
-          showScreen("lobby-wait-screen");
+
+          // Check if we need to be on BSS screen
+          const isPlayer =
+            state.myAssignedSlot === "P1" || state.myAssignedSlot === "P2";
+
+          if (
+            state.equilibrationEnabledForLobby &&
+            isPlayer &&
+            !state.localPlayerHasSubmittedScore
+          ) {
+            const playerSpecificScoreKey =
+              state.myAssignedSlot === "P1"
+                ? "player1WeightedBoxScore"
+                : "player2WeightedBoxScore";
+            if (
+              !message[playerSpecificScoreKey] ||
+              message[playerSpecificScoreKey] === 0
+            ) {
+              console.log(
+                "MH_TRACE: WAITING state, EQ ON, scores not submitted, redirecting to Box Score Screen."
+              );
+              showScreen("box-score-screen");
+            } else {
+              state.setLocalPlayerHasSubmittedScore(true);
+              showScreen("lobby-wait-screen");
+            }
+          } else {
+            showScreen("lobby-wait-screen");
+          }
         }
         break;
 

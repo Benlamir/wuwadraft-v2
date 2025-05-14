@@ -481,8 +481,9 @@ def handler(event, context):
                     "lobbyId": lobby_id,
                     "assignedSlot": assigned_slot,
                     "isHost": False, # Joining player is not the host
-                    "message": f"Successfully joined lobby {lobby_id} as {assigned_slot}."
-                    # TODO: Send current full lobby state?
+                    "message": f"Successfully joined lobby {lobby_id} as {assigned_slot}.",
+                    "equilibrationEnabled": lobby_item.get('equilibrationEnabled', True),
+                    "playerScoreSubmitted": False # Initialize as false for new player
                 }
                 send_message_to_client(apigw_management_client, connection_id, response_payload)
 
