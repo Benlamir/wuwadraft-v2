@@ -43,10 +43,13 @@ export function showScreen(screenIdToShow) {
     screenToShow.classList.add("active");
 
     // --- NEW LOGIC FOR BOX SCORE SCREEN ---
-    if (screenIdToShow === 'box-score-screen') {
+    if (screenIdToShow === "box-score-screen") {
       populateBoxScoreScreen(); // Populate when shown
       // Manage visibility of host's "Leave Player Slot" button on this screen
-      if (state.isCurrentUserHost && (state.myAssignedSlot === 'P1' || state.myAssignedSlot === 'P2')) {
+      if (
+        state.isCurrentUserHost &&
+        (state.myAssignedSlot === "P1" || state.myAssignedSlot === "P2")
+      ) {
         toggleElementVisibility(elements.boxScoreLeaveSlotBtn, true);
       } else {
         toggleElementVisibility(elements.boxScoreLeaveSlotBtn, false);
@@ -56,7 +59,6 @@ export function showScreen(screenIdToShow) {
       toggleElementVisibility(elements.boxScoreLeaveSlotBtn, false);
     }
     // --- END NEW LOGIC ---
-
   } else {
     console.error(
       `Screen with ID ${screenIdToShow} not found or missing 'screen' class! Falling back to welcome.`
@@ -93,7 +95,10 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   // --- Update Names & (You) / (Host) Suffix ---
   const p1Name = lobbyStateData.player1Name || null;
   const p2Name = lobbyStateData.player2Name || null;
-  const hostName = lobbyStateData.hostName || "[Host]";
+  // Use state.currentUserName for host's own name, fallback to server data for others
+  const hostName = state.isCurrentUserHost
+    ? state.currentUserName
+    : lobbyStateData.hostName || "[Host]";
 
   if (elements.hostNameDisplay) elements.hostNameDisplay.textContent = hostName;
   if (elements.player1NameDisplay)
@@ -916,7 +921,9 @@ export function handleCharacterSelection(event) {
   const resonatorName = button.dataset.resonatorName;
 
   if (!resonatorName) {
-    console.error("Character button clicked, but missing resonator name dataset!");
+    console.error(
+      "Character button clicked, but missing resonator name dataset!"
+    );
     return;
   }
 
@@ -944,7 +951,8 @@ export function handleCharacterSelection(event) {
   sendMessageToServer(message);
 
   // Disable all character buttons pending state update
-  const allCharacterButtons = elements.characterGridContainer?.querySelectorAll(".character-button");
+  const allCharacterButtons =
+    elements.characterGridContainer?.querySelectorAll(".character-button");
   if (allCharacterButtons) {
     allCharacterButtons.forEach((btn) => {
       btn.disabled = true;
@@ -954,14 +962,19 @@ export function handleCharacterSelection(event) {
 
 // --- NEW FUNCTION: updateTotalBoxScore ---
 export function updateTotalBoxScore() {
-  if (!elements.limitedResonatorsList || !elements.totalBoxScoreDisplay || !SEQUENCE_POINTS) {
+  if (
+    !elements.limitedResonatorsList ||
+    !elements.totalBoxScoreDisplay ||
+    !SEQUENCE_POINTS
+  ) {
     return;
   }
 
   let totalScore = 0;
-  const selects = elements.limitedResonatorsList.querySelectorAll('.sequence-select');
+  const selects =
+    elements.limitedResonatorsList.querySelectorAll(".sequence-select");
 
-  selects.forEach(select => {
+  selects.forEach((select) => {
     const sequenceValue = parseInt(select.value, 10);
     let charPoints = 0;
 
@@ -969,7 +982,9 @@ export function updateTotalBoxScore() {
       charPoints = SEQUENCE_POINTS[sequenceValue] || 0;
     }
 
-    const pointsDisplayElement = select.closest('.row')?.querySelector('.resonator-points-display');
+    const pointsDisplayElement = select
+      .closest(".row")
+      ?.querySelector(".resonator-points-display");
     if (pointsDisplayElement) {
       pointsDisplayElement.innerHTML = `<small>Points: ${charPoints}</small>`;
     }
@@ -982,55 +997,65 @@ export function updateTotalBoxScore() {
 
 // --- NEW FUNCTION: populateBoxScoreScreen ---
 export function populateBoxScoreScreen() {
-  if (!elements.limitedResonatorsList || !ALL_RESONATORS_DATA || !SEQUENCE_POINTS) {
-    console.error("Cannot populate box score screen, critical elements or data missing.");
+  if (
+    !elements.limitedResonatorsList ||
+    !ALL_RESONATORS_DATA ||
+    !SEQUENCE_POINTS
+  ) {
+    console.error(
+      "Cannot populate box score screen, critical elements or data missing."
+    );
     return;
   }
 
-  elements.limitedResonatorsList.innerHTML = ''; // Clear previous entries
-  const limitedResonators = ALL_RESONATORS_DATA.filter(resonator => resonator.isLimited === true);
+  elements.limitedResonatorsList.innerHTML = ""; // Clear previous entries
+  const limitedResonators = ALL_RESONATORS_DATA.filter(
+    (resonator) => resonator.isLimited === true
+  );
 
   if (limitedResonators.length === 0) {
-    elements.limitedResonatorsList.innerHTML = '<p class="text-muted">No limited resonators found in data to declare sequences for.</p>';
+    elements.limitedResonatorsList.innerHTML =
+      '<p class="text-muted">No limited resonators found in data to declare sequences for.</p>';
     updateTotalBoxScore();
     return;
   }
 
-  limitedResonators.forEach(resonator => {
-    const resonatorRow = document.createElement('div');
-    resonatorRow.className = 'row mb-3 align-items-center justify-content-center border-bottom pb-2';
+  limitedResonators.forEach((resonator) => {
+    const resonatorRow = document.createElement("div");
+    resonatorRow.className =
+      "row mb-3 align-items-center justify-content-center border-bottom pb-2";
 
-    const nameLabel = document.createElement('label');
-    nameLabel.className = 'col-md-4 col-form-label text-md-end fw-bold';
+    const nameLabel = document.createElement("label");
+    nameLabel.className = "col-md-4 col-form-label text-md-end fw-bold";
     nameLabel.textContent = `${resonator.name}:`;
 
-    const selectDiv = document.createElement('div');
-    selectDiv.className = 'col-md-3';
-    const selectElement = document.createElement('select');
-    selectElement.className = 'form-select sequence-select text-center';
+    const selectDiv = document.createElement("div");
+    selectDiv.className = "col-md-3";
+    const selectElement = document.createElement("select");
+    selectElement.className = "form-select sequence-select text-center";
     selectElement.dataset.resonatorName = resonator.name;
 
     // Add "Not Owned" option
-    const notOwnedOption = document.createElement('option');
+    const notOwnedOption = document.createElement("option");
     notOwnedOption.value = "-1";
     notOwnedOption.textContent = "Not Owned";
     selectElement.appendChild(notOwnedOption);
 
     // Add S0-S6 options
     for (let i = 0; i <= 6; i++) {
-      const option = document.createElement('option');
+      const option = document.createElement("option");
       option.value = i.toString();
       option.textContent = `S${i}`;
       selectElement.appendChild(option);
     }
     selectElement.value = "-1"; // Default to "Not Owned"
 
-    selectElement.addEventListener('change', updateTotalBoxScore);
+    selectElement.addEventListener("change", updateTotalBoxScore);
     selectDiv.appendChild(selectElement);
 
-    const pointsDisplay = document.createElement('div');
-    pointsDisplay.className = 'col-md-3 resonator-points-display text-md-start';
-    pointsDisplay.innerHTML = '<small>Points: 0</small>';
+    const pointsDisplay = document.createElement("div");
+    pointsDisplay.className = "col-md-3 resonator-points-display text-md-start";
+    pointsDisplay.innerHTML = "<small>Points: 0</small>";
 
     resonatorRow.appendChild(nameLabel);
     resonatorRow.appendChild(selectDiv);

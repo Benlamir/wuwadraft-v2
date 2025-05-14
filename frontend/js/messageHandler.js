@@ -22,6 +22,19 @@ export function handleWebSocketMessage(jsonData) {
         if (message.hasOwnProperty("equilibrationEnabled")) {
           state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
         }
+        // Create a lobbyStateUpdate message with the host's name
+        const initialLobbyState = {
+          type: "lobbyStateUpdate",
+          lobbyId: message.lobbyId,
+          hostName: state.currentUserName,
+          player1Name: null,
+          player2Name: null,
+          player1Ready: false,
+          player2Ready: false,
+          lobbyState: "WAITING",
+          equilibrationEnabled: state.equilibrationEnabledForLobby,
+        };
+        updateLobbyWaitScreenUI(initialLobbyState);
         showScreen("lobby-wait-screen");
         break;
 
