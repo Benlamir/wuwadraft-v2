@@ -747,7 +747,11 @@ def handler(event, context):
                 "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
                 "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
                 "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []), # Read final state
-                "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt') # Add turn expiry time
+                "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'), # Add turn expiry time
+                "player1WeightedBoxScore": final_lobby_item.get('player1WeightedBoxScore', 0),
+                "player2WeightedBoxScore": final_lobby_item.get('player2WeightedBoxScore', 0),
+                "player1Sequences": final_lobby_item.get('player1Sequences', {}),
+                "player2Sequences": final_lobby_item.get('player2Sequences', {}),
             }
             logger.info(f"Broadcasting FINAL lobby state update: {state_payload}")
 
