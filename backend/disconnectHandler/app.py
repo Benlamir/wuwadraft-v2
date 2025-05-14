@@ -85,7 +85,13 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
             "player1Picks": final_lobby_item.get('player1Picks', []),
             "player2Picks": final_lobby_item.get('player2Picks', []),
             "availableResonators": final_lobby_item.get('availableResonators', []),
-            "turnExpiresAt": final_lobby_item.get('turnExpiresAt')
+            "turnExpiresAt": final_lobby_item.get('turnExpiresAt'),
+            "equilibrationEnabled": final_lobby_item.get('equilibrationEnabled', True),
+            "player1ScoreSubmitted": final_lobby_item.get('player1ScoreSubmitted', False),
+            "player2ScoreSubmitted": final_lobby_item.get('player2ScoreSubmitted', False),
+            "effectiveDraftOrder": final_lobby_item.get('effectiveDraftOrder'),
+            "equilibrationBansTarget": final_lobby_item.get('equilibrationBansTarget', 0),
+            "equilibrationBansMade": final_lobby_item.get('equilibrationBansMade', 0)
         }
         if last_action:
             state_payload["lastAction"] = last_action

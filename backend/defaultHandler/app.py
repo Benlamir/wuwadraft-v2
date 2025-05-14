@@ -222,7 +222,10 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
             # Add equilibration fields
             "equilibrationEnabled": final_lobby_item.get('equilibrationEnabled', True),
             "player1ScoreSubmitted": final_lobby_item.get('player1ScoreSubmitted', False),
-            "player2ScoreSubmitted": final_lobby_item.get('player2ScoreSubmitted', False)
+            "player2ScoreSubmitted": final_lobby_item.get('player2ScoreSubmitted', False),
+            "effectiveDraftOrder": final_lobby_item.get('effectiveDraftOrder'),
+            "equilibrationBansTarget": final_lobby_item.get('equilibrationBansTarget', 0),
+            "equilibrationBansMade": final_lobby_item.get('equilibrationBansMade', 0)
             # currentStepIndex is removed - client doesn't need it
         }
         
@@ -609,7 +612,7 @@ def handler(event, context):
             # --- CRITICAL FIX: Re-fetch the LATEST lobby state AFTER the update ---
             try:
                 logger.info(f"Re-fetching lobby state for {lobby_id}")
-                updated_response = lobbies_table.get_item(Key={'lobbyId': lobby_id})
+                updated_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
                 updated_lobby_item = updated_response.get('Item')
                 if not updated_lobby_item:
                     logger.error(f"Could not re-fetch lobby {lobby_id} after ready update.")
