@@ -1286,3 +1286,15 @@ body.draft-active-background header {
 #draft-timer:not(.timer-low) {
   animation: none;
 }
+
+.player-score-display {
+  font-size: 0.9em;
+  font-style: italic;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.player-score-display.text-info {
+  opacity: 1;
+  font-weight: 500;
+}

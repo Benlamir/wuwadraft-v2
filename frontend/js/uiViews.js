@@ -125,6 +125,16 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   const readyIconHTML = '<i class="bi bi-check-circle-fill"></i>';
   const notReadyIconHTML = '<i class="bi bi-hourglass-split"></i>';
 
+  // Extract scores and submission statuses
+  const p1Score = lobbyStateData.player1WeightedBoxScore;
+  const p1Submitted = lobbyStateData.player1ScoreSubmitted;
+  const p2Score = lobbyStateData.player2WeightedBoxScore;
+  const p2Submitted = lobbyStateData.player2ScoreSubmitted;
+
+  console.log(
+    `UI_VIEWS_DEBUG: p1Score extracted as: ${p1Score}, p1Submitted: ${p1Submitted}`
+  );
+
   if (elements.player1StatusElement) {
     const isReady = lobbyStateData.player1Ready === true;
     elements.player1StatusElement.innerHTML = isReady
@@ -135,6 +145,26 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
       isReady ? "text-success" : "text-light"
     );
   }
+
+  // Update Player 1 Score Display
+  if (elements.player1ScoreDisplay) {
+    if (p1Submitted) {
+      elements.player1ScoreDisplay.textContent = `(Score: ${
+        p1Score !== null ? p1Score : "N/A"
+      })`;
+      elements.player1ScoreDisplay.classList.add("text-info");
+    } else if (
+      state.equilibrationEnabledForLobby &&
+      lobbyStateData.player1Name
+    ) {
+      elements.player1ScoreDisplay.textContent = "(Score Pending)";
+      elements.player1ScoreDisplay.classList.remove("text-info");
+    } else {
+      elements.player1ScoreDisplay.textContent = "";
+      elements.player1ScoreDisplay.classList.remove("text-info");
+    }
+  }
+
   if (elements.player2StatusElement) {
     const isReady = lobbyStateData.player2Ready === true;
     elements.player2StatusElement.innerHTML = isReady
@@ -144,6 +174,25 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
     elements.player2StatusElement.classList.add(
       isReady ? "text-success" : "text-light"
     );
+  }
+
+  // Update Player 2 Score Display
+  if (elements.player2ScoreDisplay) {
+    if (p2Submitted) {
+      elements.player2ScoreDisplay.textContent = `(Score: ${
+        p2Score !== null ? p2Score : "N/A"
+      })`;
+      elements.player2ScoreDisplay.classList.add("text-info");
+    } else if (
+      state.equilibrationEnabledForLobby &&
+      lobbyStateData.player2Name
+    ) {
+      elements.player2ScoreDisplay.textContent = "(Score Pending)";
+      elements.player2ScoreDisplay.classList.remove("text-info");
+    } else {
+      elements.player2ScoreDisplay.textContent = "";
+      elements.player2ScoreDisplay.classList.remove("text-info");
+    }
   }
 
   // --- Update Lobby Status Text (Including lastAction) ---

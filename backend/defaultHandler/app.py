@@ -195,49 +195,43 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
         logger.info(f"Broadcasting state for lobby {lobby_id}. Last Action: {last_action}. Excluding: {exclude_connection_id}")
         # Use ConsistentRead to get the absolute latest state
         final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
-        final_lobby_item = final_response.get('Item')
+        final_lobby_item_for_broadcast = final_response.get('Item')
 
-        if not final_lobby_item:
+        if not final_lobby_item_for_broadcast:
             logger.warning(f"Cannot broadcast state for lobby {lobby_id}, item not found (may have been deleted).")
             return False # Cannot broadcast if lobby doesn't exist
 
         # Construct the broadcast payload (ensure Decimal is handled for json.dumps)
-        # Convert Decimal types before creating the payload or use DecimalEncoder
         state_payload = {
             "type": "lobbyStateUpdate",
             "lobbyId": lobby_id,
-            "hostName": final_lobby_item.get('hostName'),
-            "player1Name": final_lobby_item.get('player1Name'),
-            "player2Name": final_lobby_item.get('player2Name'),
-            "lobbyState": final_lobby_item.get('lobbyState'),
-            "player1Ready": final_lobby_item.get('player1Ready', False),
-            "player2Ready": final_lobby_item.get('player2Ready', False),
-            "currentPhase": final_lobby_item.get('currentPhase'),
-            "currentTurn": final_lobby_item.get('currentTurn'),
-            "bans": final_lobby_item.get('bans', []),
-            "player1Picks": final_lobby_item.get('player1Picks', []),
-            "player2Picks": final_lobby_item.get('player2Picks', []),
-            "availableResonators": final_lobby_item.get('availableResonators', []),
-            "turnExpiresAt": final_lobby_item.get('turnExpiresAt'),
-            # Add equilibration fields
-            "equilibrationEnabled": final_lobby_item.get('equilibrationEnabled', True),
-            "player1ScoreSubmitted": final_lobby_item.get('player1ScoreSubmitted', False),
-            "player2ScoreSubmitted": final_lobby_item.get('player2ScoreSubmitted', False),
-            "effectiveDraftOrder": final_lobby_item.get('effectiveDraftOrder'),
-            "equilibrationBansTarget": final_lobby_item.get('equilibrationBansTarget', 0),
-            "equilibrationBansMade": final_lobby_item.get('equilibrationBansMade', 0)
-            # currentStepIndex is removed - client doesn't need it
+            "hostName": final_lobby_item_for_broadcast.get('hostName'),
+            "player1Name": final_lobby_item_for_broadcast.get('player1Name'),
+            "player2Name": final_lobby_item_for_broadcast.get('player2Name'),
+            "lobbyState": final_lobby_item_for_broadcast.get('lobbyState'),
+            "player1Ready": final_lobby_item_for_broadcast.get('player1Ready', False),
+            "player2Ready": final_lobby_item_for_broadcast.get('player2Ready', False),
+            "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'),
+            "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),
+            "bans": final_lobby_item_for_broadcast.get('bans', []),
+            "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
+            "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
+            "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []),
+            "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'),
+            
+            # Equilibration and box score fields
+            "equilibrationEnabled": final_lobby_item_for_broadcast.get('equilibrationEnabled', False),
+            "player1ScoreSubmitted": final_lobby_item_for_broadcast.get('player1ScoreSubmitted', False),
+            "player2ScoreSubmitted": final_lobby_item_for_broadcast.get('player2ScoreSubmitted', False),
+            "player1WeightedBoxScore": final_lobby_item_for_broadcast.get('player1WeightedBoxScore'),
+            "player2WeightedBoxScore": final_lobby_item_for_broadcast.get('player2WeightedBoxScore'),
+            "player1Sequences": final_lobby_item_for_broadcast.get('player1Sequences'),
+            "player2Sequences": final_lobby_item_for_broadcast.get('player2Sequences'),
+            "effectiveDraftOrder": final_lobby_item_for_broadcast.get('effectiveDraftOrder'),
+            "equilibrationBansAllowed": final_lobby_item_for_broadcast.get('equilibrationBansAllowed', 0),
+            "equilibrationBansMade": final_lobby_item_for_broadcast.get('equilibrationBansMade', 0)
         }
-        
-        # Include box score fields if we're in DRAFTING state or later
-        if final_lobby_item.get('lobbyState') == 'DRAFTING' or final_lobby_item.get('currentPhase'):
-            # Include these values if they exist, otherwise null values will be sent
-            state_payload["player1Sequences"] = final_lobby_item.get('player1Sequences')
-            state_payload["player2Sequences"] = final_lobby_item.get('player2Sequences')
-            state_payload["player1WeightedBoxScore"] = final_lobby_item.get('player1WeightedBoxScore')
-            state_payload["player2WeightedBoxScore"] = final_lobby_item.get('player2WeightedBoxScore')
-            state_payload["equilibrationBansTarget"] = final_lobby_item.get('equilibrationBansTarget')
-            state_payload["equilibrationBansMade"] = final_lobby_item.get('equilibrationBansMade')
+
         # Add lastAction if provided
         if last_action:
             state_payload["lastAction"] = last_action
@@ -248,9 +242,9 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
 
         # Get all participant connection IDs from the fetched item
         participants = [
-            final_lobby_item.get('hostConnectionId'),
-            final_lobby_item.get('player1ConnectionId'),
-            final_lobby_item.get('player2ConnectionId')
+            final_lobby_item_for_broadcast.get('hostConnectionId'),
+            final_lobby_item_for_broadcast.get('player1ConnectionId'),
+            final_lobby_item_for_broadcast.get('player2ConnectionId')
         ]
         valid_connection_ids = [pid for pid in participants if pid]
 
@@ -748,12 +742,21 @@ def handler(event, context):
                 "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
                 "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []), # Read final state
                 "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'), # Add turn expiry time
-                "player1WeightedBoxScore": final_lobby_item.get('player1WeightedBoxScore', 0),
-                "player2WeightedBoxScore": final_lobby_item.get('player2WeightedBoxScore', 0),
-                "player1Sequences": final_lobby_item.get('player1Sequences', {}),
-                "player2Sequences": final_lobby_item.get('player2Sequences', {}),
+                
+                # Box Score System fields
+                "equilibrationEnabled": final_lobby_item_for_broadcast.get('equilibrationEnabled', False),
+                "player1ScoreSubmitted": final_lobby_item_for_broadcast.get('player1ScoreSubmitted', False),
+                "player2ScoreSubmitted": final_lobby_item_for_broadcast.get('player2ScoreSubmitted', False),
+                "player1WeightedBoxScore": final_lobby_item_for_broadcast.get('player1WeightedBoxScore'),
+                "player2WeightedBoxScore": final_lobby_item_for_broadcast.get('player2WeightedBoxScore'),
+                "player1Sequences": final_lobby_item_for_broadcast.get('player1Sequences', {}),
+                "player2Sequences": final_lobby_item_for_broadcast.get('player2Sequences', {}),
+                "effectiveDraftOrder": final_lobby_item_for_broadcast.get('effectiveDraftOrder'),
+                "equilibrationBansTarget": final_lobby_item_for_broadcast.get('equilibrationBansTarget'),
+                "equilibrationBansMade": final_lobby_item_for_broadcast.get('equilibrationBansMade')
             }
             logger.info(f"Broadcasting FINAL lobby state update: {state_payload}")
+            logger.info(f"Broadcasting payload: {state_payload}")
 
             # 9. Broadcast to all participants
             participants = [

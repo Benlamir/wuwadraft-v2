@@ -35,6 +35,8 @@ export const elements = {
   player2NameDisplay: null,
   player1StatusElement: null,
   player2StatusElement: null,
+  player1ScoreDisplay: null,
+  player2ScoreDisplay: null,
   lobbyStatusDisplay: null,
   player1ReadyBtn: null,
   player2ReadyBtn: null,
@@ -92,7 +94,9 @@ export function initializeElements() {
 
   // Create/Join Inputs & Buttons
   elements.createNameInput = document.getElementById("create-name-input");
-  elements.enableEquilibrationToggle = document.getElementById("enable-equilibration-toggle");
+  elements.enableEquilibrationToggle = document.getElementById(
+    "enable-equilibration-toggle"
+  );
   elements.createStartBtn = document.getElementById("create-start-btn");
   elements.createBackBtn = document.getElementById("create-back-btn");
   elements.joinNameInput = document.getElementById("join-name-input");
@@ -114,6 +118,12 @@ export function initializeElements() {
   elements.player2NameDisplay = document.getElementById("player2-name");
   elements.player1StatusElement = document.getElementById("player1-status");
   elements.player2StatusElement = document.getElementById("player2-status");
+  elements.player1ScoreDisplay = document.getElementById(
+    "player1-score-display"
+  );
+  elements.player2ScoreDisplay = document.getElementById(
+    "player2-score-display"
+  );
   elements.lobbyStatusDisplay = document.getElementById("lobby-status");
   // elements.hostControls = document.getElementById("host-controls"); // Consider removing if buttons are integrated directly
   // elements.playerControls = document.getElementById("player-controls"); // Consider removing if buttons are integrated directly
@@ -175,14 +185,23 @@ export function initializeElements() {
 
   // Optional: Add logs to verify
   // Box Score Screen Elements
-  elements.limitedResonatorsList = document.getElementById("limited-resonators-list");
-  elements.totalBoxScoreDisplay = document.getElementById("total-box-score-display");
+  elements.limitedResonatorsList = document.getElementById(
+    "limited-resonators-list"
+  );
+  elements.totalBoxScoreDisplay = document.getElementById(
+    "total-box-score-display"
+  );
   elements.submitBoxScoreBtn = document.getElementById("submit-box-score-btn");
-  elements.boxScoreLeaveSlotBtn = document.getElementById("box-score-leave-slot-btn");
+  elements.boxScoreLeaveSlotBtn = document.getElementById(
+    "box-score-leave-slot-btn"
+  );
 
   // Debug logs for new elements
   console.log("Check element - boxScoreScreen:", elements.boxScoreScreen);
-  console.log("Check element - enableEquilibrationToggle:", elements.enableEquilibrationToggle);
+  console.log(
+    "Check element - enableEquilibrationToggle:",
+    elements.enableEquilibrationToggle
+  );
   console.log("Check element - draftP1Name:", elements.draftP1Name);
   console.log("Check element - draftP2Name:", elements.draftP2Name);
 

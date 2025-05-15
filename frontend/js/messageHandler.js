@@ -71,6 +71,10 @@ export function handleWebSocketMessage(jsonData) {
 
       case "lobbyStateUpdate":
         console.log(
+          "MH_DEBUG: lobbyStateUpdate received from server:",
+          JSON.stringify(message)
+        );
+        console.log(
           "MessageHandler: Received lobbyStateUpdate message:",
           message
         );
