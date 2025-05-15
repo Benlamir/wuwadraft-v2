@@ -696,6 +696,93 @@ def handler(event, context):
                     draft_initialization_payload['effectiveDraftOrder'] = effective_draft_order_to_use
                     draft_initialization_payload['playerRoles'] = assigned_player_roles
 
+                    # B. Conditional Equilibration Pool Ban(s) for LSP (Proposal Step 4B)
+                    num_equilibration_bans = 0
+                    equilibration_banner_slot = None # This is the LSP who gets to make EQ bans
+                    lsp_gets_draft_priority = (weighted_score_diff >= SCORE_DIFF_THRESHOLD_MINOR_P1_PRIORITY) # True if not neutral
+
+                    if lsp_gets_draft_priority and lower_score_player_slot: # lower_score_player_slot was determined earlier
+                        equilibration_banner_slot = lower_score_player_slot
+                        
+                        # Check thresholds for EQ bans (these apply only if LSP already has draft order priority)
+                        if SCORE_DIFF_THRESHOLD_MAJOR_ONE_EQ_BAN <= weighted_score_diff < SCORE_DIFF_THRESHOLD_EXTREME_TWO_EQ_BANS:
+                            num_equilibration_bans = 1
+                            logger.info(f"Lobby {lobby_id}: LSP ({equilibration_banner_slot}) gets 1 Equilibration Ban (score diff: {weighted_score_diff}).")
+                        elif weighted_score_diff >= SCORE_DIFF_THRESHOLD_EXTREME_TWO_EQ_BANS:
+                            num_equilibration_bans = 2
+                            logger.info(f"Lobby {lobby_id}: LSP ({equilibration_banner_slot}) gets 2 Equilibration Bans (score diff: {weighted_score_diff}).")
+                        else:
+                            logger.info(f"Lobby {lobby_id}: Score difference ({weighted_score_diff}) grants P1 favored order but no Equilibration Bans.")
+                    else:
+                        logger.info(f"Lobby {lobby_id}: No LSP priority or no clear LSP for Equilibration Bans (neutral order or equal scores below major threshold).")
+
+                    # Initialize draft_initialization_payload with common fields that are determined regardless of path
+                    draft_initialization_payload = {
+                        'effectiveDraftOrder': effective_draft_order_to_use,
+                        'playerRoles': assigned_player_roles,
+                        'equilibrationBansAllowed': num_equilibration_bans,
+                        'currentEquilibrationBanner': equilibration_banner_slot,
+                        'equilibrationBansMade': 0
+                    }
+
+                    if num_equilibration_bans > 0 and equilibration_banner_slot:
+                        # --- SETUP FOR EQUILIBRATION BAN PHASE ---
+                        logger.info(f"Lobby {lobby_id}: Finalizing setup for {EQUILIBRATION_PHASE_NAME} phase for {equilibration_banner_slot}.")
+                        eq_ban_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=EQUILIBRATION_PHASE_TIMEOUT_SECONDS)
+                        
+                        # Specific overrides for EQ Ban Phase
+                        draft_initialization_payload.update({
+                            'lobbyState': 'DRAFTING',
+                            'currentPhase': EQUILIBRATION_PHASE_NAME,
+                            'currentTurn': equilibration_banner_slot,
+                            'currentStepIndex': -1,
+                            'turnExpiresAt': eq_ban_expires_at_dt.isoformat(),
+                            'availableResonators': list(ALL_RESONATOR_NAMES),
+                            'bans': [],
+                            'player1Picks': [],
+                            'player2Picks': [],
+                            'lastAction': f"{equilibration_banner_slot} to make {num_equilibration_bans} Equilibration Ban(s). (Score diff: {weighted_score_diff})"
+                        })
+                        logger.info(f"Lobby {lobby_id}: Payload for EQ Ban phase finalized: {draft_initialization_payload}")
+                    else:
+                        # --- NO EQUILIBRATION BANS, SETUP FOR STANDARD DRAFT ---
+                        logger.info(f"Lobby {lobby_id}: Finalizing setup for standard draft. Initial lastAction: {last_action_for_draft_start}")
+                        first_step_info = effective_draft_order_to_use[0]
+                        first_phase_from_order = first_step_info['phase']
+                        first_turn_role_in_template = first_step_info['turnPlayerDesignation']
+                        
+                        actual_current_turn = None
+                        if 'P1_ROLE_IN_TEMPLATE' in assigned_player_roles:
+                            if first_turn_role_in_template == 'P1_ROLE':
+                                actual_current_turn = assigned_player_roles['P1_ROLE_IN_TEMPLATE']
+                            elif first_turn_role_in_template == 'P2_ROLE':
+                                actual_current_turn = assigned_player_roles['P2_ROLE_IN_TEMPLATE']
+                        elif 'ROLE_A' in assigned_player_roles:
+                            if first_turn_role_in_template == 'ROLE_A':
+                                actual_current_turn = assigned_player_roles['ROLE_A']
+                            elif first_turn_role_in_template == 'ROLE_B':
+                                actual_current_turn = assigned_player_roles['ROLE_B']
+                        
+                        if not actual_current_turn:
+                            logger.error(f"Lobby {lobby_id}: CRITICAL - Could not resolve actual current turn for standard draft start. Defaulting to P1.")
+                            actual_current_turn = 'P1'
+
+                        std_turn_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
+                        
+                        draft_initialization_payload.update({
+                            'lobbyState': 'DRAFTING',
+                            'currentPhase': first_phase_from_order,
+                            'currentTurn': actual_current_turn,
+                            'currentStepIndex': 0,
+                            'turnExpiresAt': std_turn_expires_at_dt.isoformat(),
+                            'availableResonators': list(ALL_RESONATOR_NAMES),
+                            'bans': [],
+                            'player1Picks': [],
+                            'player2Picks': [],
+                            'lastAction': last_action_for_draft_start
+                        })
+                        logger.info(f"Lobby {lobby_id}: Payload for standard draft start finalized: {draft_initialization_payload}")
+
                 else: # Equilibration is OFF
                     logger.info(f"Lobby {lobby_id}: Equilibration is OFF. Using NEUTRAL_DRAFT_ORDER with random roles.")
                     effective_draft_order_to_use = NEUTRAL_DRAFT_ORDER_TEMPLATE_V2
@@ -705,124 +792,93 @@ def handler(event, context):
                     logger.info(f"Lobby {lobby_id}: Neutral order roles assigned: {assigned_player_roles}")
                     last_action_for_draft_start = f"Draft starting with neutral order. {assigned_player_roles['ROLE_A']} is ROLE_A, {assigned_player_roles['ROLE_B']} is ROLE_B."
                     
-                    draft_initialization_payload['effectiveDraftOrder'] = effective_draft_order_to_use
-                    draft_initialization_payload['playerRoles'] = assigned_player_roles
-                
-                # --- TODO LATER: Add EQ Ban logic here ---
-                # This will modify draft_initialization_payload with:
-                # 'equilibrationBansAllowed', 'currentEquilibrationBanner', 'equilibrationBansMade'
-                # AND will set 'currentPhase', 'currentTurn', 'turnExpiresAt' for EQ Bans or Standard Draft.
-                # For now, we'll just set up for a standard draft using the determined order.
+                    # Initialize draft_initialization_payload with common fields
+                    draft_initialization_payload = {
+                        'effectiveDraftOrder': effective_draft_order_to_use,
+                        'playerRoles': assigned_player_roles,
+                        'equilibrationBansAllowed': 0,
+                        'currentEquilibrationBanner': None,
+                        'equilibrationBansMade': 0
+                    }
 
-                logger.info(f"Lobby {lobby_id}: Determined effective order: {draft_initialization_payload.get('effectiveDraftOrder')}, Roles: {draft_initialization_payload.get('playerRoles')}")
-
-                # --- TEMPORARY: Directly set up for standard draft (SKIP EQ BANS FOR THIS BABY STEP) ---
-                current_lobby_state_to_set = 'DRAFTING'
-                current_step_index_to_set = 0
-                
-                # Get the first step from the chosen effective draft order
-                first_step_info = draft_initialization_payload['effectiveDraftOrder'][0] # This is a dictionary
-                first_phase_from_order = first_step_info['phase']
-                first_turn_role_in_template = first_step_info['turnPlayerDesignation']
-                
-                logger.info(f"DEBUG_TURN_RESOLVE: first_turn_role_in_template = '{first_turn_role_in_template}' (Type: {type(first_turn_role_in_template)})")
-                logger.info(f"DEBUG_TURN_RESOLVE: first_turn_role_in_template repr = {repr(first_turn_role_in_template)}")
-                logger.info(f"DEBUG_TURN_RESOLVE: Comparing with literal 'P1_ROLE' (Type: {type('P1_ROLE')})")
-                logger.info(f"DEBUG_TURN_RESOLVE: assigned_player_roles = {assigned_player_roles}")
-                
-                actual_current_turn = None
-                if 'P1_ROLE_IN_TEMPLATE' in assigned_player_roles:
-                    logger.info("DEBUG_TURN_RESOLVE: Entered P1_ROLE_IN_TEMPLATE block for role resolution.")
-                    comparison_result_p1_role = (first_turn_role_in_template == 'P1_ROLE')
-                    logger.info(f"DEBUG_TURN_RESOLVE: Result of (first_turn_role_in_template == 'P1_ROLE') is: {comparison_result_p1_role}")
-                    if comparison_result_p1_role:
-                        actual_current_turn = assigned_player_roles['P1_ROLE_IN_TEMPLATE']
-                        logger.info(f"DEBUG_TURN_RESOLVE: actual_current_turn assigned from P1_ROLE_IN_TEMPLATE: '{actual_current_turn}'")
-                    else:
-                        comparison_result_p2_role = (first_turn_role_in_template == 'P2_ROLE')
-                        logger.info(f"DEBUG_TURN_RESOLVE: Result of (first_turn_role_in_template == 'P2_ROLE') is: {comparison_result_p2_role}")
-                        if comparison_result_p2_role:
+                    # --- NO EQUILIBRATION BANS, SETUP FOR STANDARD DRAFT ---
+                    logger.info(f"Lobby {lobby_id}: Finalizing setup for standard draft. Initial lastAction: {last_action_for_draft_start}")
+                    first_step_info = effective_draft_order_to_use[0]
+                    first_phase_from_order = first_step_info['phase']
+                    first_turn_role_in_template = first_step_info['turnPlayerDesignation']
+                    
+                    actual_current_turn = None
+                    if 'P1_ROLE_IN_TEMPLATE' in assigned_player_roles:
+                        if first_turn_role_in_template == 'P1_ROLE':
+                            actual_current_turn = assigned_player_roles['P1_ROLE_IN_TEMPLATE']
+                        elif first_turn_role_in_template == 'P2_ROLE':
                             actual_current_turn = assigned_player_roles['P2_ROLE_IN_TEMPLATE']
-                            logger.info(f"DEBUG_TURN_RESOLVE: actual_current_turn assigned from P2_ROLE_IN_TEMPLATE: '{actual_current_turn}'")
-                        else:
-                            logger.info("DEBUG_TURN_RESOLVE: Neither P1_ROLE nor P2_ROLE matched.")
-                elif 'ROLE_A' in assigned_player_roles:
-                    logger.info("DEBUG_TURN_RESOLVE: Entered ROLE_A block for role resolution.")
-                    comparison_result_role_a = (first_turn_role_in_template == 'ROLE_A')
-                    logger.info(f"DEBUG_TURN_RESOLVE: Result of (first_turn_role_in_template == 'ROLE_A') is: {comparison_result_role_a}")
-                    if comparison_result_role_a:
-                        actual_current_turn = assigned_player_roles['ROLE_A']
-                        logger.info(f"DEBUG_TURN_RESOLVE: actual_current_turn assigned from ROLE_A: '{actual_current_turn}'")
-                    else:
-                        comparison_result_role_b = (first_turn_role_in_template == 'ROLE_B')
-                        logger.info(f"DEBUG_TURN_RESOLVE: Result of (first_turn_role_in_template == 'ROLE_B') is: {comparison_result_role_b}")
-                        if comparison_result_role_b:
+                    elif 'ROLE_A' in assigned_player_roles:
+                        if first_turn_role_in_template == 'ROLE_A':
+                            actual_current_turn = assigned_player_roles['ROLE_A']
+                        elif first_turn_role_in_template == 'ROLE_B':
                             actual_current_turn = assigned_player_roles['ROLE_B']
-                            logger.info(f"DEBUG_TURN_RESOLVE: actual_current_turn assigned from ROLE_B: '{actual_current_turn}'")
-                        else:
-                            logger.info("DEBUG_TURN_RESOLVE: Neither ROLE_A nor ROLE_B matched.")
+                    
+                    if not actual_current_turn:
+                        logger.error(f"Lobby {lobby_id}: CRITICAL - Could not resolve actual current turn for standard draft start. Defaulting to P1.")
+                        actual_current_turn = 'P1'
 
-                if not actual_current_turn:
-                    logger.error(f"Lobby {lobby_id}: Could not resolve actual current turn from role '{first_turn_role_in_template}' (repr: {repr(first_turn_role_in_template)}) and roles {assigned_player_roles}. Defaulting to P1.")
-                    actual_current_turn = 'P1'
+                    std_turn_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
+                    
+                    draft_initialization_payload.update({
+                        'lobbyState': 'DRAFTING',
+                        'currentPhase': first_phase_from_order,
+                        'currentTurn': actual_current_turn,
+                        'currentStepIndex': 0,
+                        'turnExpiresAt': std_turn_expires_at_dt.isoformat(),
+                        'availableResonators': list(ALL_RESONATOR_NAMES),
+                        'bans': [],
+                        'player1Picks': [],
+                        'player2Picks': [],
+                        'lastAction': last_action_for_draft_start
+                    })
+                    logger.info(f"Lobby {lobby_id}: Payload for standard draft start finalized: {draft_initialization_payload}")
 
-                current_phase_to_set = first_phase_from_order
-                current_turn_to_set = actual_current_turn
-                logger.info(f"DEBUG_TURN_RESOLVE: Final determined current_phase_to_set: '{current_phase_to_set}', current_turn_to_set: '{current_turn_to_set}'")
-                
-                expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
-                turn_expires_at_iso = expires_at_dt.isoformat()
-
-                # Add to the payload for DDB update
-                draft_initialization_payload.update({
-                    'lobbyState': current_lobby_state_to_set,
-                    'currentPhase': current_phase_to_set,
-                    'currentTurn': current_turn_to_set,
-                    'currentStepIndex': current_step_index_to_set,
-                    'turnExpiresAt': turn_expires_at_iso,
-                    'availableResonators': ALL_RESONATOR_NAMES, # Reset for draft
-                    'bans': [],
-                    'player1Picks': [],
-                    'player2Picks': [],
-                    'lastAction': last_action_for_draft_start, # Use the determined message
-                    # Ensure BSS specific fields that aren't for EQ bans yet are clean
-                    'equilibrationBansAllowed': 0, # Will be updated by EQ ban logic later
-                    'equilibrationBansMade': 0,
-                    'currentEquilibrationBanner': None
-                })
-                # --- END TEMPORARY DRAFT SETUP ---
-
+                # --- Now, the single DynamoDB update uses the finalized draft_initialization_payload ---
                 try:
                     update_expression_parts = []
                     expression_attribute_values = {}
+                    expression_attribute_names = {}
+
                     for key, value in draft_initialization_payload.items():
-                        placeholder = f":{key}"
-                        update_expression_parts.append(f"{key} = {placeholder}")
-                        expression_attribute_values[placeholder] = value
+                        name_placeholder = f"#{key}_key"
+                        value_placeholder = f":val_{key}"
+                        
+                        update_expression_parts.append(f"{name_placeholder} = {value_placeholder}")
+                        expression_attribute_names[name_placeholder] = key
+                        expression_attribute_values[value_placeholder] = value
                     
-                    # Add :waitState for condition separately as it's not part of draft_initialization_payload's direct SET
                     expression_attribute_values[':waitState'] = 'WAITING'
 
                     update_item_expression = "SET " + ", ".join(update_expression_parts)
                     condition_item_expression = "lobbyState = :waitState"
 
-                    logger.info(f"Lobby {lobby_id}: Updating to start draft. Payload: {draft_initialization_payload}")
+                    logger.info(f"Lobby {lobby_id}: Updating DDB to start draft/EQ. Update Expression: {update_item_expression}")
+                    logger.info(f"Lobby {lobby_id}: ExpressionAttributeNames: {expression_attribute_names}")
+                    logger.info(f"Lobby {lobby_id}: ExpressionAttributeValues: {expression_attribute_values}")
+                    
                     lobbies_table.update_item(
                         Key={'lobbyId': lobby_id},
                         UpdateExpression=update_item_expression,
                         ConditionExpression=condition_item_expression,
+                        ExpressionAttributeNames=expression_attribute_names,
                         ExpressionAttributeValues=expression_attribute_values
                     )
-                    logger.info(f"Lobby {lobby_id} successfully updated to start draft.")
+                    logger.info(f"Lobby {lobby_id} successfully updated for draft/EQ start.")
 
-                except ClientError as e:
-                     if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-                          logger.warning(f"Draft start failed for lobby {lobby_id} - Condition Check Failed (already started).")
-                     else:
-                          logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id} (ClientError): {str(e)}")
                 except Exception as e:
-                     logger.error(f"Error updating lobby to start draft {lobby_id}: {str(e)}", exc_info=True)
-            
+                    logger.error(f"Lobby {lobby_id}: Error updating DDB for draft/EQ start: {str(e)}")
+                    raise
+
+                # Broadcast state using the finalized lastAction
+                final_last_action = draft_initialization_payload.get('lastAction', "Draft starting.")
+                broadcast_lobby_state(lobby_id, apigw_management_client, last_action=final_last_action)
+
             # This broadcast will send the state, whether it's DRAFTING, EQUILIBRATE_BANS, or still WAITING (if scores weren't submitted)
             broadcast_lobby_state(lobby_id, apigw_management_client, last_action=draft_initialization_payload.get('lastAction')) # Use lastAction from payload if draft started
 
