@@ -32,16 +32,18 @@ class DecimalEncoder(json.JSONEncoder):
 # --- END Helper Function ---
 
 # --- ADD HELPER FUNCTION FOR TURN LOGIC ---
-def determine_next_state(current_step_index):
-    """Calculates the next phase, turn, and index based on the current step index."""
+def determine_next_state(current_step_index, effective_draft_order_list_of_dicts):
+    """Calculates the next phase, turn designation, and index based on the current step index."""
     next_index = current_step_index + 1
-    if next_index < len(DRAFT_ORDER):
-        next_phase, next_turn = DRAFT_ORDER[next_index]
-        logger.info(f"Draft progression: From index {current_step_index} -> To index {next_index} ({next_phase}, {next_turn})")
-        return next_phase, next_turn, next_index # Return next index too
+    if next_index < len(effective_draft_order_list_of_dicts):
+        step_info = effective_draft_order_list_of_dicts[next_index]
+        next_phase = step_info['phase']
+        next_turn_designation = step_info['turnPlayerDesignation'] # This is 'P1_ROLE', 'ROLE_A', etc.
+        logger.info(f"Draft progression: From index {current_step_index} -> To index {next_index} ({next_phase}, {next_turn_designation})")
+        return next_phase, next_turn_designation, next_index
     else:
         # Reached the end of the defined order
-        logger.info(f"Draft progression: Reached end of DRAFT_ORDER (index {current_step_index}). Setting state to COMPLETE.")
+        logger.info(f"Draft progression: Reached end of draft order (index {current_step_index}). Setting state to COMPLETE.")
         # Return completion state and an index marker (e.g., -1 or None)
         return DRAFT_COMPLETE_PHASE, None, -1 # Indicate completion with index -1 (or None)
 # --- END HELPER FUNCTION ---
@@ -552,7 +554,6 @@ def handler(event, context):
                 connection_item = connections_table.get_item(Key={'connectionId': connection_id}).get('Item')
                 if not connection_item or 'currentLobbyId' not in connection_item:
                     logger.warning(f"Connection {connection_id} not found or not in a lobby.")
-                    # Optional: Send error back to client?
                     return {'statusCode': 404, 'body': 'Connection not associated with a lobby.'}
                 lobby_id = connection_item['currentLobbyId']
                 player_name = connection_item.get('playerName', 'Unknown') # Get name from connection record
@@ -561,13 +562,12 @@ def handler(event, context):
                  logger.error(f"Failed to get connection details for {connection_id}: {str(e)}")
                  return {'statusCode': 500, 'body': 'Error finding connection details.'}
 
-            # 2. Get the current lobby state
+            # 2. Get the current lobby state with ConsistentRead
             try:
-                response = lobbies_table.get_item(Key={'lobbyId': lobby_id})
+                response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
                 lobby_item = response.get('Item')
                 if not lobby_item:
                     logger.warning(f"Lobby {lobby_id} not found (though connection table referenced it).")
-                    # Optional: Send error back to client?
                     return {'statusCode': 404, 'body': 'Lobby data not found.'}
                 logger.info(f"Found lobby item: {lobby_item}")
             except Exception as e:
@@ -584,7 +584,6 @@ def handler(event, context):
                 player_slot_key = 'player2'
                 ready_flag_key = 'player2Ready'
             else:
-                # Sender is not P1 or P2 (maybe Host?) - Ignore ready signal? Or handle host readiness?
                 logger.warning(f"Connection {connection_id} sent 'playerReady' but is not P1 or P2 in lobby {lobby_id}.")
                 return {'statusCode': 200, 'body': 'Ready signal ignored (not P1 or P2).'}
 
@@ -593,184 +592,239 @@ def handler(event, context):
                 logger.info(f"Updating {player_slot_key} ready status to True in lobby {lobby_id}")
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
-                    UpdateExpression=f"SET {ready_flag_key} = :true", # Use f-string for dynamic key
+                    UpdateExpression=f"SET {ready_flag_key} = :true",
                     ExpressionAttributeValues={':true': True}
-                    # Optional: ConditionExpression=f"attribute_not_exists({ready_flag_key}) OR {ready_flag_key} = :false"
-                    # with ExpressionAttributeValues={':true': True, ':false': False}
                 )
                 logger.info(f"Updated {player_slot_key} ready status in lobby {lobby_id}")
             except Exception as e:
                  logger.error(f"Failed to update ready status for {player_slot_key} in {lobby_id}: {str(e)}")
                  return {'statusCode': 500, 'body': 'Failed to update ready status.'}
 
-
-            # --- CRITICAL FIX: Re-fetch the LATEST lobby state AFTER the update ---
+            # 5. Re-fetch the LATEST lobby state AFTER the update
             try:
-                logger.info(f"Re-fetching lobby state for {lobby_id}")
+                logger.info(f"Re-fetching lobby state for {lobby_id} after ready update.")
                 updated_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
                 updated_lobby_item = updated_response.get('Item')
                 if not updated_lobby_item:
                     logger.error(f"Could not re-fetch lobby {lobby_id} after ready update.")
                     return {'statusCode': 500, 'body': 'Failed to fetch updated lobby state.'}
-                logger.info(f"Successfully re-fetched lobby state: {updated_lobby_item}")
             except Exception as e:
                  logger.error(f"Failed to re-fetch lobby {lobby_id} after ready update: {str(e)}")
                  return {'statusCode': 500, 'body': 'Error fetching updated lobby state.'}
-            # ---------------------------------------------------------
 
-
-            # 5. Check if both players are now ready using the UPDATED item
             p1_ready = updated_lobby_item.get('player1Ready', False)
             p2_ready = updated_lobby_item.get('player2Ready', False)
-            logger.info(f"Checking readiness after update. P1 Ready: {p1_ready}, P2 Ready: {p2_ready}")
+            current_lobby_state_from_db = updated_lobby_item.get('lobbyState', 'WAITING')
 
-            # Explicitly get current state values into local variables BEFORE the 'if'
-            current_lobby_state = updated_lobby_item.get('lobbyState', 'WAITING')
-            current_phase = updated_lobby_item.get('currentPhase')
-            current_turn = updated_lobby_item.get('currentTurn')
+            draft_initialization_payload = {} # To store what needs to be updated in DDB
 
-            draft_started = False # Flag to know if we updated DDB
+            if p1_ready and p2_ready and current_lobby_state_from_db == 'WAITING':
+                logger.info(f"Lobby {lobby_id}: Both players ready.")
+                is_equilibration_active = updated_lobby_item.get('equilibrationEnabled', False)
+                
+                # Initialize variables for draft setup
+                effective_draft_order_to_use = []
+                assigned_player_roles = {} # Stores how P1/P2 map to roles in the chosen template
+                last_action_for_draft_start = "Draft starting."
 
-            # 6. If both ready, update lobby state to start draft (only if not already started)
-            if p1_ready and p2_ready and current_lobby_state == 'WAITING':
-                logger.info(f"Both players ready! Updating lobby state to DRAFTING for {lobby_id}")
-                # Update local variables INSIDE the 'if'
-                current_lobby_state = 'DRAFTING'
-                current_phase = 'BAN1'
-                current_turn = 'P1'
-                draft_started = True # Mark that draft state *attempt* was initiated
+                if is_equilibration_active:
+                    logger.info(f"Lobby {lobby_id}: Equilibration is ON.")
+                    player1_score_submitted = updated_lobby_item.get('player1ScoreSubmitted', False)
+                    player2_score_submitted = updated_lobby_item.get('player2ScoreSubmitted', False)
 
-                # Initialize draft state in DDB
+                    if not (player1_score_submitted and player2_score_submitted):
+                        logger.warning(f"Lobby {lobby_id}: Equilibration ON, but not all scores submitted. P1: {player1_score_submitted}, P2: {player2_score_submitted}")
+                        # Send error back to the player who just readied up
+                        send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Cannot start draft, all players must submit Box Scores first."})
+                        # Broadcast current WAITING state which should show who hasn't submitted
+                        broadcast_lobby_state(lobby_id, apigw_management_client, last_action="Waiting for all Box Scores to be submitted.")
+                        return {'statusCode': 200, 'body': 'Waiting for scores.'}
+
+                    # --- SCORES ARE SUBMITTED, PROCEED WITH EQUILIBRATION ---
+                    p1_score = updated_lobby_item.get('player1WeightedBoxScore', 0) # Default to 0 if somehow None/missing
+                    p2_score = updated_lobby_item.get('player2WeightedBoxScore', 0) # Default to 0
+                    
+                    # Ensure scores are numbers (they should be if submitBoxScore worked)
+                    p1_score = int(p1_score) if p1_score is not None else 0
+                    p2_score = int(p2_score) if p2_score is not None else 0
+
+                    logger.info(f"Lobby {lobby_id}: P1 Score={p1_score}, P2 Score={p2_score}")
+                    weighted_score_diff = abs(p1_score - p2_score)
+                    logger.info(f"Lobby {lobby_id}: Weighted Score Difference = {weighted_score_diff}")
+
+                    lower_score_player_slot = None
+                    # Determine Lower Score Player (LSP)
+                    if p1_score < p2_score:
+                        lower_score_player_slot = 'P1'
+                    elif p2_score < p1_score:
+                        lower_score_player_slot = 'P2'
+                    # If scores are equal, there's no LSP for priority in P1_FAVORED, but threshold still matters for NEUTRAL vs P1_FAVORED
+
+                    # A. Draft Order Priority Determination (Proposal Step 4A)
+                    if weighted_score_diff < SCORE_DIFF_THRESHOLD_MINOR_P1_PRIORITY:
+                        logger.info(f"Lobby {lobby_id}: Score diff ({weighted_score_diff}) < {SCORE_DIFF_THRESHOLD_MINOR_P1_PRIORITY}. Using NEUTRAL_DRAFT_ORDER.")
+                        effective_draft_order_to_use = NEUTRAL_DRAFT_ORDER_TEMPLATE_V2
+                        
+                        # Randomly assign ROLE_A and ROLE_B to P1 and P2
+                        players = ['P1', 'P2']
+                        random.shuffle(players)
+                        # 'playerRoles' will map the template's ROLE_A/ROLE_B to actual P1/P2
+                        # e.g., if players = ['P2', 'P1'], then ROLE_A is P2, ROLE_B is P1
+                        assigned_player_roles = {'ROLE_A': players[0], 'ROLE_B': players[1]}
+                        logger.info(f"Lobby {lobby_id}: Neutral order roles assigned: {assigned_player_roles}")
+                        last_action_for_draft_start = f"Scores close ({p1_score} vs {p2_score}). Neutral draft order. {assigned_player_roles['ROLE_A']} is ROLE_A, {assigned_player_roles['ROLE_B']} is ROLE_B."
+                    else: # weighted_score_diff >= SCORE_DIFF_THRESHOLD_MINOR_P1_PRIORITY
+                        logger.info(f"Lobby {lobby_id}: Score diff ({weighted_score_diff}) >= {SCORE_DIFF_THRESHOLD_MINOR_P1_PRIORITY}. Using P1_FAVORED_DRAFT_ORDER.")
+                        effective_draft_order_to_use = P1_FAVORED_DRAFT_ORDER
+                        
+                        if lower_score_player_slot == 'P1':
+                            # P1 (LSP) gets the 'P1' role in P1_FAVORED_DRAFT_ORDER
+                            assigned_player_roles = {'P1_ROLE_IN_TEMPLATE': 'P1', 'P2_ROLE_IN_TEMPLATE': 'P2'}
+                            last_action_for_draft_start = f"P1 ({p1_score}) has lower score than P2 ({p2_score}). P1 gets favored draft order."
+                        elif lower_score_player_slot == 'P2':
+                            # P2 (LSP) gets the 'P1' role in P1_FAVORED_DRAFT_ORDER
+                            assigned_player_roles = {'P1_ROLE_IN_TEMPLATE': 'P2', 'P2_ROLE_IN_TEMPLATE': 'P1'}
+                            last_action_for_draft_start = f"P2 ({p2_score}) has lower score than P1 ({p1_score}). P2 gets favored draft order."
+                        else: # Scores are equal (but diff >= threshold, which means threshold is 0 and scores are equal)
+                              # OR one player had 0 and other had exactly threshold_minor.
+                              # Default to P1 getting the P1_ROLE if no clear LSP or scores are equal at threshold.
+                            logger.info(f"Lobby {lobby_id}: Score diff {weighted_score_diff} with no clear LSP (or equal scores at threshold). P1 defaults to favored P1_ROLE.")
+                            assigned_player_roles = {'P1_ROLE_IN_TEMPLATE': 'P1', 'P2_ROLE_IN_TEMPLATE': 'P2'}
+                            last_action_for_draft_start = f"Scores at {weighted_score_diff} difference. P1 gets favored draft order by default."
+                        logger.info(f"Lobby {lobby_id}: P1 Favored order roles: {assigned_player_roles} (P1_ROLE_IN_TEMPLATE is the player taking the 'P1' slot in P1_FAVORED_DRAFT_ORDER)")
+
+                    draft_initialization_payload['effectiveDraftOrder'] = effective_draft_order_to_use
+                    draft_initialization_payload['playerRoles'] = assigned_player_roles
+
+                else: # Equilibration is OFF
+                    logger.info(f"Lobby {lobby_id}: Equilibration is OFF. Using NEUTRAL_DRAFT_ORDER with random roles.")
+                    effective_draft_order_to_use = NEUTRAL_DRAFT_ORDER_TEMPLATE_V2
+                    players = ['P1', 'P2']
+                    random.shuffle(players)
+                    assigned_player_roles = {'ROLE_A': players[0], 'ROLE_B': players[1]}
+                    logger.info(f"Lobby {lobby_id}: Neutral order roles assigned: {assigned_player_roles}")
+                    last_action_for_draft_start = f"Draft starting with neutral order. {assigned_player_roles['ROLE_A']} is ROLE_A, {assigned_player_roles['ROLE_B']} is ROLE_B."
+                    
+                    draft_initialization_payload['effectiveDraftOrder'] = effective_draft_order_to_use
+                    draft_initialization_payload['playerRoles'] = assigned_player_roles
+                
+                # --- TODO LATER: Add EQ Ban logic here ---
+                # This will modify draft_initialization_payload with:
+                # 'equilibrationBansAllowed', 'currentEquilibrationBanner', 'equilibrationBansMade'
+                # AND will set 'currentPhase', 'currentTurn', 'turnExpiresAt' for EQ Bans or Standard Draft.
+                # For now, we'll just set up for a standard draft using the determined order.
+
+                logger.info(f"Lobby {lobby_id}: Determined effective order: {draft_initialization_payload.get('effectiveDraftOrder')}, Roles: {draft_initialization_payload.get('playerRoles')}")
+
+                # --- TEMPORARY: Directly set up for standard draft (SKIP EQ BANS FOR THIS BABY STEP) ---
+                current_lobby_state_to_set = 'DRAFTING'
+                current_step_index_to_set = 0
+                
+                # Get the first step from the chosen effective draft order
+                first_step_info = draft_initialization_payload['effectiveDraftOrder'][0] # This is a dictionary
+                first_phase_from_order = first_step_info['phase']
+                first_turn_role_in_template = first_step_info['turnPlayerDesignation']
+                
+                logger.info(f"DEBUG_TURN_RESOLVE: first_turn_role_in_template = '{first_turn_role_in_template}' (Type: {type(first_turn_role_in_template)})")
+                logger.info(f"DEBUG_TURN_RESOLVE: first_turn_role_in_template repr = {repr(first_turn_role_in_template)}")
+                logger.info(f"DEBUG_TURN_RESOLVE: Comparing with literal 'P1_ROLE' (Type: {type('P1_ROLE')})")
+                logger.info(f"DEBUG_TURN_RESOLVE: assigned_player_roles = {assigned_player_roles}")
+                
+                actual_current_turn = None
+                if 'P1_ROLE_IN_TEMPLATE' in assigned_player_roles:
+                    logger.info("DEBUG_TURN_RESOLVE: Entered P1_ROLE_IN_TEMPLATE block for role resolution.")
+                    comparison_result_p1_role = (first_turn_role_in_template == 'P1_ROLE')
+                    logger.info(f"DEBUG_TURN_RESOLVE: Result of (first_turn_role_in_template == 'P1_ROLE') is: {comparison_result_p1_role}")
+                    if comparison_result_p1_role:
+                        actual_current_turn = assigned_player_roles['P1_ROLE_IN_TEMPLATE']
+                        logger.info(f"DEBUG_TURN_RESOLVE: actual_current_turn assigned from P1_ROLE_IN_TEMPLATE: '{actual_current_turn}'")
+                    else:
+                        comparison_result_p2_role = (first_turn_role_in_template == 'P2_ROLE')
+                        logger.info(f"DEBUG_TURN_RESOLVE: Result of (first_turn_role_in_template == 'P2_ROLE') is: {comparison_result_p2_role}")
+                        if comparison_result_p2_role:
+                            actual_current_turn = assigned_player_roles['P2_ROLE_IN_TEMPLATE']
+                            logger.info(f"DEBUG_TURN_RESOLVE: actual_current_turn assigned from P2_ROLE_IN_TEMPLATE: '{actual_current_turn}'")
+                        else:
+                            logger.info("DEBUG_TURN_RESOLVE: Neither P1_ROLE nor P2_ROLE matched.")
+                elif 'ROLE_A' in assigned_player_roles:
+                    logger.info("DEBUG_TURN_RESOLVE: Entered ROLE_A block for role resolution.")
+                    comparison_result_role_a = (first_turn_role_in_template == 'ROLE_A')
+                    logger.info(f"DEBUG_TURN_RESOLVE: Result of (first_turn_role_in_template == 'ROLE_A') is: {comparison_result_role_a}")
+                    if comparison_result_role_a:
+                        actual_current_turn = assigned_player_roles['ROLE_A']
+                        logger.info(f"DEBUG_TURN_RESOLVE: actual_current_turn assigned from ROLE_A: '{actual_current_turn}'")
+                    else:
+                        comparison_result_role_b = (first_turn_role_in_template == 'ROLE_B')
+                        logger.info(f"DEBUG_TURN_RESOLVE: Result of (first_turn_role_in_template == 'ROLE_B') is: {comparison_result_role_b}")
+                        if comparison_result_role_b:
+                            actual_current_turn = assigned_player_roles['ROLE_B']
+                            logger.info(f"DEBUG_TURN_RESOLVE: actual_current_turn assigned from ROLE_B: '{actual_current_turn}'")
+                        else:
+                            logger.info("DEBUG_TURN_RESOLVE: Neither ROLE_A nor ROLE_B matched.")
+
+                if not actual_current_turn:
+                    logger.error(f"Lobby {lobby_id}: Could not resolve actual current turn from role '{first_turn_role_in_template}' (repr: {repr(first_turn_role_in_template)}) and roles {assigned_player_roles}. Defaulting to P1.")
+                    actual_current_turn = 'P1'
+
+                current_phase_to_set = first_phase_from_order
+                current_turn_to_set = actual_current_turn
+                logger.info(f"DEBUG_TURN_RESOLVE: Final determined current_phase_to_set: '{current_phase_to_set}', current_turn_to_set: '{current_turn_to_set}'")
+                
+                expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
+                turn_expires_at_iso = expires_at_dt.isoformat()
+
+                # Add to the payload for DDB update
+                draft_initialization_payload.update({
+                    'lobbyState': current_lobby_state_to_set,
+                    'currentPhase': current_phase_to_set,
+                    'currentTurn': current_turn_to_set,
+                    'currentStepIndex': current_step_index_to_set,
+                    'turnExpiresAt': turn_expires_at_iso,
+                    'availableResonators': ALL_RESONATOR_NAMES, # Reset for draft
+                    'bans': [],
+                    'player1Picks': [],
+                    'player2Picks': [],
+                    'lastAction': last_action_for_draft_start, # Use the determined message
+                    # Ensure BSS specific fields that aren't for EQ bans yet are clean
+                    'equilibrationBansAllowed': 0, # Will be updated by EQ ban logic later
+                    'equilibrationBansMade': 0,
+                    'currentEquilibrationBanner': None
+                })
+                # --- END TEMPORARY DRAFT SETUP ---
+
                 try:
-                    # --- Calculate expiry for the FIRST turn ---
-                    now = datetime.now(timezone.utc)
-                    expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
-                    turn_expires_at_iso = expires_at_dt.isoformat()
-                    logger.info(f"Setting initial turn expiry for lobby {lobby_id} to: {turn_expires_at_iso}")
+                    update_expression_parts = []
+                    expression_attribute_values = {}
+                    for key, value in draft_initialization_payload.items():
+                        placeholder = f":{key}"
+                        update_expression_parts.append(f"{key} = {placeholder}")
+                        expression_attribute_values[placeholder] = value
+                    
+                    # Add :waitState for condition separately as it's not part of draft_initialization_payload's direct SET
+                    expression_attribute_values[':waitState'] = 'WAITING'
 
-                    # Prepare values
-                    expression_attribute_values_dict = {
-                            ':newState': current_lobby_state,
-                            ':phase': current_phase,
-                            ':turn': current_turn,
-                            ':emptyList': [],
-                            ':allRes': ALL_RESONATOR_NAMES,
-                            ':zero': 0,
-                            ':expires': turn_expires_at_iso,
-                            ':waitState': 'WAITING' # Value for condition check
-                        }
-                    # Add condition check
-                    condition_expression_string = "lobbyState = :waitState" # Only update if still WAITING
+                    update_item_expression = "SET " + ", ".join(update_expression_parts)
+                    condition_item_expression = "lobbyState = :waitState"
 
-                    logger.info(f"DEBUG: Initializing draft state with: {json.dumps(expression_attribute_values_dict)}")
-                    logger.info(f"DEBUG: Initializing ConditionExpression: {condition_expression_string}")
-
+                    logger.info(f"Lobby {lobby_id}: Updating to start draft. Payload: {draft_initialization_payload}")
                     lobbies_table.update_item(
                         Key={'lobbyId': lobby_id},
-                        UpdateExpression="""
-                            SET lobbyState = :newState,
-                                currentPhase = :phase,
-                                currentTurn = :turn,
-                                bans = :emptyList,
-                                player1Picks = :emptyList,
-                                player2Picks = :emptyList,
-                                availableResonators = :allRes,
-                                currentStepIndex = :zero,
-                                turnExpiresAt = :expires
-                        """,
-                        ConditionExpression=condition_expression_string, # <-- ADD THIS CONDITION
-                        ExpressionAttributeValues=expression_attribute_values_dict
+                        UpdateExpression=update_item_expression,
+                        ConditionExpression=condition_item_expression,
+                        ExpressionAttributeValues=expression_attribute_values
                     )
-                    logger.info(f"Lobby {lobby_id} state updated to DRAFTING with draft initialization (conditional)")
+                    logger.info(f"Lobby {lobby_id} successfully updated to start draft.")
 
-                except ClientError as e: # <-- ADD EXCEPTION HANDLING
+                except ClientError as e:
                      if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-                          logger.warning(f"Draft initialization failed for lobby {lobby_id} - Condition Check Failed (likely already started by concurrent request). Ignoring this update attempt.")
-                          # Don't return an error, just log. The other invocation succeeded.
-                          # Ensure draft_started remains True so broadcast happens based on latest state
-                          draft_started = True
+                          logger.warning(f"Draft start failed for lobby {lobby_id} - Condition Check Failed (already started).")
                      else:
                           logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id} (ClientError): {str(e)}")
-                          draft_started = False # Revert flag on other DDB errors
-                except Exception as state_update_err:
-                     logger.error(f"Failed to update lobby state to DRAFTING for {lobby_id}: {str(state_update_err)}")
-                     draft_started = False
-
-            # --- MODIFICATION START: Re-fetch AFTER potential DDB update ---
-            # 7. Fetch the absolute latest state FOR BROADCASTING
-            final_lobby_item_for_broadcast = None
-            if draft_started: # Only refetch if we actually tried to update DDB
-                try:
-                    logger.info(f"Re-fetching latest lobby state for broadcast after draft start. Lobby: {lobby_id}")
-                    # Use ConsistentRead=True to get the state immediately after update
-                    final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
-                    final_lobby_item_for_broadcast = final_response.get('Item')
-                    if not final_lobby_item_for_broadcast:
-                         logger.error(f"Critical error: Failed to re-fetch lobby {lobby_id} IMMEDIATELY after DDB update.")
-                         # Fallback or error handling needed? For now, maybe use the previously fetched item.
-                         final_lobby_item_for_broadcast = updated_lobby_item # Fallback, might be slightly stale if error above
-                except Exception as final_fetch_err:
-                     logger.error(f"Error re-fetching final lobby state for broadcast: {str(final_fetch_err)}")
-                     final_lobby_item_for_broadcast = updated_lobby_item # Fallback
-            else:
-                 # If draft didn't start, the state we fetched after ready update is still current
-                 final_lobby_item_for_broadcast = updated_lobby_item
-                 logger.info("Draft did not start, using previously fetched state for broadcast.")
-
-            if not final_lobby_item_for_broadcast:
-                 # Should not happen if logic above is correct, but handle defensively
-                 logger.error(f"Failed to determine final lobby state for broadcast. Lobby {lobby_id}")
-                 return {'statusCode': 500, 'body': 'Internal error preparing broadcast state.'}
-
-            # --- END MODIFICATION ---
-
-            # 8. Construct the broadcast payload using the FINAL fetched item
-            state_payload = {
-                "type": "lobbyStateUpdate",
-                "lobbyId": lobby_id,
-                # --- MODIFICATION: Use final_lobby_item_for_broadcast consistently ---
-                "hostName": final_lobby_item_for_broadcast.get('hostName'),
-                "player1Name": final_lobby_item_for_broadcast.get('player1Name'),
-                "player2Name": final_lobby_item_for_broadcast.get('player2Name'),
-                "lobbyState": final_lobby_item_for_broadcast.get('lobbyState'), # Read final state
-                "player1Ready": final_lobby_item_for_broadcast.get('player1Ready', False), # Read final state
-                "player2Ready": final_lobby_item_for_broadcast.get('player2Ready', False), # Read final state
-                "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'), # Read final state
-                "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),   # Read final state
-                "bans": final_lobby_item_for_broadcast.get('bans', []),
-                "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
-                "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
-                "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []), # Read final state
-                "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'), # Add turn expiry time
-                
-                # Box Score System fields
-                "equilibrationEnabled": final_lobby_item_for_broadcast.get('equilibrationEnabled', False),
-                "player1ScoreSubmitted": final_lobby_item_for_broadcast.get('player1ScoreSubmitted', False),
-                "player2ScoreSubmitted": final_lobby_item_for_broadcast.get('player2ScoreSubmitted', False),
-                "player1WeightedBoxScore": final_lobby_item_for_broadcast.get('player1WeightedBoxScore'),
-                "player2WeightedBoxScore": final_lobby_item_for_broadcast.get('player2WeightedBoxScore'),
-                "player1Sequences": final_lobby_item_for_broadcast.get('player1Sequences', {}),
-                "player2Sequences": final_lobby_item_for_broadcast.get('player2Sequences', {}),
-                "effectiveDraftOrder": final_lobby_item_for_broadcast.get('effectiveDraftOrder'),
-                "equilibrationBansTarget": final_lobby_item_for_broadcast.get('equilibrationBansTarget'),
-                "equilibrationBansMade": final_lobby_item_for_broadcast.get('equilibrationBansMade')
-            }
-            logger.info(f"Broadcasting FINAL lobby state update: {state_payload}")
-            logger.info(f"Broadcasting payload: {state_payload}")
-
-            # 9. Broadcast to all participants
-            participants = [
-                final_lobby_item_for_broadcast.get('hostConnectionId'),
-                final_lobby_item_for_broadcast.get('player1ConnectionId'),
-                final_lobby_item_for_broadcast.get('player2ConnectionId')
-            ]
-            valid_connection_ids = [pid for pid in participants if pid]
-            failed_sends = []
-            for recipient_id in valid_connection_ids:
-                if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
-                     failed_sends.append(recipient_id)
-            if failed_sends:
-                 logger.warning(f"Failed to send state update to some connections: {failed_sends}")
+                except Exception as e:
+                     logger.error(f"Error updating lobby to start draft {lobby_id}: {str(e)}", exc_info=True)
+            
+            # This broadcast will send the state, whether it's DRAFTING, EQUILIBRATE_BANS, or still WAITING (if scores weren't submitted)
+            broadcast_lobby_state(lobby_id, apigw_management_client, last_action=draft_initialization_payload.get('lastAction')) # Use lastAction from payload if draft started
 
             return {'statusCode': 200, 'body': 'Player readiness updated.'}
 
@@ -879,7 +933,29 @@ def handler(event, context):
                  return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index state.'}
 
             # Now call determine_next_state with the guaranteed integer index
-            next_phase, next_turn, next_step_index = determine_next_state(current_step_index)
+            effective_draft_order = lobby_item.get('effectiveDraftOrder')
+            if not effective_draft_order:
+                logger.error(f"Lobby {lobby_id} missing effectiveDraftOrder during ban.")
+                return {'statusCode': 500, 'body': 'Internal error: Missing draft order configuration.'}
+            next_phase, next_turn_designation, next_step_index = determine_next_state(current_step_index, effective_draft_order)
+
+            # Resolve the actual player turn based on playerRoles and the role from the template
+            player_roles = lobby_item.get('playerRoles', {})
+            actual_next_turn = None
+            if 'P1_ROLE_IN_TEMPLATE' in player_roles: # P1_FAVORED_DRAFT_ORDER was chosen
+                if next_turn_designation == 'P1_ROLE':
+                    actual_next_turn = player_roles['P1_ROLE_IN_TEMPLATE']
+                elif next_turn_designation == 'P2_ROLE':
+                    actual_next_turn = player_roles['P2_ROLE_IN_TEMPLATE']
+            elif 'ROLE_A' in player_roles: # NEUTRAL_DRAFT_ORDER_TEMPLATE_V2 was chosen
+                if next_turn_designation == 'ROLE_A':
+                    actual_next_turn = player_roles['ROLE_A']
+                elif next_turn_designation == 'ROLE_B':
+                    actual_next_turn = player_roles['ROLE_B']
+            
+            if not actual_next_turn:
+                logger.error(f"Lobby {lobby_id}: Could not resolve actual next turn from designation '{next_turn_designation}' and roles {player_roles}. Defaulting to P1.")
+                actual_next_turn = 'P1' # Fallback, should not happen
 
             # 6. *** Update DynamoDB (with index and timer) ***
             try:
@@ -887,7 +963,7 @@ def handler(event, context):
 
                 # --- Calculate expiry for the NEXT turn ---
                 turn_expires_at_iso = None
-                if next_turn: # Only set expiry if there is a next turn
+                if actual_next_turn: # Only set expiry if there is a next turn
                     now = datetime.now(timezone.utc)
                     expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
                     turn_expires_at_iso = expires_at_dt.isoformat()
@@ -908,7 +984,7 @@ def handler(event, context):
                     ':new_ban': [resonator_name],
                     ':new_available': new_available_list,
                     ':next_phase': next_phase,
-                    ':next_turn': next_turn,
+                    ':next_turn': actual_next_turn,
                     ':next_index': next_step_index,
                     ':expected_index': current_step_index,
                     ':expires': turn_expires_at_iso
@@ -1102,7 +1178,29 @@ def handler(event, context):
                  return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index state.'}
 
             # Now call determine_next_state with the guaranteed integer index
-            next_phase, next_turn, next_step_index = determine_next_state(current_step_index)
+            effective_draft_order = lobby_item.get('effectiveDraftOrder')
+            if not effective_draft_order:
+                logger.error(f"Lobby {lobby_id} missing effectiveDraftOrder during pick.")
+                return {'statusCode': 500, 'body': 'Internal error: Missing draft order configuration.'}
+            next_phase, next_turn_designation, next_step_index = determine_next_state(current_step_index, effective_draft_order)
+
+            # Resolve the actual player turn based on playerRoles and the role from the template
+            player_roles = lobby_item.get('playerRoles', {})
+            actual_next_turn = None
+            if 'P1_ROLE_IN_TEMPLATE' in player_roles: # P1_FAVORED_DRAFT_ORDER was chosen
+                if next_turn_designation == 'P1_ROLE':
+                    actual_next_turn = player_roles['P1_ROLE_IN_TEMPLATE']
+                elif next_turn_designation == 'P2_ROLE':
+                    actual_next_turn = player_roles['P2_ROLE_IN_TEMPLATE']
+            elif 'ROLE_A' in player_roles: # NEUTRAL_DRAFT_ORDER_TEMPLATE_V2 was chosen
+                if next_turn_designation == 'ROLE_A':
+                    actual_next_turn = player_roles['ROLE_A']
+                elif next_turn_designation == 'ROLE_B':
+                    actual_next_turn = player_roles['ROLE_B']
+            
+            if not actual_next_turn:
+                logger.error(f"Lobby {lobby_id}: Could not resolve actual next turn from designation '{next_turn_designation}' and roles {player_roles}. Defaulting to P1.")
+                actual_next_turn = 'P1' # Fallback, should not happen
 
             # 6. *** Update DynamoDB (with index and timer) ***
             try:
@@ -1110,7 +1208,7 @@ def handler(event, context):
 
                 # --- Calculate expiry for the NEXT turn ---
                 turn_expires_at_iso = None
-                if next_turn: # Only set expiry if there is a next turn
+                if actual_next_turn: # Only set expiry if there is a next turn
                     now = datetime.now(timezone.utc)
                     expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
                     turn_expires_at_iso = expires_at_dt.isoformat()
@@ -1137,7 +1235,7 @@ def handler(event, context):
                         ':new_pick_p1': [resonator_name],
                         ':new_available': new_available_list,
                         ':next_phase': next_phase,
-                        ':next_turn': next_turn,
+                        ':next_turn': actual_next_turn,
                         ':next_index': next_step_index,
                         ':expected_index': current_step_index,
                         ':expires': turn_expires_at_iso
@@ -1157,7 +1255,7 @@ def handler(event, context):
                         ':new_pick_p2': [resonator_name],
                         ':new_available': new_available_list,
                         ':next_phase': next_phase,
-                        ':next_turn': next_turn,
+                        ':next_turn': actual_next_turn,
                         ':next_index': next_step_index,
                         ':expected_index': current_step_index,
                         ':expires': turn_expires_at_iso
@@ -1371,13 +1469,35 @@ def handler(event, context):
             logger.info(f"Timeout action for {timed_out_player} in lobby {lobby_id}: Randomly {action_taken} '{random_choice}'.")
 
             # 5. *** Calculate Next State ***
-            next_phase, next_turn, next_step_index = determine_next_state(current_step_index) # Use int version
+            effective_draft_order = lobby_item.get('effectiveDraftOrder')
+            if not effective_draft_order:
+                logger.error(f"Lobby {lobby_id} missing effectiveDraftOrder during timeout.")
+                return {'statusCode': 500, 'body': 'Internal error: Missing draft order configuration.'}
+            next_phase, next_turn_designation, next_step_index = determine_next_state(current_step_index, effective_draft_order)
+
+            # Resolve the actual player turn based on playerRoles and the role from the template
+            player_roles = lobby_item.get('playerRoles', {})
+            actual_next_turn = None
+            if 'P1_ROLE_IN_TEMPLATE' in player_roles: # P1_FAVORED_DRAFT_ORDER was chosen
+                if next_turn_designation == 'P1_ROLE':
+                    actual_next_turn = player_roles['P1_ROLE_IN_TEMPLATE']
+                elif next_turn_designation == 'P2_ROLE':
+                    actual_next_turn = player_roles['P2_ROLE_IN_TEMPLATE']
+            elif 'ROLE_A' in player_roles: # NEUTRAL_DRAFT_ORDER_TEMPLATE_V2 was chosen
+                if next_turn_designation == 'ROLE_A':
+                    actual_next_turn = player_roles['ROLE_A']
+                elif next_turn_designation == 'ROLE_B':
+                    actual_next_turn = player_roles['ROLE_B']
+            
+            if not actual_next_turn:
+                logger.error(f"Lobby {lobby_id}: Could not resolve actual next turn from designation '{next_turn_designation}' and roles {player_roles}. Defaulting to P1.")
+                actual_next_turn = 'P1' # Fallback, should not happen
 
             # 6. *** Update DynamoDB ***
             try:
                 new_available_list = [res for res in available_resonators if res != random_choice]
                 turn_expires_at_iso = None # Calculate expiry for the NEW turn
-                if next_turn:
+                if actual_next_turn:
                     now = datetime.now(timezone.utc)
                     expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
                     turn_expires_at_iso = expires_at_dt.isoformat()
@@ -1396,7 +1516,7 @@ def handler(event, context):
                 base_values = {
                     ':new_available': new_available_list,
                     ':next_phase': next_phase,
-                    ':next_turn': next_turn,
+                    ':next_turn': actual_next_turn,
                     ':next_index': next_step_index,
                     ':expires': turn_expires_at_iso,
                     ':expected_index': current_step_index # Use the int version here

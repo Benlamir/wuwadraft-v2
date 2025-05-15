@@ -15,6 +15,7 @@ export let currentTurnExpiresAt = null; // Holds the ISO timestamp string or nul
 export let timerIntervalId = null; // Holds the ID returned by setInterval
 export let equilibrationEnabledForLobby = false;
 export let localPlayerHasSubmittedScore = false;
+export let hasPopulatedBoxScoreScreenThisTurn = false; // Track if BSS has been populated this session
 // --- END ADD ---
 
 // Functions to update state
@@ -89,6 +90,7 @@ export function clearLobbyState() {
   clearDraftState();
   equilibrationEnabledForLobby = false;
   localPlayerHasSubmittedScore = false;
+  hasPopulatedBoxScoreScreenThisTurn = false; // Reset the BSS population flag
   // Keep currentUserName for convenience
 }
 
@@ -100,6 +102,7 @@ export function clearDraftState() {
   activeElementFilter = "All"; // Reset filter
   currentDraftState = null; // Clear stored state
   currentTurnExpiresAt = null; // Clear expiry
+  hasPopulatedBoxScoreScreenThisTurn = false; // Reset the BSS population flag
   if (timerIntervalId) {
     // Clear any active timer interval
     clearInterval(timerIntervalId);
@@ -143,6 +146,12 @@ export function setEquilibrationEnabledForLobby(isEnabled) {
 export function setLocalPlayerHasSubmittedScore(hasSubmitted) {
   localPlayerHasSubmittedScore = hasSubmitted;
   console.log(`State: localPlayerHasSubmittedScore set to ${hasSubmitted}`);
+}
+
+// Add setter function for BSS population flag
+export function setHasPopulatedBoxScoreScreenThisTurn(populated) {
+  hasPopulatedBoxScoreScreenThisTurn = populated;
+  console.log(`State: hasPopulatedBoxScoreScreenThisTurn set to ${populated}`);
 }
 
 // Optional: Getters if needed, though direct import works for 'let'

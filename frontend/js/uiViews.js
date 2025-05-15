@@ -44,7 +44,11 @@ export function showScreen(screenIdToShow) {
 
     // --- NEW LOGIC FOR BOX SCORE SCREEN ---
     if (screenIdToShow === "box-score-screen") {
-      populateBoxScoreScreen(); // Populate when shown
+      if (!state.hasPopulatedBoxScoreScreenThisTurn) {
+        // Check the flag
+        populateBoxScoreScreen();
+        state.setHasPopulatedBoxScoreScreenThisTurn(true); // Set flag after populating
+      }
       // Manage visibility of host's "Leave Player Slot" button on this screen
       if (
         state.isCurrentUserHost &&
@@ -55,8 +59,20 @@ export function showScreen(screenIdToShow) {
         toggleElementVisibility(elements.boxScoreLeaveSlotBtn, false);
       }
     } else {
-      // Ensure host's leave slot button is hidden if not on box score screen
-      toggleElementVisibility(elements.boxScoreLeaveSlotBtn, false);
+      // If we are navigating AWAY from box-score-screen for any reason,
+      // reset the flag so it populates fresh next time.
+      const currentActiveScreen = document.querySelector(".screen.active");
+      if (
+        currentActiveScreen &&
+        currentActiveScreen.id === "box-score-screen"
+      ) {
+        state.setHasPopulatedBoxScoreScreenThisTurn(false);
+      }
+
+      // Ensure host's leave slot button (specific to BSS) is hidden if not on box score screen
+      if (elements.boxScoreLeaveSlotBtn) {
+        toggleElementVisibility(elements.boxScoreLeaveSlotBtn, false);
+      }
     }
     // --- END NEW LOGIC ---
   } else {

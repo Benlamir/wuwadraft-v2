@@ -52,9 +52,11 @@ export function handleWebSocketMessage(jsonData) {
             !message.playerScoreSubmitted
           ) {
             console.log(
-              "MH_TRACE: Equilibration ON and scores not submitted, redirecting to Box Score Screen."
+              "MH_TRACE: Equilibration ON, player new/score not submitted, redirecting to Box Score Screen."
             );
+            state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
             state.setLocalPlayerHasSubmittedScore(false);
+            state.setHasPopulatedBoxScoreScreenThisTurn(false); // Ensure this is set to FALSE here
             showScreen("box-score-screen");
             wasRedirectedToBSS = true;
           } else if (
@@ -66,6 +68,19 @@ export function handleWebSocketMessage(jsonData) {
         }
         if (!wasRedirectedToBSS) {
           showScreen("lobby-wait-screen");
+        }
+        break;
+
+      case "boxScoreSubmitted":
+        console.log(
+          "MH_TRACE: Case boxScoreSubmitted - score acknowledged by server for this client."
+        );
+        state.setLocalPlayerHasSubmittedScore(true);
+        state.setHasPopulatedBoxScoreScreenThisTurn(false); // Reset flag here
+        showScreen("lobby-wait-screen");
+        if (elements.submitBoxScoreBtn) {
+          elements.submitBoxScoreBtn.disabled = true;
+          elements.submitBoxScoreBtn.textContent = "Score Submitted";
         }
         break;
 
@@ -104,25 +119,51 @@ export function handleWebSocketMessage(jsonData) {
           const isPlayer =
             state.myAssignedSlot === "P1" || state.myAssignedSlot === "P2";
 
-          if (
-            state.equilibrationEnabledForLobby &&
-            isPlayer &&
-            !state.localPlayerHasSubmittedScore
-          ) {
-            const playerSpecificScoreKey =
-              state.myAssignedSlot === "P1"
-                ? "player1WeightedBoxScore"
-                : "player2WeightedBoxScore";
-            if (
-              !message[playerSpecificScoreKey] ||
-              message[playerSpecificScoreKey] === 0
-            ) {
-              console.log(
-                "MH_TRACE: WAITING state, EQ ON, scores not submitted, redirecting to Box Score Screen."
-              );
-              showScreen("box-score-screen");
+          if (state.equilibrationEnabledForLobby && isPlayer) {
+            if (!state.localPlayerHasSubmittedScore) {
+              let serverSaysThisPlayerSubmitted = false;
+              if (state.myAssignedSlot === "P1")
+                serverSaysThisPlayerSubmitted =
+                  message.player1ScoreSubmitted === true;
+              else if (state.myAssignedSlot === "P2")
+                serverSaysThisPlayerSubmitted =
+                  message.player2ScoreSubmitted === true;
+
+              if (!serverSaysThisPlayerSubmitted) {
+                // This player still needs to submit.
+                // If they are not currently on BSS, send them there and ensure it populates.
+                const currentActiveScreen =
+                  document.querySelector(".screen.active");
+                if (
+                  !currentActiveScreen ||
+                  currentActiveScreen.id !== "box-score-screen"
+                ) {
+                  console.log(
+                    "MH_TRACE: WAITING state, player needs to be on BSS. Populating and showing."
+                  );
+                  state.setHasPopulatedBoxScoreScreenThisTurn(false); // Ensure this is set to FALSE
+                  showScreen("box-score-screen");
+                } else {
+                  // Player is already on BSS, do nothing to cause re-populate from here.
+                  console.log(
+                    "MH_TRACE: WAITING state, player already on BSS. No repopulate."
+                  );
+                }
+              } else {
+                // Server says this player HAS submitted.
+                state.setLocalPlayerHasSubmittedScore(true); // Sync local flag
+                state.setHasPopulatedBoxScoreScreenThisTurn(false); // Reset for future needs
+                console.log(
+                  "MH_TRACE: WAITING state, server says scores submitted for this player. Showing lobby-wait-screen."
+                );
+                showScreen("lobby-wait-screen");
+              }
             } else {
-              state.setLocalPlayerHasSubmittedScore(true);
+              // localPlayerHasSubmittedScore is true
+              state.setHasPopulatedBoxScoreScreenThisTurn(false); // Reset for future needs
+              console.log(
+                "MH_TRACE: WAITING state, local state says scores submitted. Showing lobby-wait-screen."
+              );
               showScreen("lobby-wait-screen");
             }
           } else {
