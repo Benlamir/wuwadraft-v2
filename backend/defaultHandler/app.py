@@ -1075,12 +1075,119 @@ def handler(event, context):
                         return {'statusCode': 500, 'body': 'Failed to start standard draft.'}
 
             else:
-                # --- STANDARD BAN LOGIC (Your existing logic goes here) ---
+                # --- STANDARD BAN LOGIC ---
                 logger.info(f"Processing Standard Ban for lobby {lobby_id} by {player_making_action} in phase {current_phase_from_db}")
                 
-                # ... (Your existing standard ban validation and processing) ...
+                # Log lobby state at start of standard ban processing
+                logger.info(f"STANDARD_BAN: lobby_item: {json.dumps(lobby_item, cls=DecimalEncoder)}")
+                logger.info(f"STANDARD_BAN: Current phase: {lobby_item.get('currentPhase')}")
+                logger.info(f"STANDARD_BAN: Current turn: {lobby_item.get('currentTurn')}")
+                logger.info(f"STANDARD_BAN: Current step index: {lobby_item.get('currentStepIndex')}")
+                logger.info(f"STANDARD_BAN: Effective draft order: {json.dumps(lobby_item.get('effectiveDraftOrder'), cls=DecimalEncoder)}")
+                logger.info(f"STANDARD_BAN: Player roles: {json.dumps(lobby_item.get('playerRoles'), cls=DecimalEncoder)}")
                 
-                return {'statusCode': 200, 'body': 'Standard ban processed.'}
+                # Validate standard ban
+                if lobby_item.get('lobbyState') != 'DRAFTING':
+                    logger.warning(f"STANDARD_BAN: Invalid state {lobby_item.get('lobbyState')} for ban in lobby {lobby_id}")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Draft is not active."})
+                    return {'statusCode': 400, 'body': 'Draft not active.'}
+
+                if not current_phase_from_db.startswith('BAN'):
+                    logger.warning(f"STANDARD_BAN: Invalid phase {current_phase_from_db} for ban in lobby {lobby_id}")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Cannot ban during phase: {current_phase_from_db}."})
+                    return {'statusCode': 400, 'body': 'Not a banning phase.'}
+
+                if player_making_action != lobby_item.get('currentTurn'):
+                    logger.warning(f"STANDARD_BAN: Invalid turn - {player_making_action} tried to ban but it's {lobby_item.get('currentTurn')}'s turn")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Not your turn."})
+                    return {'statusCode': 400, 'body': 'Not your turn.'}
+
+                if resonator_name not in lobby_item.get('availableResonators', []):
+                    logger.warning(f"STANDARD_BAN: Invalid resonator {resonator_name} - not in available list")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": f"Resonator {resonator_name} is not available."})
+                    return {'statusCode': 400, 'body': 'Resonator not available.'}
+
+                # Get current step index and validate
+                current_step_index = int(lobby_item.get('currentStepIndex', -1))
+                logger.info(f"STANDARD_BAN: Current step index: {current_step_index}")
+                
+                if current_step_index < 0:
+                    logger.error(f"STANDARD_BAN: Invalid step index {current_step_index}")
+                    return {'statusCode': 500, 'body': 'Invalid draft step index.'}
+
+                # Get effective draft order
+                effective_draft_order = lobby_item.get('effectiveDraftOrder')
+                if not effective_draft_order:
+                    logger.error(f"STANDARD_BAN: Missing effectiveDraftOrder")
+                    return {'statusCode': 500, 'body': 'Missing draft order configuration.'}
+
+                # Calculate next state
+                logger.info(f"STANDARD_BAN: Calling determine_next_state with index: {current_step_index}, order: {json.dumps(effective_draft_order, cls=DecimalEncoder)}")
+                next_phase, next_turn_designation, next_step_index = determine_next_state(current_step_index, effective_draft_order)
+                logger.info(f"STANDARD_BAN: Got from determine_next_state: phase={next_phase}, turn_des={next_turn_designation}, next_idx={next_step_index}")
+
+                # Resolve next turn
+                player_roles = lobby_item.get('playerRoles', {})
+                logger.info(f"STANDARD_BAN: Calling resolve_turn_from_role with des: {next_turn_designation}, roles: {json.dumps(player_roles, cls=DecimalEncoder)}")
+                actual_next_turn = resolve_turn_from_role(next_turn_designation, player_roles)
+                logger.info(f"STANDARD_BAN: Got actual_next_turn: {actual_next_turn}")
+
+                if not actual_next_turn:
+                    logger.error(f"STANDARD_BAN: Failed to resolve next turn")
+                    return {'statusCode': 500, 'body': 'Failed to determine next turn.'}
+
+                # Prepare update
+                new_available_list = [r for r in lobby_item.get('availableResonators', []) if r != resonator_name]
+                turn_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
+                turn_expires_at_iso = turn_expires_at_dt.isoformat()
+
+                update_expression = """
+                    SET bans = list_append(if_not_exists(bans, :empty_list), :new_ban),
+                        availableResonators = :new_available,
+                        currentPhase = :next_phase,
+                        currentTurn = :next_turn,
+                        currentStepIndex = :next_index,
+                        turnExpiresAt = :expires,
+                        lastAction = :last_action
+                """
+                expression_values = {
+                    ':empty_list': [],
+                    ':new_ban': [resonator_name],
+                    ':new_available': new_available_list,
+                    ':next_phase': next_phase,
+                    ':next_turn': actual_next_turn,
+                    ':next_index': next_step_index,
+                    ':expires': turn_expires_at_iso,
+                    ':last_action': f"{player_making_action} banned {resonator_name}"
+                }
+
+                logger.info(f"STANDARD_BAN: Update payload:")
+                logger.info(f"  UpdateExpression: {update_expression}")
+                logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_values, cls=DecimalEncoder)}")
+
+                try:
+                    lobbies_table.update_item(
+                        Key={'lobbyId': lobby_id},
+                        UpdateExpression=update_expression,
+                        ConditionExpression="currentStepIndex = :expected_index",
+                        ExpressionAttributeValues={**expression_values, ':expected_index': current_step_index}
+                    )
+                    logger.info(f"STANDARD_BAN: Successfully updated lobby {lobby_id}")
+
+                    # Broadcast the update
+                    broadcast_lobby_state(lobby_id, apigw_management_client, f"{player_making_action} banned {resonator_name}")
+                    return {'statusCode': 200, 'body': 'Standard ban processed.'}
+                except ClientError as e:
+                    if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                        logger.warning(f"STANDARD_BAN: Conditional check failed - state changed during update")
+                        send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Action failed, state may have changed. Please wait for update."})
+                        return {'statusCode': 409, 'body': 'Conflict, state changed during request.'}
+                    else:
+                        logger.error(f"STANDARD_BAN: Failed to update lobby: {str(e)}")
+                        return {'statusCode': 500, 'body': 'Failed to update lobby state.'}
+                except Exception as e:
+                    logger.error(f"STANDARD_BAN: Unexpected error: {str(e)}")
+                    return {'statusCode': 500, 'body': 'Internal server error during update.'}
 
         # --- ADD makePick HANDLER ---
         elif action == 'makePick':
