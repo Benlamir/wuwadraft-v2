@@ -1,5 +1,6 @@
 // frontend/js/uiViews.js
 import { elements } from "./uiElements.js";
+import { EQUILIBRATION_PHASE_NAME } from "./config.js";
 import * as state from "./state.js"; // Use state variables
 import { sendMessageToServer } from "./websocket.js"; // Import function to send messages
 import { ALL_RESONATORS_DATA, SEQUENCE_POINTS } from "./resonatorData.js";
@@ -847,24 +848,42 @@ export function applyCharacterFilter(filterElement) {
 }
 
 function renderCharacterGrid(draftState) {
+  // Log 1: Function entry and basic draftState info
+  console.log("RENDER_GRID: Entry. Current Phase:", draftState.currentPhase, "Current Turn:", draftState.currentTurn);
+  console.log("RENDER_GRID: My Slot:", state.myAssignedSlot);
+
   if (!elements.characterGridContainer) {
-    console.error("UI Error: characterGridContainer element not found!");
+    console.error("RENDER_GRID_ERROR: elements.characterGridContainer is null or undefined!");
     return;
   }
 
+  // Log 5: Active filter
   const activeFilter = state.activeElementFilter || "All";
+  console.log(`RENDER_GRID: Active filter: ${activeFilter}`);
+
   // console.log(`UI: Rendering grid with filter: ${activeFilter}`);
 
   // console.log(
   //   "UI: Rendering character grid. Raw draftState:",
   //   draftState
   // );
+  // Log 2: Clear the grid
   elements.characterGridContainer.innerHTML = "";
+  console.log("RENDER_GRID: Cleared characterGridContainer.");
 
-  const availableResonators = draftState.availableResonators || [];
+  // Log 3: Available Resonators from draftState
+  const availableResonatorsFromServer = draftState.availableResonators || [];
+  console.log("RENDER_GRID: availableResonatorsFromServer (length):", availableResonatorsFromServer.length, JSON.stringify(availableResonatorsFromServer));
+  if (availableResonatorsFromServer.length === 0 && draftState.currentPhase !== DRAFT_COMPLETE_PHASE) {
+    console.warn("RENDER_GRID_WARN: No availableResonators from server, but draft is not complete. Grid will be empty.");
+  }
+  // Log 4: Player picks and bans from draftState
   const player1Picks = draftState.player1Picks || [];
   const player2Picks = draftState.player2Picks || [];
   const bans = draftState.bans || [];
+  console.log("RENDER_GRID: P1 Picks:", JSON.stringify(player1Picks));
+  console.log("RENDER_GRID: P2 Picks:", JSON.stringify(player2Picks));
+  console.log("RENDER_GRID: Bans:", JSON.stringify(bans));
   const currentTurn = draftState.currentTurn || state.currentTurn;
 
   const isMyTurn = state.myAssignedSlot === currentTurn;
@@ -872,7 +891,7 @@ function renderCharacterGrid(draftState) {
   //   `UI: Rendering grid. Is it my turn? ${isMyTurn} (MySlot: ${state.myAssignedSlot}, CurrentTurn: ${currentTurn})`
   // );
 
-  const availableSet = new Set(availableResonators);
+  const availableSet = new Set(availableResonatorsFromServer);
   const p1PicksSet = new Set(player1Picks);
   const p2PicksSet = new Set(player2Picks);
   const bansSet = new Set(bans);
@@ -880,12 +899,15 @@ function renderCharacterGrid(draftState) {
   // Filter ALL_RESONATORS_DATA based on the activeFilter
   const resonatorsToDisplay =
     activeFilter === "All"
-      ? ALL_RESONATORS_DATA
+      ? ALL_RESONATORS_DATA // Use the full list from resonatorData.js
       : ALL_RESONATORS_DATA.filter(
           (resonator) =>
             Array.isArray(resonator.element) &&
-            resonator.element.includes(activeFilter) // Check element is array and includes filter
+            resonator.element.includes(activeFilter)
         );
+
+  // Log 6: Resonators to display after filtering ALL_RESONATORS_DATA
+  console.log("RENDER_GRID: resonatorsToDisplay after client-side filter (length):", resonatorsToDisplay.length);
 
   if (resonatorsToDisplay.length === 0 && activeFilter !== "All") {
     elements.characterGridContainer.innerHTML = `<p class="text-center text-muted fst-italic">No resonators match the '${activeFilter}' filter.</p>`;
@@ -899,6 +921,7 @@ function renderCharacterGrid(draftState) {
 
   // Loop over the filtered list
   resonatorsToDisplay.forEach((resonator) => {
+    console.log(`RENDER_GRID_LOOP: Creating button for ${resonator.name}`); // Check if loop is running
     const button = document.createElement("button");
     button.classList.add("character-button", "stylish-button");
     button.dataset.resonatorId = resonator.id;
@@ -920,17 +943,23 @@ function renderCharacterGrid(draftState) {
     `;
 
     // Determine button state based on draftState
-    let isAvailable = availableSet.has(resonator.name);
+    let isActuallyAvailableOnServer = availableSet.has(resonator.name);
     let isPickedByP1 = p1PicksSet.has(resonator.name);
     let isPickedByP2 = p2PicksSet.has(resonator.name);
     let isBanned = bansSet.has(resonator.name);
-    let isUnavailable = isPickedByP1 || isPickedByP2 || isBanned;
 
-    // --- ADD DEBUG LOG ---
-    if (resonator.name === "Yuanwu") {
-      // Or the name you are testing with
-      // console.log(
-      //   `DEBUG (${resonator.name}): isBanned=${isBanned}, isPickedP1=${isPickedByP1}, isPickedP2=${isPickedByP2}, isAvailable=${isAvailable}, availableSet:`,
+    // A character is truly unavailable for selection if picked, banned, OR NOT in the server's available list.
+    let isUnavailableForSelection = isPickedByP1 || isPickedByP2 || isBanned || !isActuallyAvailableOnServer;
+
+    // Log 7: Determine whose turn it is (for clickability)
+    let isMyTurnContext = false;
+    if (draftState.currentPhase === state.EQUILIBRATION_PHASE_NAME) {
+      isMyTurnContext = state.myAssignedSlot === draftState.currentEquilibrationBanner;
+      console.log(`RENDER_GRID: EQ Phase. MySlot=${state.myAssignedSlot}, EQBanner=${draftState.currentEquilibrationBanner}, isMyTurnContext=${isMyTurnContext}`);
+    } else {
+      isMyTurnContext = state.myAssignedSlot === draftState.currentTurn;
+      console.log(`RENDER_GRID: Standard Phase. MySlot=${state.myAssignedSlot}, currentTurn=${draftState.currentTurn}, isMyTurnContext=${isMyTurnContext}`);
+      //   `DEBUG (${resonator.name}): isBanned=${isBanned}, isPickedP1=${isPickedByP1}, isPickedP2=${isPickedByP2}, isActuallyAvailableOnServer=${isActuallyAvailableOnServer}, availableSet:`,
       //   availableSet,
       //   "bansSet:",
       //   bansSet
@@ -955,7 +984,7 @@ function renderCharacterGrid(draftState) {
       button.classList.add("unavailable", "picked-p2");
     } else if (isBanned) {
       button.classList.add("unavailable", "banned");
-    } else if (isAvailable) {
+    } else if (isActuallyAvailableOnServer) {
       button.classList.add("available");
     } else {
       // If not available, and not picked/banned (shouldn't happen with correct availableResonators list)
@@ -964,7 +993,7 @@ function renderCharacterGrid(draftState) {
 
     // Determine if this specific button should be clickable
     // Condition: Is it my turn? AND Is the character available? AND Not already picked/banned?
-    const isClickable = isMyTurn && isAvailable && !isUnavailable;
+    const isClickable = isMyTurn && isActuallyAvailableOnServer && !isUnavailableForSelection;
 
     // Set disabled state
     button.disabled = !isClickable;
@@ -977,6 +1006,13 @@ function renderCharacterGrid(draftState) {
     } else {
       // Optionally add a 'not-clickable' class for styling disabled buttons differently
       button.classList.add("not-clickable");
+    }
+
+    try {
+      elements.characterGridContainer.appendChild(button);
+      console.log(`RENDER_GRID_LOOP: Successfully appended button for ${resonator.name}`);
+    } catch (e) {
+      console.error(`RENDER_GRID_ERROR: Failed to append button for ${resonator.name}:`, e);
     }
   });
 }
@@ -997,8 +1033,9 @@ export function handleCharacterSelection(event) {
 
   let action = null;
   const phase = state.currentPhase;
+  console.log(`HANDLE_SELECTION_DEBUG: state.currentPhase is: ${phase}`); // Debug log for phase
 
-  if (phase?.startsWith("BAN")) {
+  if (phase?.startsWith("BAN") || phase === EQUILIBRATION_PHASE_NAME) {
     action = "makeBan";
   } else if (phase?.startsWith("PICK")) {
     action = "makePick";

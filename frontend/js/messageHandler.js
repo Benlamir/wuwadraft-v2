@@ -107,6 +107,11 @@ export function handleWebSocketMessage(jsonData) {
           console.log(
             "MessageHandler: State is DRAFTING. Updating draft screen."
           );
+          // Set the current phase from the message
+          if (message.hasOwnProperty("currentPhase")) {
+            state.setDraftPhase(message.currentPhase);
+            console.log(`MessageHandler: Updated currentPhase to ${message.currentPhase}`);
+          }
           updateDraftScreenUI(message);
           showScreen("draft-screen");
         } else if (message.lobbyState === "WAITING") {
