@@ -16,6 +16,11 @@ export let timerIntervalId = null; // Holds the ID returned by setInterval
 export let equilibrationEnabledForLobby = false;
 export let localPlayerHasSubmittedScore = false;
 export let hasPopulatedBoxScoreScreenThisTurn = false; // Track if BSS has been populated this session
+
+// Add new state variables for draft picks and resonators
+export let player1Picks = [];
+export let player2Picks = [];
+export let availableResonators = [];
 // --- END ADD ---
 
 // Functions to update state
@@ -41,44 +46,91 @@ export function setAssignedSlot(slot) {
 // --- ADD NEW UPDATE FUNCTIONS BELOW THIS LINE ---
 export function setDraftPhase(phase) {
   const changed = phase !== currentPhase;
-  currentPhase = phase; // Assignment
-  console.log(`State: currentPhase is now: ${currentPhase}`);
+  console.log(
+    `STATE_JS_DEBUG: Setting currentPhase from ${currentPhase} to ${phase}`
+  );
+  currentPhase = phase;
   if (changed) {
-    console.log(`State: Setting currentPhase=${phase}`);
+    console.log(`State: Phase changed to ${phase}`);
   }
 }
 
 export function setDraftTurn(turn) {
   const changed = turn !== currentTurn;
-  currentTurn = turn; // Assignment
-  console.log(`State: currentTurn is now: ${currentTurn}`);
+  console.log(
+    `STATE_JS_DEBUG: Setting currentTurn from ${currentTurn} to ${turn}`
+  );
+  console.log(`STATE_JS_DEBUG: Turn change triggered by lobbyStateUpdate`);
+  currentTurn = turn;
   if (changed) {
-    console.log(`State: Setting currentTurn=${turn}`);
+    console.log(`State: Turn changed to ${turn}`);
   }
 }
 
 export function setActiveElementFilter(filter) {
+  console.log(
+    `STATE_JS_DEBUG: Setting activeElementFilter from ${activeElementFilter} to ${filter}`
+  );
   activeElementFilter = filter;
   console.log(`State: Active filter set to ${filter}`);
 }
 
 export function setCurrentDraftState(newState) {
-  // Store the entire message object which represents the draft state
+  console.log(
+    `STATE_JS_DEBUG: Updating currentDraftState from:`,
+    currentDraftState
+  );
+  console.log(`STATE_JS_DEBUG: To new state:`, newState);
   currentDraftState = newState;
   console.log("State: Stored latest draft state", currentDraftState);
 }
 
 export function setTurnExpiry(isoTimestamp) {
-  // --- ADD LOG ---
   console.log(
-    `State DEBUG: Setting currentTurnExpiresAt to: ${isoTimestamp} (Type: ${typeof isoTimestamp})`
+    `STATE_JS_DEBUG: Setting currentTurnExpiresAt from ${currentTurnExpiresAt} to ${isoTimestamp}`
   );
-  // --- END ADD ---
   if (currentTurnExpiresAt !== isoTimestamp) {
     currentTurnExpiresAt = isoTimestamp;
   } else {
     currentTurnExpiresAt = isoTimestamp;
   }
+}
+
+export function setPlayer1Picks(picks) {
+  console.log(`STATE_JS_DEBUG: Setting player1Picks from:`, player1Picks);
+  console.log(`STATE_JS_DEBUG: To new picks:`, picks);
+  console.log(`STATE_JS_DEBUG: Picks update triggered by lobbyStateUpdate`);
+  player1Picks = picks;
+  console.log(
+    `STATE_JS_DEBUG: Player 1 Picks updated to: ${JSON.stringify(player1Picks)}`
+  );
+}
+
+export function setPlayer2Picks(picks) {
+  console.log(`STATE_JS_DEBUG: Setting player2Picks from:`, player2Picks);
+  console.log(`STATE_JS_DEBUG: To new picks:`, picks);
+  console.log(`STATE_JS_DEBUG: Picks update triggered by lobbyStateUpdate`);
+  player2Picks = picks;
+  console.log(
+    `STATE_JS_DEBUG: Player 2 Picks updated to: ${JSON.stringify(player2Picks)}`
+  );
+}
+
+export function setAvailableResonators(resonators) {
+  console.log(
+    `STATE_JS_DEBUG: Setting availableResonators from:`,
+    availableResonators
+  );
+  console.log(`STATE_JS_DEBUG: To new resonators:`, resonators);
+  console.log(
+    `STATE_JS_DEBUG: Resonators update triggered by lobbyStateUpdate`
+  );
+  availableResonators = resonators;
+  console.log(
+    `STATE_JS_DEBUG: Available Resonators updated to: ${JSON.stringify(
+      availableResonators
+    )}`
+  );
 }
 // --- END ADD ---
 
@@ -103,6 +155,9 @@ export function clearDraftState() {
   currentDraftState = null; // Clear stored state
   currentTurnExpiresAt = null; // Clear expiry
   hasPopulatedBoxScoreScreenThisTurn = false; // Reset the BSS population flag
+  player1Picks = []; // Clear player picks
+  player2Picks = []; // Clear player picks
+  availableResonators = []; // Clear available resonators
   if (timerIntervalId) {
     // Clear any active timer interval
     clearInterval(timerIntervalId);

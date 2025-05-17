@@ -303,9 +303,8 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
 # --- End Helper Function ---
 
 def handler(event, context):
-    # --- ADD THIS LINE AS THE VERY FIRST LINE OF THE HANDLER ---
     logger.info(f"Raw event received: {json.dumps(event)}")
-    # --- END ADDITION ---
+    
 
     connection_id = event.get('requestContext', {}).get('connectionId')
     message_body_str = event.get('body', '{}')

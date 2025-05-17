@@ -7,6 +7,7 @@ import {
   startOrUpdateTimerDisplay,
   stopTimerDisplay,
 } from "./uiViews.js"; // Assuming uiViews exports showScreen
+import { elements } from "./uiElements.js"; // Import elements object
 
 export function handleWebSocketMessage(jsonData) {
   console.log("MH_TRACE: handleWebSocketMessage START");
@@ -99,6 +100,17 @@ export function handleWebSocketMessage(jsonData) {
           state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
         }
 
+        // Update draft state if present
+        if (message.hasOwnProperty("player1Picks")) {
+          state.setPlayer1Picks(message.player1Picks);
+        }
+        if (message.hasOwnProperty("player2Picks")) {
+          state.setPlayer2Picks(message.player2Picks);
+        }
+        if (message.hasOwnProperty("availableResonators")) {
+          state.setAvailableResonators(message.availableResonators);
+        }
+
         // Update UI elements
         updateLobbyWaitScreenUI(message);
 
@@ -110,7 +122,15 @@ export function handleWebSocketMessage(jsonData) {
           // Set the current phase from the message
           if (message.hasOwnProperty("currentPhase")) {
             state.setDraftPhase(message.currentPhase);
-            console.log(`MessageHandler: Updated currentPhase to ${message.currentPhase}`);
+            console.log(
+              `MessageHandler: Updated currentPhase to ${message.currentPhase}`
+            );
+          }
+          if (message.hasOwnProperty("currentTurn")) {
+            state.setDraftTurn(message.currentTurn);
+            console.log(
+              `MessageHandler: Updated currentTurn to ${message.currentTurn}`
+            );
           }
           updateDraftScreenUI(message);
           showScreen("draft-screen");

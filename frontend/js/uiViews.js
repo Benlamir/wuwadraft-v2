@@ -368,6 +368,21 @@ function updateSlotGlowState(slot, isActive, isFilled, type) {
 
 // --- ADD NEW FUNCTION for Pick Slots ---
 function updatePickSlots(draftState) {
+  console.log(
+    "UI_VIEWS_DEBUG: updatePickSlots called with draftState:",
+    draftState
+  );
+  console.log(
+    "UI_VIEWS_DEBUG: player1Picks from draftState:",
+    draftState.player1Picks
+  );
+  console.log(
+    "UI_VIEWS_DEBUG: player2Picks from draftState:",
+    draftState.player2Picks
+  );
+  console.log("UI_VIEWS_DEBUG: currentPhase:", draftState.currentPhase);
+  console.log("UI_VIEWS_DEBUG: currentTurn:", draftState.currentTurn);
+
   const p1Picks = draftState.player1Picks || [];
   const p2Picks = draftState.player2Picks || [];
   const currentPhase = draftState.currentPhase;
@@ -377,9 +392,21 @@ function updatePickSlots(draftState) {
   const p1SlotElements = [elements.p1Pick1, elements.p1Pick2, elements.p1Pick3];
   const p2SlotElements = [elements.p2Pick1, elements.p2Pick2, elements.p2Pick3];
 
+  console.log(
+    "UI_VIEWS_DEBUG: P1 slot elements found:",
+    p1SlotElements.map((el) => !!el)
+  );
+  console.log(
+    "UI_VIEWS_DEBUG: P2 slot elements found:",
+    p2SlotElements.map((el) => !!el)
+  );
+
   // Update Player 1 slots
   p1SlotElements.forEach((slot, index) => {
-    if (!slot) return; // Skip if element wasn't found
+    if (!slot) {
+      console.warn(`UI_VIEWS_DEBUG: P1 slot ${index + 1} element not found`);
+      return;
+    }
     const pickName = p1Picks[index];
     const isActive =
       currentPhase?.startsWith("PICK") &&
@@ -387,14 +414,27 @@ function updatePickSlots(draftState) {
       !pickName &&
       index === p1Picks.length;
 
+    console.log(`UI_VIEWS_DEBUG: Updating P1 slot ${index + 1}:`, {
+      pickName,
+      isActive,
+      currentPhase,
+      currentTurn,
+      picksLength: p1Picks.length,
+    });
+
     if (pickName) {
       const resonator = findResonatorByName(pickName);
       if (resonator && resonator.image_pick) {
+        console.log(
+          `UI_VIEWS_DEBUG: Setting P1 slot ${index + 1} image for ${pickName}`
+        );
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
       } else {
+        console.warn(`UI_VIEWS_DEBUG: No image found for P1 pick ${pickName}`);
         slot.innerHTML = `<span>?</span>`;
       }
     } else {
+      console.log(`UI_VIEWS_DEBUG: Clearing P1 slot ${index + 1}`);
       slot.innerHTML = "";
     }
 
@@ -403,7 +443,10 @@ function updatePickSlots(draftState) {
 
   // Update Player 2 slots
   p2SlotElements.forEach((slot, index) => {
-    if (!slot) return;
+    if (!slot) {
+      console.warn(`UI_VIEWS_DEBUG: P2 slot ${index + 1} element not found`);
+      return;
+    }
     const pickName = p2Picks[index];
     const isActive =
       currentPhase?.startsWith("PICK") &&
@@ -411,14 +454,27 @@ function updatePickSlots(draftState) {
       !pickName &&
       index === p2Picks.length;
 
+    console.log(`UI_VIEWS_DEBUG: Updating P2 slot ${index + 1}:`, {
+      pickName,
+      isActive,
+      currentPhase,
+      currentTurn,
+      picksLength: p2Picks.length,
+    });
+
     if (pickName) {
       const resonator = findResonatorByName(pickName);
       if (resonator && resonator.image_pick) {
+        console.log(
+          `UI_VIEWS_DEBUG: Setting P2 slot ${index + 1} image for ${pickName}`
+        );
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
       } else {
+        console.warn(`UI_VIEWS_DEBUG: No image found for P2 pick ${pickName}`);
         slot.innerHTML = `<span>?</span>`;
       }
     } else {
+      console.log(`UI_VIEWS_DEBUG: Clearing P2 slot ${index + 1}`);
       slot.innerHTML = "";
     }
 
@@ -849,11 +905,18 @@ export function applyCharacterFilter(filterElement) {
 
 function renderCharacterGrid(draftState) {
   // Log 1: Function entry and basic draftState info
-  console.log("RENDER_GRID: Entry. Current Phase:", draftState.currentPhase, "Current Turn:", draftState.currentTurn);
+  console.log(
+    "RENDER_GRID: Entry. Current Phase:",
+    draftState.currentPhase,
+    "Current Turn:",
+    draftState.currentTurn
+  );
   console.log("RENDER_GRID: My Slot:", state.myAssignedSlot);
 
   if (!elements.characterGridContainer) {
-    console.error("RENDER_GRID_ERROR: elements.characterGridContainer is null or undefined!");
+    console.error(
+      "RENDER_GRID_ERROR: elements.characterGridContainer is null or undefined!"
+    );
     return;
   }
 
@@ -873,9 +936,18 @@ function renderCharacterGrid(draftState) {
 
   // Log 3: Available Resonators from draftState
   const availableResonatorsFromServer = draftState.availableResonators || [];
-  console.log("RENDER_GRID: availableResonatorsFromServer (length):", availableResonatorsFromServer.length, JSON.stringify(availableResonatorsFromServer));
-  if (availableResonatorsFromServer.length === 0 && draftState.currentPhase !== DRAFT_COMPLETE_PHASE) {
-    console.warn("RENDER_GRID_WARN: No availableResonators from server, but draft is not complete. Grid will be empty.");
+  console.log(
+    "RENDER_GRID: availableResonatorsFromServer (length):",
+    availableResonatorsFromServer.length,
+    JSON.stringify(availableResonatorsFromServer)
+  );
+  if (
+    availableResonatorsFromServer.length === 0 &&
+    draftState.currentPhase !== DRAFT_COMPLETE_PHASE
+  ) {
+    console.warn(
+      "RENDER_GRID_WARN: No availableResonators from server, but draft is not complete. Grid will be empty."
+    );
   }
   // Log 4: Player picks and bans from draftState
   const player1Picks = draftState.player1Picks || [];
@@ -907,7 +979,10 @@ function renderCharacterGrid(draftState) {
         );
 
   // Log 6: Resonators to display after filtering ALL_RESONATORS_DATA
-  console.log("RENDER_GRID: resonatorsToDisplay after client-side filter (length):", resonatorsToDisplay.length);
+  console.log(
+    "RENDER_GRID: resonatorsToDisplay after client-side filter (length):",
+    resonatorsToDisplay.length
+  );
 
   if (resonatorsToDisplay.length === 0 && activeFilter !== "All") {
     elements.characterGridContainer.innerHTML = `<p class="text-center text-muted fst-italic">No resonators match the '${activeFilter}' filter.</p>`;
@@ -949,16 +1024,22 @@ function renderCharacterGrid(draftState) {
     let isBanned = bansSet.has(resonator.name);
 
     // A character is truly unavailable for selection if picked, banned, OR NOT in the server's available list.
-    let isUnavailableForSelection = isPickedByP1 || isPickedByP2 || isBanned || !isActuallyAvailableOnServer;
+    let isUnavailableForSelection =
+      isPickedByP1 || isPickedByP2 || isBanned || !isActuallyAvailableOnServer;
 
     // Log 7: Determine whose turn it is (for clickability)
     let isMyTurnContext = false;
     if (draftState.currentPhase === state.EQUILIBRATION_PHASE_NAME) {
-      isMyTurnContext = state.myAssignedSlot === draftState.currentEquilibrationBanner;
-      console.log(`RENDER_GRID: EQ Phase. MySlot=${state.myAssignedSlot}, EQBanner=${draftState.currentEquilibrationBanner}, isMyTurnContext=${isMyTurnContext}`);
+      isMyTurnContext =
+        state.myAssignedSlot === draftState.currentEquilibrationBanner;
+      console.log(
+        `RENDER_GRID: EQ Phase. MySlot=${state.myAssignedSlot}, EQBanner=${draftState.currentEquilibrationBanner}, isMyTurnContext=${isMyTurnContext}`
+      );
     } else {
       isMyTurnContext = state.myAssignedSlot === draftState.currentTurn;
-      console.log(`RENDER_GRID: Standard Phase. MySlot=${state.myAssignedSlot}, currentTurn=${draftState.currentTurn}, isMyTurnContext=${isMyTurnContext}`);
+      console.log(
+        `RENDER_GRID: Standard Phase. MySlot=${state.myAssignedSlot}, currentTurn=${draftState.currentTurn}, isMyTurnContext=${isMyTurnContext}`
+      );
       //   `DEBUG (${resonator.name}): isBanned=${isBanned}, isPickedP1=${isPickedByP1}, isPickedP2=${isPickedByP2}, isActuallyAvailableOnServer=${isActuallyAvailableOnServer}, availableSet:`,
       //   availableSet,
       //   "bansSet:",
@@ -993,7 +1074,8 @@ function renderCharacterGrid(draftState) {
 
     // Determine if this specific button should be clickable
     // Condition: Is it my turn? AND Is the character available? AND Not already picked/banned?
-    const isClickable = isMyTurn && isActuallyAvailableOnServer && !isUnavailableForSelection;
+    const isClickable =
+      isMyTurn && isActuallyAvailableOnServer && !isUnavailableForSelection;
 
     // Set disabled state
     button.disabled = !isClickable;
@@ -1010,9 +1092,14 @@ function renderCharacterGrid(draftState) {
 
     try {
       elements.characterGridContainer.appendChild(button);
-      console.log(`RENDER_GRID_LOOP: Successfully appended button for ${resonator.name}`);
+      console.log(
+        `RENDER_GRID_LOOP: Successfully appended button for ${resonator.name}`
+      );
     } catch (e) {
-      console.error(`RENDER_GRID_ERROR: Failed to append button for ${resonator.name}:`, e);
+      console.error(
+        `RENDER_GRID_ERROR: Failed to append button for ${resonator.name}:`,
+        e
+      );
     }
   });
 }
@@ -1020,6 +1107,11 @@ function renderCharacterGrid(draftState) {
 export function handleCharacterSelection(event) {
   const button = event.currentTarget;
   const resonatorName = button.dataset.resonatorName;
+  const localCurrentPhase = state.currentPhase; // Read from state.js
+  const localCurrentTurn = state.currentTurn; // Read from state.js
+  console.log(
+    `HANDLE_SELECTION_DEBUG: Clicked ${resonatorName}. state.currentPhase=${localCurrentPhase}, state.currentTurn=${localCurrentTurn}, state.myAssignedSlot=${state.myAssignedSlot}`
+  );
 
   if (!resonatorName) {
     console.error(
