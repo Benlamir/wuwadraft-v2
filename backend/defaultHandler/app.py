@@ -1767,19 +1767,67 @@ def handler(event, context):
                 update_expressions = [] # Use list for expressions
                 remove_expressions = [] # Use list for REMOVE expressions
                 expression_values = {}
+                expression_names = {} # Add for attribute name placeholders
                 last_action_msg = None
 
                 # Determine which slot is leaving
                 if connection_id == player1_conn_id:
                     leaving_player_slot = 'P1'
                     leaving_player_name = lobby_item.get('player1Name', 'Player 1')
-                    remove_expressions.extend(["player1ConnectionId", "player1Name", "player1Sequences", "player1WeightedBoxScore"])
-                    update_expressions.append("player1ScoreSubmitted = :falseVal")
+                    # Define placeholders and actual names for P1
+                    p_conn_id_ph = '#p1cid'
+                    p_name_ph = '#p1n'
+                    p_ready_ph = '#p1r'
+                    p_seq_ph = '#p1seq'
+                    p_score_ph = '#p1wbs'
+                    p_submitted_ph = '#p1ss'
+                    
+                    # Map placeholders to actual attribute names
+                    expression_names.update({
+                        p_conn_id_ph: 'player1ConnectionId',
+                        p_name_ph: 'player1Name',
+                        p_ready_ph: 'player1Ready',
+                        p_seq_ph: 'player1Sequences',
+                        p_score_ph: 'player1WeightedBoxScore',
+                        p_submitted_ph: 'player1ScoreSubmitted'
+                    })
+                    
+                    # Add to remove expressions using placeholders
+                    remove_expressions.extend([p_conn_id_ph, p_name_ph, p_seq_ph, p_score_ph])
+                    # Add to set expressions using placeholders
+                    update_expressions.extend([
+                        f"{p_ready_ph} = :falseVal",
+                        f"{p_submitted_ph} = :falseVal"
+                    ])
+                    
                 elif connection_id == player2_conn_id:
                     leaving_player_slot = 'P2'
                     leaving_player_name = lobby_item.get('player2Name', 'Player 2')
-                    remove_expressions.extend(["player2ConnectionId", "player2Name", "player2Sequences", "player2WeightedBoxScore"])
-                    update_expressions.append("player2ScoreSubmitted = :falseVal")
+                    # Define placeholders and actual names for P2
+                    p_conn_id_ph = '#p2cid'
+                    p_name_ph = '#p2n'
+                    p_ready_ph = '#p2r'
+                    p_seq_ph = '#p2seq'
+                    p_score_ph = '#p2wbs'
+                    p_submitted_ph = '#p2ss'
+                    
+                    # Map placeholders to actual attribute names
+                    expression_names.update({
+                        p_conn_id_ph: 'player2ConnectionId',
+                        p_name_ph: 'player2Name',
+                        p_ready_ph: 'player2Ready',
+                        p_seq_ph: 'player2Sequences',
+                        p_score_ph: 'player2WeightedBoxScore',
+                        p_submitted_ph: 'player2ScoreSubmitted'
+                    })
+                    
+                    # Add to remove expressions using placeholders
+                    remove_expressions.extend([p_conn_id_ph, p_name_ph, p_seq_ph, p_score_ph])
+                    # Add to set expressions using placeholders
+                    update_expressions.extend([
+                        f"{p_ready_ph} = :falseVal",
+                        f"{p_submitted_ph} = :falseVal"
+                    ])
                 else:
                     logger.warning(f"Connection {connection_id} tried to leave lobby {lobby_id} but is not P1 or P2.")
                     # Handle host leaving later in disconnect handler if needed
@@ -1791,8 +1839,6 @@ def handler(event, context):
                     last_action_msg = f"{leaving_player_name} left during the draft."
                     update_expressions.extend([
                         "lobbyState = :waitState",
-                        "player1Ready = :falseVal", # Ensure both are false again
-                        "player2Ready = :falseVal",
                         "lastAction = :lastAct"
                     ])
                     remove_expressions.extend([ # Remove all draft-specific fields
@@ -1803,9 +1849,7 @@ def handler(event, context):
                         "equilibrationBansAllowed", "equilibrationBansMade", "currentEquilibrationBanner"
                     ])
                     expression_values[':waitState'] = 'WAITING'
-                    expression_values[':falseVal'] = False # Already set but needed if only one SET was added above
                     expression_values[':lastAct'] = last_action_msg
-
                 elif current_lobby_state == 'WAITING':
                      logger.info(f"Player {leaving_player_slot} leaving in WAITING state.")
                      last_action_msg = f"{leaving_player_name} left the lobby."
@@ -1817,6 +1861,9 @@ def handler(event, context):
                      update_expressions.append("lastAction = :lastAct")
                      expression_values[':lastAct'] = last_action_msg
 
+                # Add false value for ready/submitted flags
+                expression_values[':falseVal'] = False
+
                 # Construct final UpdateExpression
                 final_update_expr = ""
                 if update_expressions:
@@ -1825,10 +1872,17 @@ def handler(event, context):
                     if final_update_expr: final_update_expr += " " # Add space if SET exists
                     final_update_expr += "REMOVE " + ", ".join(remove_expressions)
 
-                logger.info(f"Updating lobby {lobby_id} for player leave. Update: {final_update_expr}")
+                # Log the update details for debugging
+                logger.info(f"Updating lobby {lobby_id} for player leave:")
+                logger.info(f"Update Expression: {final_update_expr}")
+                logger.info(f"Expression Attribute Names: {expression_names}")
+                logger.info(f"Expression Attribute Values: {expression_values}")
+
+                # Perform the update
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
                     UpdateExpression=final_update_expr,
+                    ExpressionAttributeNames=expression_names,
                     ExpressionAttributeValues=expression_values
                 )
                 logger.info(f"Lobby {lobby_id} updated for player leave.")
