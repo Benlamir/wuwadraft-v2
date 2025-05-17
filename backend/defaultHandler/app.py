@@ -2222,25 +2222,48 @@ def handler(event, context):
 
                 # 3. Reset the lobby state back to WAITING and clear draft fields
                 last_action_msg = "Draft was reset by the host."
-                update_expression = """
-                    SET lobbyState = :waitState,
-                        player1Ready = :falseVal,
-                        player2Ready = :falseVal,
-                        lastAction = :lastAct
-                    REMOVE currentPhase, currentTurn, currentStepIndex, turnExpiresAt,
-                           bans, player1Picks, player2Picks, availableResonators
-                """
-                expression_values = {
+
+                # Define attributes to REMOVE, ensuring 'turnExpiresAt' is included
+                attributes_to_remove = [
+                    "currentPhase", "currentTurn", "currentStepIndex", "turnExpiresAt",
+                    "bans", "player1Picks", "player2Picks", "availableResonators",
+                    "effectiveDraftOrder", "playerRoles",
+                    "player1Sequences", "player1WeightedBoxScore", "player1ScoreSubmitted",
+                    "player2Sequences", "player2WeightedBoxScore", "player2ScoreSubmitted",
+                    "equilibrationBansAllowed", "equilibrationBansMade", "currentEquilibrationBanner"
+                ]
+
+                update_expression_set_parts = [
+                    "#ls = :waitState",
+                    "#p1r = :falseVal",
+                    "#p2r = :falseVal",
+                    "#la = :lastAct"
+                ]
+                expression_attribute_names = {
+                    '#ls': 'lobbyState', '#p1r': 'player1Ready', '#p2r': 'player2Ready', '#la': 'lastAction'
+                }
+                expression_attribute_values = {
                     ':waitState': 'WAITING',
                     ':falseVal': False,
                     ':lastAct': last_action_msg
                 }
 
-                logger.info(f"Resetting draft for lobby {lobby_id}. Update: {update_expression}, Values: {expression_values}")
+                update_expression_remove_parts = []
+                for i, attr_name in enumerate(attributes_to_remove):
+                    name_placeholder = f"#rem{i}"
+                    expression_attribute_names[name_placeholder] = attr_name
+                    update_expression_remove_parts.append(name_placeholder)
+
+                update_expression = "SET " + ", ".join(update_expression_set_parts)
+                if update_expression_remove_parts:
+                    update_expression += " REMOVE " + ", ".join(update_expression_remove_parts)
+
+                logger.info(f"Resetting draft for lobby {lobby_id}. Update: {update_expression}")
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
                     UpdateExpression=update_expression,
-                    ExpressionAttributeValues=expression_values
+                    ExpressionAttributeNames=expression_attribute_names,
+                    ExpressionAttributeValues=expression_attribute_values
                 )
                 logger.info(f"Lobby {lobby_id} draft reset successfully.")
 

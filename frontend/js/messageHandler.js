@@ -125,13 +125,24 @@ export function handleWebSocketMessage(jsonData) {
           state.setAvailableResonators(message.availableResonators);
         }
 
-        // Handle turn expiry
-        if (message.hasOwnProperty("turnExpiresAt")) {
-          state.setTurnExpiry(message.turnExpiresAt);
-          startOrUpdateTimerDisplay();
+        // Handle turn expiry with robust null checking and logging
+        if (
+          message.hasOwnProperty("turnExpiresAt") &&
+          message.turnExpiresAt !== null
+        ) {
+          console.log(
+            "MH_TIMER_DEBUG: turnExpiresAt is PRESENT:",
+            message.turnExpiresAt,
+            ". Calling startOrUpdateTimerDisplay."
+          );
+          state.setTurnExpiry(message.turnExpiresAt); // Update state
+          startOrUpdateTimerDisplay(); // Attempt to start/update visual timer
         } else {
-          state.setTurnExpiry(null);
-          stopTimerDisplay();
+          console.log(
+            "MH_TIMER_DEBUG: turnExpiresAt is NULL or MISSING. Calling stopTimerDisplay."
+          );
+          state.setTurnExpiry(null); // Update state
+          stopTimerDisplay(); // Stop visual timer
         }
 
         // Screen Logic

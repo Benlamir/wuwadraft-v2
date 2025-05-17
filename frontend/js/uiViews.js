@@ -534,72 +534,87 @@ function updateBanSlots(draftState) {
 // --- ADD TIMER DISPLAY FUNCTIONS ---
 
 export function stopTimerDisplay() {
-  state.clearTimerInterval();
-  if (elements.draftTimer) {
-    const timerTextSpan = elements.draftTimer.querySelector("span");
+  // console.log("UI_VIEWS_TIMER: stopTimerDisplay called.");
+  state.clearTimerInterval(); // Clears intervalId in state.js AND calls clearInterval
+
+  const timerElement = elements.draftTimer;
+  // Only try to update DOM if the timer element is actually part of the current document
+  if (timerElement && document.body.contains(timerElement)) {
+    const timerTextSpan = timerElement.querySelector("span");
     if (timerTextSpan) {
       timerTextSpan.textContent = "Time Remaining: --:--";
+    } else {
+      // This warning is acceptable if the span was, e.g., cleared by other DOM manipulation
+      // console.warn("UI_VIEWS_TIMER: stopTimerDisplay - timerTextSpan not found within existing timerElement.");
     }
-    elements.draftTimer.classList.remove("timer-low");
+    timerElement.classList.remove("timer-low");
+  } else {
+    // console.warn("UI_VIEWS_TIMER: stopTimerDisplay - elements.draftTimer not found or not in DOM.");
   }
 }
 
 // This internal function updates the clock display
 function updateCountdown(expiryTime, intervalId) {
-  const {
-    myAssignedSlot,
-    currentTurn,
-    currentPhase,
-    timerIntervalId: activeTimerId,
-  } = state;
-
-  // Timer ID check (keep existing)
-  if (intervalId !== activeTimerId) {
+  // Check if this interval should still be running
+  if (state.timerIntervalId === null || intervalId !== state.timerIntervalId) {
+    // console.log(`UI_VIEWS_TIMER: updateCountdown (interval ${intervalId}) - Mismatch or timer already cleared by state (${state.timerIntervalId}). Clearing this interval.`);
     clearInterval(intervalId);
+    return;
+  }
+
+  const timerElement = elements.draftTimer;
+  if (!timerElement || !document.body.contains(timerElement)) {
+    console.warn(
+      "UI_VIEWS_TIMER: updateCountdown - elements.draftTimer NOT FOUND or not in DOM. Clearing interval.",
+      intervalId
+    );
+    clearInterval(intervalId);
+    state.clearTimerInterval(); // Ensure state reflects this cleanup
+    return;
+  }
+  const timerTextSpan = timerElement.querySelector("span");
+  if (!timerTextSpan) {
+    console.warn(
+      "UI_VIEWS_TIMER: updateCountdown - timerTextSpan NOT FOUND. Clearing interval.",
+      intervalId
+    );
+    clearInterval(intervalId);
+    state.clearTimerInterval();
     return;
   }
 
   const now = Date.now();
   const remainingMs = expiryTime - now;
-  const timerElement = elements.draftTimer; // Get the <p> element
-  const timerTextSpan = timerElement?.querySelector("span"); // Get the <span> inside
-
-  if (!timerElement || !timerTextSpan) {
-    console.warn("Timer element or text span not found in updateCountdown.");
-    clearInterval(intervalId);
-    state.clearTimerInterval(); // Clear state interval ID too
-    return;
-  }
 
   if (remainingMs <= 0) {
     timerTextSpan.textContent = "Time Remaining: 00:00";
     timerElement.classList.add("timer-low");
+    clearInterval(intervalId); // Stop this interval
 
-    clearInterval(intervalId);
-
-    // Restore timeout action logic
-    if (myAssignedSlot === currentTurn) {
-      // Send timeout request immediately when timer reaches zero
-      if (state.currentTurn === myAssignedSlot) {
-        sendMessageToServer({
-          action: "turnTimeout",
-          expectedPhase: state.currentPhase,
-          expectedTurn: myAssignedSlot,
-        });
-      }
+    // Only allow the client whose turn it was to send the timeout action
+    if (
+      state.myAssignedSlot === state.currentTurn &&
+      state.timerIntervalId === intervalId
+    ) {
+      console.log(
+        "UI_VIEWS_TIMER: Timer expired for my turn. Sending turnTimeout action."
+      );
+      sendMessageToServer({
+        action: "turnTimeout",
+        expectedPhase: state.currentPhase,
+        expectedTurn: state.myAssignedSlot,
+      });
     }
+    state.clearTimerInterval(); // Clear from state AFTER sending timeout
   } else {
-    const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+    const remainingSeconds = Math.floor(remainingMs / 1000);
     const minutes = Math.floor(remainingSeconds / 60);
     const seconds = remainingSeconds % 60;
-    const displayString = `Time Remaining: ${String(minutes).padStart(
+    timerTextSpan.textContent = `Time Remaining: ${String(minutes).padStart(
       2,
       "0"
     )}:${String(seconds).padStart(2, "0")}`;
 
-    timerTextSpan.textContent = displayString;
-
-    // Low Time Check
     if (remainingSeconds <= 10) {
       timerElement.classList.add("timer-low");
     } else {
@@ -610,67 +625,72 @@ function updateCountdown(expiryTime, intervalId) {
 
 // This function starts a new timer cycle
 export function startOrUpdateTimerDisplay() {
-  // console.log("UI DEBUG: startOrUpdateTimerDisplay START.");
-  stopTimerDisplay();
-
-  // console.log(
-  //   `UI DEBUG: Reading state.currentTurnExpiresAt: ${state.currentTurnExpiresAt}`
-  // );
+  // console.log("UI_VIEWS_TIMER: startOrUpdateTimerDisplay called. currentTurnExpiresAt:", state.currentTurnExpiresAt);
+  stopTimerDisplay(); // Clear any previous timer first
 
   if (!state.currentTurnExpiresAt) {
-    // console.log("UI DEBUG: No expiry time set in state, timer not starting.");
+    // console.log("UI_VIEWS_TIMER: No currentTurnExpiresAt in state. Timer will not start.");
     return;
+  }
+
+  const timerElement = elements.draftTimer;
+  // Ensure the timer element exists and has its necessary child span before starting.
+  // This is important if the draft screen was just made active.
+  if (!timerElement || !document.body.contains(timerElement)) {
+    console.warn(
+      "UI_VIEWS_TIMER: startOrUpdateTimerDisplay - elements.draftTimer NOT FOUND or not in DOM. Timer not starting."
+    );
+    return;
+  }
+  // Ensure the inner structure (span) is present
+  if (!timerElement.querySelector("span")) {
+    console.log(
+      "UI_VIEWS_TIMER: startOrUpdateTimerDisplay - timerTextSpan missing. Re-initializing timer HTML."
+    );
+    timerElement.innerHTML =
+      '<i class="bi bi-clock timer-icon me-1"></i> <span>Time Remaining: --:--</span>';
   }
 
   try {
     const expiryTimestamp = new Date(state.currentTurnExpiresAt).getTime();
-    // console.log(
-    //   `UI DEBUG: Parsed expiryTimestamp: ${expiryTimestamp} (isNaN: ${isNaN(
-    //     expiryTimestamp
-    //   )})`
-    // );
-
     if (isNaN(expiryTimestamp)) {
       console.error(
-        "UI DEBUG: Invalid expiry timestamp received from state:",
+        "UI_VIEWS_TIMER: Invalid expiry timestamp:",
         state.currentTurnExpiresAt
       );
       return;
     }
 
     const now = Date.now();
-    // console.log(
-    //   `UI DEBUG: Comparing expiry ${expiryTimestamp} with now ${now}`
-    // );
-
     if (expiryTimestamp <= now) {
-      // console.log(
-      //   "UI DEBUG: Expiry time is in the past. Setting timer to 00:00."
-      // );
-      if (elements.draftTimer) {
-        elements.draftTimer.textContent = "Time Remaining: 00:00";
-        elements.draftTimer.classList.add("text-danger", "fw-bold");
+      // console.log("UI_VIEWS_TIMER: Expiry time is in the past. Setting timer display to 00:00.");
+      const timerTextSpan = timerElement.querySelector("span");
+      if (timerTextSpan) {
+        // Check again as it might have been just added
+        timerTextSpan.textContent = "Time Remaining: 00:00";
       }
+      timerElement.classList.add("timer-low");
       return;
     }
-
-    // console.log(`UI DEBUG: Starting new timer interval...`);
 
     const newIntervalId = setInterval(() => {
       updateCountdown(expiryTimestamp, newIntervalId);
     }, 1000);
+    state.setTimerIntervalId(newIntervalId); // Store the new interval ID in state
+    // console.log(`UI_VIEWS_TIMER: New timer interval started with ID: ${newIntervalId}. Expiry: ${state.currentTurnExpiresAt}`);
 
-    // console.log(
-    //   `UI DEBUG: New interval created with ID: ${newIntervalId}. Storing in state via function.`
-    // );
-    state.setTimerIntervalId(newIntervalId);
-
-    // console.log(
-    //   `UI DEBUG: Calling updateCountdown immediately once for ID ${newIntervalId}.`
-    // );
-    updateCountdown(expiryTimestamp, newIntervalId);
+    // Call updateCountdown once immediately using a slight delay to ensure DOM is fully ready
+    setTimeout(() => {
+      if (state.timerIntervalId === newIntervalId) {
+        // Check if this timer is still the active one
+        updateCountdown(expiryTimestamp, newIntervalId);
+      }
+    }, 0); // A 0ms timeout defers execution until after current call stack clears
   } catch (e) {
-    console.error("UI DEBUG: Error during timer start:", e);
+    console.error(
+      "UI_VIEWS_TIMER: Error during timer start in startOrUpdateTimerDisplay:",
+      e
+    );
     stopTimerDisplay();
   }
 }
