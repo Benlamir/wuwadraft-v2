@@ -504,10 +504,10 @@ def handler(event, context):
                     "type": "lobbyJoined",
                     "lobbyId": lobby_id,
                     "assignedSlot": assigned_slot,
-                    "isHost": False, # Joining player is not the host
+                    "isHost": False, 
                     "message": f"Successfully joined lobby {lobby_id} as {assigned_slot}.",
-                    "equilibrationEnabled": lobby_item.get('equilibrationEnabled', True),
-                    "playerScoreSubmitted": False # Initialize as false for new player
+                    "equilibrationEnabled": lobby_item.get('equilibrationEnabled', False),
+                    "playerScoreSubmitted": False  # Explicitly set to False for this join/rejoin into slot
                 }
                 send_message_to_client(apigw_management_client, connection_id, response_payload)
 
@@ -1773,15 +1773,13 @@ def handler(event, context):
                 if connection_id == player1_conn_id:
                     leaving_player_slot = 'P1'
                     leaving_player_name = lobby_item.get('player1Name', 'Player 1')
-                    remove_expressions.extend(["player1ConnectionId", "player1Name"])
-                   # update_expressions.append("player1Ready = :falseVal")
-                   # expression_values[':falseVal'] = False
+                    remove_expressions.extend(["player1ConnectionId", "player1Name", "player1Sequences", "player1WeightedBoxScore"])
+                    update_expressions.append("player1ScoreSubmitted = :falseVal")
                 elif connection_id == player2_conn_id:
                     leaving_player_slot = 'P2'
                     leaving_player_name = lobby_item.get('player2Name', 'Player 2')
-                    remove_expressions.extend(["player2ConnectionId", "player2Name"])
-                   # update_expressions.append("player2Ready = :falseVal")
-                   # expression_values[':falseVal'] = False
+                    remove_expressions.extend(["player2ConnectionId", "player2Name", "player2Sequences", "player2WeightedBoxScore"])
+                    update_expressions.append("player2ScoreSubmitted = :falseVal")
                 else:
                     logger.warning(f"Connection {connection_id} tried to leave lobby {lobby_id} but is not P1 or P2.")
                     # Handle host leaving later in disconnect handler if needed
@@ -1800,7 +1798,9 @@ def handler(event, context):
                     remove_expressions.extend([ # Remove all draft-specific fields
                         "currentPhase", "currentTurn", "currentStepIndex",
                         "turnExpiresAt", "bans", "player1Picks",
-                        "player2Picks", "availableResonators"
+                        "player2Picks", "availableResonators",
+                        "effectiveDraftOrder", "playerRoles",
+                        "equilibrationBansAllowed", "equilibrationBansMade", "currentEquilibrationBanner"
                     ])
                     expression_values[':waitState'] = 'WAITING'
                     expression_values[':falseVal'] = False # Already set but needed if only one SET was added above
@@ -1825,39 +1825,28 @@ def handler(event, context):
                     if final_update_expr: final_update_expr += " " # Add space if SET exists
                     final_update_expr += "REMOVE " + ", ".join(remove_expressions)
 
-                # Update the Lobby Item if there are changes
-                if final_update_expr:
-                    logger.info(f"Updating lobby {lobby_id}. Update: {final_update_expr}, Values: {expression_values}")
-                    lobbies_table.update_item(
-                         Key={'lobbyId': lobby_id},
-                         UpdateExpression=final_update_expr,
-                         ExpressionAttributeValues=expression_values
-                         # No ConditionExpression needed here generally
-                    )
-                else:
-                    logger.warning(f"No update expression generated for leaveLobby in lobby {lobby_id}.")
+                logger.info(f"Updating lobby {lobby_id} for player leave. Update: {final_update_expr}")
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=final_update_expr,
+                    ExpressionAttributeValues=expression_values
+                )
+                logger.info(f"Lobby {lobby_id} updated for player leave.")
 
-
-                # Update the leaving connection's item to remove lobby association
+                # Remove currentLobbyId from connection
                 try:
-                     connections_table.update_item(
-                         Key={'connectionId': connection_id},
-                         UpdateExpression="REMOVE currentLobbyId"
-                     )
-                     logger.info(f"Removed currentLobbyId from connection {connection_id}")
-                except Exception as conn_update_err:
-                     logger.error(f"Failed to remove lobbyId from connection {connection_id}: {conn_update_err}")
+                    connections_table.update_item(Key={'connectionId': connection_id}, UpdateExpression="REMOVE currentLobbyId")
+                except Exception as conn_clean_err:
+                    logger.error(f"Failed to cleanup connection {connection_id} after leave: {conn_clean_err}")
 
-
-                # Broadcast the updated state to REMAINING participants
+                # Broadcast updated state
                 broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg, exclude_connection_id=connection_id)
 
-                return {'statusCode': 200, 'body': 'Player left successfully.'}
+                return {'statusCode': 200, 'body': 'Player left lobby.'}
 
             except Exception as e:
-                logger.error(f"Error processing leaveLobby for {connection_id} in lobby {lobby_id}: {str(e)}", exc_info=True)
-                # Don't try to send error to leaving client
-                return {'statusCode': 500, 'body': 'Failed to process leave request.'}
+                logger.error(f"Error processing leaveLobby for {connection_id} on lobby {lobby_id}: {str(e)}", exc_info=True)
+                return {'statusCode': 500, 'body': 'Failed to leave lobby.'}
         # --- END leaveLobby Handler ---
 
         # --- NEW: deleteLobby Handler ---
@@ -1969,11 +1958,9 @@ def handler(event, context):
                 logger.info(f"Host {connection_id} verified.")
 
                 # Get target player info based on playerSlot
-                target_conn_id_key = f"player{player_slot_to_kick[1]}ConnectionId"
-                target_name_key = f"player{player_slot_to_kick[1]}Name"
-                target_ready_key = f"player{player_slot_to_kick[1]}Ready"
-                kicked_connection_id = lobby_item.get(target_conn_id_key)
-                kicked_player_name = lobby_item.get(target_name_key, player_slot_to_kick) # Default name if missing
+                target_slot_label = f"player{player_slot_to_kick[1]}"
+                kicked_connection_id = lobby_item.get(f"{target_slot_label}ConnectionId")
+                kicked_player_name = lobby_item.get(f"{target_slot_label}Name", player_slot_to_kick)
 
                 # Check if slot is actually occupied
                 if not kicked_connection_id:
@@ -1998,26 +1985,48 @@ def handler(event, context):
                 send_message_to_client(apigw_management_client, kicked_connection_id, force_redirect_payload)
                 # --- END CORRECTED LOGIC ---
 
-                # Update lobby item to remove the player
-                logger.info(f"Preparing to update lobby {lobby_id} to remove {player_slot_to_kick}.")
+                # Prepare attribute names and values for robust update
                 last_action_msg = f"Host kicked {kicked_player_name}."
-                
-                # Use REMOVE to completely clear the fields
-                update_expression = f"REMOVE {target_conn_id_key}, {target_name_key} SET {target_ready_key} = :falseVal, lastAction = :lastAct"
-                expression_values = {
+                conn_id_attr_name = f"{target_slot_label}ConnectionId"
+                name_attr_name = f"{target_slot_label}Name"
+                ready_attr_name = f"{target_slot_label}Ready"
+                sequences_attr_name = f"{target_slot_label}Sequences"
+                score_attr_name = f"{target_slot_label}WeightedBoxScore"
+                submitted_attr_name = f"{target_slot_label}ScoreSubmitted"
+
+                # Placeholders for ExpressionAttributeNames
+                conn_id_ph = "#connId"
+                name_ph = "#name"
+                ready_ph = "#ready"
+                sequences_ph = "#seq"
+                score_ph = "#score"
+                submitted_ph = "#submitted"
+                la_ph = "#la"
+
+                update_expression = f"REMOVE {conn_id_ph}, {name_ph}, {sequences_ph}, {score_ph} SET {ready_ph} = :falseVal, {submitted_ph} = :falseVal, {la_ph} = :lastAct"
+                expression_attribute_names = {
+                    conn_id_ph: conn_id_attr_name,
+                    name_ph: name_attr_name,
+                    sequences_ph: sequences_attr_name,
+                    score_ph: score_attr_name,
+                    ready_ph: ready_attr_name,
+                    submitted_ph: submitted_attr_name,
+                    la_ph: 'lastAction'
+                }
+                expression_attribute_values = {
                     ':falseVal': False,
                     ':lastAct': last_action_msg,
-                    ':kick_conn_id': kicked_connection_id # Value for condition check
+                    ':kick_conn_id_val': kicked_connection_id
                 }
-                # Condition ensures we only kick the player currently in that slot
-                condition_expression = f"attribute_exists({target_conn_id_key}) AND {target_conn_id_key} = :kick_conn_id"
+                condition_expression_str = f"attribute_exists({conn_id_ph}) AND {conn_id_ph} = :kick_conn_id_val"
 
-                logger.info(f"Attempting UpdateItem for kick. Update: {update_expression}, Condition: {condition_expression}, Values: {expression_values}")
+                logger.info(f"Attempting UpdateItem for kick. Update: {update_expression}, Condition: {condition_expression_str}, Names: {expression_attribute_names}, Values: {expression_attribute_values}")
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
                     UpdateExpression=update_expression,
-                    ConditionExpression=condition_expression,
-                    ExpressionAttributeValues=expression_values
+                    ConditionExpression=condition_expression_str,
+                    ExpressionAttributeNames=expression_attribute_names,
+                    ExpressionAttributeValues=expression_attribute_values
                 )
                 logger.info(f"Lobby {lobby_id} updated successfully.")
 
@@ -2228,8 +2237,7 @@ def handler(event, context):
                     "currentPhase", "currentTurn", "currentStepIndex", "turnExpiresAt",
                     "bans", "player1Picks", "player2Picks", "availableResonators",
                     "effectiveDraftOrder", "playerRoles",
-                    "player1Sequences", "player1WeightedBoxScore", "player1ScoreSubmitted",
-                    "player2Sequences", "player2WeightedBoxScore", "player2ScoreSubmitted",
+                    "player1Sequences", "player1WeightedBoxScore", "player2Sequences", "player2WeightedBoxScore",
                     "equilibrationBansAllowed", "equilibrationBansMade", "currentEquilibrationBanner"
                 ]
 
@@ -2237,10 +2245,13 @@ def handler(event, context):
                     "#ls = :waitState",
                     "#p1r = :falseVal",
                     "#p2r = :falseVal",
-                    "#la = :lastAct"
+                    "#la = :lastAct",
+                    "#p1ss = :falseVal",
+                    "#p2ss = :falseVal"
                 ]
                 expression_attribute_names = {
-                    '#ls': 'lobbyState', '#p1r': 'player1Ready', '#p2r': 'player2Ready', '#la': 'lastAction'
+                    '#ls': 'lobbyState', '#p1r': 'player1Ready', '#p2r': 'player2Ready', '#la': 'lastAction',
+                    '#p1ss': 'player1ScoreSubmitted', '#p2ss': 'player2ScoreSubmitted'
                 }
                 expression_attribute_values = {
                     ':waitState': 'WAITING',

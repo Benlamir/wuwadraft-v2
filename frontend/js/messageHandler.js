@@ -95,23 +95,51 @@ export function handleWebSocketMessage(jsonData) {
         // Ensure state module is updated with the latest granular info
         state.setCurrentDraftState(message); // Store the whole message
 
-        // ---- START CRITICAL FIX/VERIFICATION ----
+        // Update granular state based on the message
         if (message.hasOwnProperty("currentPhase")) {
-          state.setDraftPhase(message.currentPhase); // This calls the setter in state.js
+          state.setDraftPhase(message.currentPhase);
         } else {
-          state.setDraftPhase(null); // Important if phase legitimately becomes null (e.g. draft reset to waiting)
+          state.setDraftPhase(null);
         }
 
         if (message.hasOwnProperty("currentTurn")) {
-          state.setDraftTurn(message.currentTurn); // This calls the setter in state.js
+          state.setDraftTurn(message.currentTurn);
         } else {
           state.setDraftTurn(null);
         }
-        // ---- END CRITICAL FIX/VERIFICATION ----
 
-        // Store equilibration settings
         if (message.hasOwnProperty("equilibrationEnabled")) {
           state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
+        }
+
+        // Update player-specific submission status from server FIRST
+        let p1SubmittedServer = message.hasOwnProperty("player1ScoreSubmitted")
+          ? message.player1ScoreSubmitted === true
+          : false;
+        let p2SubmittedServer = message.hasOwnProperty("player2ScoreSubmitted")
+          ? message.player2ScoreSubmitted === true
+          : false;
+
+        state.setPlayer1ScoreSubmitted(p1SubmittedServer);
+        state.setPlayer2ScoreSubmitted(p2SubmittedServer);
+
+        // Now, specifically update localPlayerHasSubmittedScore for THIS client based on the new state
+        // This logic assumes state.myAssignedSlot is already correctly set for the current client
+        if (state.myAssignedSlot === "P1") {
+          state.setLocalPlayerHasSubmittedScore(state.player1ScoreSubmitted); // Use the value just set in state
+          console.log(
+            `MH_LSU_DEBUG: MySlot is P1. Server P1Submitted=${p1SubmittedServer}. localPlayerHasSubmittedScore=${state.localPlayerHasSubmittedScore}`
+          );
+        } else if (state.myAssignedSlot === "P2") {
+          state.setLocalPlayerHasSubmittedScore(state.player2ScoreSubmitted); // Use the value just set in state
+          console.log(
+            `MH_LSU_DEBUG: MySlot is P2. Server P2Submitted=${p2SubmittedServer}. localPlayerHasSubmittedScore=${state.localPlayerHasSubmittedScore}`
+          );
+        } else {
+          state.setLocalPlayerHasSubmittedScore(false); // Not an active player in a slot
+          console.log(
+            "MH_LSU_DEBUG: Not P1 or P2, localPlayerHasSubmittedScore set to false."
+          );
         }
 
         // Update draft state if present
@@ -147,74 +175,67 @@ export function handleWebSocketMessage(jsonData) {
 
         // Screen Logic
         if (state.currentPhase) {
-          // Check if draft is active (BAN, PICK, EQUILIBRATE_BANS)
+          // If draft is active (BAN, PICK, EQUILIBRATE_BANS)
           console.log(
             `MessageHandler: Phase from state.js is '${state.currentPhase}'. Updating/showing draft screen.`
           );
-          updateDraftScreenUI(message); // Pass the raw message as draftState
+          updateDraftScreenUI(message);
           showScreen("draft-screen");
         } else if (message.lobbyState === "WAITING") {
-          console.log(
-            "MessageHandler: State is WAITING. Updating/showing lobby wait screen or BSS."
-          );
+          console.log("MH_LSU_WAITING: Processing WAITING state.");
           updateLobbyWaitScreenUI(message);
 
-          // Check if we need to be on BSS screen
           const isPlayer =
             state.myAssignedSlot === "P1" || state.myAssignedSlot === "P2";
 
-          if (state.equilibrationEnabledForLobby && isPlayer) {
-            if (!state.localPlayerHasSubmittedScore) {
-              let serverSaysThisPlayerSubmitted = false;
-              if (state.myAssignedSlot === "P1")
-                serverSaysThisPlayerSubmitted =
-                  message.player1ScoreSubmitted === true;
-              else if (state.myAssignedSlot === "P2")
-                serverSaysThisPlayerSubmitted =
-                  message.player2ScoreSubmitted === true;
-
-              if (!serverSaysThisPlayerSubmitted) {
-                // This player still needs to submit.
-                // If they are not currently on BSS, send them there and ensure it populates.
-                const currentActiveScreen =
-                  document.querySelector(".screen.active");
-                if (
-                  !currentActiveScreen ||
-                  currentActiveScreen.id !== "box-score-screen"
-                ) {
-                  console.log(
-                    "MH_TRACE: WAITING state, player needs to be on BSS. Populating and showing."
-                  );
-                  state.setHasPopulatedBoxScoreScreenThisTurn(false); // Ensure this is set to FALSE
-                  showScreen("box-score-screen");
-                } else {
-                  // Player is already on BSS, do nothing to cause re-populate from here.
-                  console.log(
-                    "MH_TRACE: WAITING state, player already on BSS. No repopulate."
-                  );
-                }
-              } else {
-                // Server says this player HAS submitted.
-                state.setLocalPlayerHasSubmittedScore(true); // Sync local flag
-                state.setHasPopulatedBoxScoreScreenThisTurn(false); // Reset for future needs
-                console.log(
-                  "MH_TRACE: WAITING state, server says scores submitted for this player. Showing lobby-wait-screen."
-                );
-                showScreen("lobby-wait-screen");
+          // Now this condition uses the correctly updated state.localPlayerHasSubmittedScore
+          if (
+            state.equilibrationEnabledForLobby &&
+            isPlayer &&
+            !state.localPlayerHasSubmittedScore
+          ) {
+            console.log(
+              "MH_LSU_WAITING: EQ ON, player, scores NOT submitted for this player. Redirecting to BSS."
+            );
+            const currentActiveScreen =
+              document.querySelector(".screen.active");
+            if (
+              !currentActiveScreen ||
+              currentActiveScreen.id !== "box-score-screen"
+            ) {
+              state.setHasPopulatedBoxScoreScreenThisTurn(false);
+              if (elements.submitBoxScoreBtn) {
+                elements.submitBoxScoreBtn.disabled = false;
+                elements.submitBoxScoreBtn.innerHTML =
+                  '<i class="bi bi-check-circle-fill me-2"></i>Submit Score & Proceed';
               }
+              showScreen("box-score-screen");
             } else {
-              // localPlayerHasSubmittedScore is true
-              state.setHasPopulatedBoxScoreScreenThisTurn(false); // Reset for future needs
-              console.log(
-                "MH_TRACE: WAITING state, local state says scores submitted. Showing lobby-wait-screen."
-              );
-              showScreen("lobby-wait-screen");
+              // Already on BSS, ensure submit button enabled
+              if (
+                elements.submitBoxScoreBtn &&
+                elements.submitBoxScoreBtn.disabled
+              ) {
+                elements.submitBoxScoreBtn.disabled = false;
+                elements.submitBoxScoreBtn.innerHTML =
+                  '<i class="bi bi-check-circle-fill me-2"></i>Submit Score & Proceed';
+              }
             }
           } else {
+            console.log(
+              "MH_LSU_WAITING: WAITING state, but NOT redirecting to BSS (EQ_Off or NotPlayer or ScoresSubmitted by this player). Showing lobby-wait-screen."
+            );
+            state.setHasPopulatedBoxScoreScreenThisTurn(false);
             showScreen("lobby-wait-screen");
           }
+        } else {
+          console.warn(
+            "MH_LSU_WARN: Unhandled lobby/draft state for screen transition."
+          );
+          updateLobbyWaitScreenUI(message); // Fallback to wait screen
+          showScreen("lobby-wait-screen");
         }
-        break;
+        break; // End of case "lobbyStateUpdate"
 
       // --- NEW CASE ADDED ---
       case "forceRedirect":

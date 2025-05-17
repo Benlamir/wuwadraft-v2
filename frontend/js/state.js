@@ -16,6 +16,8 @@ export let timerIntervalId = null; // Holds the ID returned by setInterval
 export let equilibrationEnabledForLobby = false;
 export let localPlayerHasSubmittedScore = false;
 export let hasPopulatedBoxScoreScreenThisTurn = false; // Track if BSS has been populated this session
+export let player1ScoreSubmitted = false; // Track P1's score submission status
+export let player2ScoreSubmitted = false; // Track P2's score submission status
 
 // Add new state variables for draft picks and resonators
 export let player1Picks = [];
@@ -135,6 +137,8 @@ export function clearLobbyState() {
   clearDraftState();
   equilibrationEnabledForLobby = false;
   localPlayerHasSubmittedScore = false;
+  player1ScoreSubmitted = false;
+  player2ScoreSubmitted = false;
   hasPopulatedBoxScoreScreenThisTurn = false; // Reset the BSS population flag
   // Keep currentUserName for convenience
 }
@@ -200,6 +204,21 @@ export function setLocalPlayerHasSubmittedScore(hasSubmitted) {
 export function setHasPopulatedBoxScoreScreenThisTurn(populated) {
   hasPopulatedBoxScoreScreenThisTurn = populated;
   console.log(`State: hasPopulatedBoxScoreScreenThisTurn set to ${populated}`);
+}
+
+// Add setter functions for player score submission status
+export function setPlayer1ScoreSubmitted(status) {
+  player1ScoreSubmitted = status;
+  console.log(
+    `STATE_JS_DEBUG: Global state.player1ScoreSubmitted updated to: ${player1ScoreSubmitted}`
+  );
+}
+
+export function setPlayer2ScoreSubmitted(status) {
+  player2ScoreSubmitted = status;
+  console.log(
+    `STATE_JS_DEBUG: Global state.player2ScoreSubmitted updated to: ${player2ScoreSubmitted}`
+  );
 }
 
 // Optional: Getters if needed, though direct import works for 'let'
