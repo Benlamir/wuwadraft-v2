@@ -511,4 +511,40 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     console.warn("Host Reset Draft Button not found during listener setup.");
   }
+
+  // Add event listener for reset sequences button
+  if (elements.resetLocalSequencesBtn) {
+    elements.resetLocalSequencesBtn.addEventListener("click", () => {
+      console.log("MAIN_JS: 'Reset Inputs' button clicked on BSS.");
+      if (
+        confirm(
+          "Are you sure you want to reset all sequence inputs on this page to 'Not Owned'? This will also clear any remembered sequences from this browser for this tool."
+        )
+      ) {
+        try {
+          localStorage.removeItem(LOCAL_STORAGE_SEQUENCES_KEY);
+          console.log("MAIN_JS: Cleared saved sequences from localStorage.");
+        } catch (e) {
+          console.warn(
+            "MAIN_JS: Could not remove sequences from localStorage.",
+            e
+          );
+        }
+
+        // Repopulate the BSS screen to reflect defaults
+        if (typeof uiViews.populateBoxScoreScreen === "function") {
+          uiViews.populateBoxScoreScreen();
+        } else {
+          console.error(
+            "MAIN_JS_ERROR: uiViews.populateBoxScoreScreen function not found!"
+          );
+        }
+        alert("Sequence inputs have been reset to default ('Not Owned').");
+      }
+    });
+  } else {
+    console.warn(
+      "MAIN_JS_WARN: resetLocalSequencesBtn element not found during listener setup."
+    );
+  }
 }); // End of DOMContentLoaded listener

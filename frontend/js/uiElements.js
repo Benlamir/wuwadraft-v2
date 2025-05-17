@@ -70,6 +70,7 @@ export const elements = {
   hostDeleteDraftLobbyBtn: null,
   hostResetDraftBtn: null,
   draftPlayerControls: null,
+  resetLocalSequencesBtn: null,
 };
 
 // Function to populate the elements object
@@ -183,7 +184,6 @@ export function initializeElements() {
   elements.banSlot3 = document.getElementById("ban-slot-3");
   elements.banSlot4 = document.getElementById("ban-slot-4");
 
-  // Optional: Add logs to verify
   // Box Score Screen Elements
   elements.limitedResonatorsList = document.getElementById(
     "limited-resonators-list"
@@ -194,6 +194,9 @@ export function initializeElements() {
   elements.submitBoxScoreBtn = document.getElementById("submit-box-score-btn");
   elements.boxScoreLeaveSlotBtn = document.getElementById(
     "box-score-leave-slot-btn"
+  );
+  elements.resetLocalSequencesBtn = document.getElementById(
+    "reset-local-sequences-btn"
   );
 
   // Debug logs for new elements
