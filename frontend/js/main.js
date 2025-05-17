@@ -13,6 +13,7 @@ import {
 } from "./uiViews.js";
 import * as state from "./state.js"; // Import all state functions/vars
 import * as uiViews from "./uiViews.js"; // Or specific functions like applyCharacterFilter if using named exports
+import { LOCAL_STORAGE_SEQUENCES_KEY } from "./config.js";
 
 console.log("Main script loading...");
 
@@ -28,7 +29,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize WebSocket connection and message handling
   initializeWebSocket();
-
 
   // --- Attach Event Listeners that Trigger Actions ---
 
@@ -50,7 +50,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Create Lobby Screen Action
-  if (elements.createStartBtn && elements.createNameInput && elements.enableEquilibrationToggle) {
+  if (
+    elements.createStartBtn &&
+    elements.createNameInput &&
+    elements.enableEquilibrationToggle
+  ) {
     elements.createStartBtn.addEventListener("click", () => {
       const name = elements.createNameInput.value.trim();
       const enableEquilibration = elements.enableEquilibrationToggle.checked;
@@ -64,10 +68,14 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("Frontend: Attempting to create lobby with settings:", {
         action: "createLobby",
         name: name,
-        enableEquilibration: enableEquilibration
+        enableEquilibration: enableEquilibration,
       });
 
-      sendMessageToServer({ action: "createLobby", name: name, enableEquilibration: enableEquilibration });
+      sendMessageToServer({
+        action: "createLobby",
+        name: name,
+        enableEquilibration: enableEquilibration,
+      });
       // UI transition will be handled by the onmessage handler now
     });
   }
@@ -205,24 +213,52 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Box Score Submit Button ---
   if (elements.submitBoxScoreBtn) {
-    elements.submitBoxScoreBtn.addEventListener('click', () => {
+    elements.submitBoxScoreBtn.addEventListener("click", () => {
       const sequences = {};
-      const selects = elements.limitedResonatorsList.querySelectorAll('.sequence-select');
-      selects.forEach(select => {
+      const selects =
+        elements.limitedResonatorsList.querySelectorAll(".sequence-select");
+      selects.forEach((select) => {
         const resonatorName = select.dataset.resonatorName;
         const sequenceValue = parseInt(select.value, 10);
-        if (sequenceValue >= 0) { // Only include if owned (S0 or higher)
+        // Save S0-S6. "Not Owned" (-1) could also be saved if desired.
+        // Current logic in your main.js only saves if >= 0. Let's keep that for now.
+        if (sequenceValue >= 0 && sequenceValue <= 6) {
           sequences[resonatorName] = sequenceValue;
         }
+        // If you want to save "Not Owned" explicitly:
+        // else if (sequenceValue === -1) {
+        //   sequences[resonatorName] = -1;
+        // }
       });
       const totalScore = parseInt(elements.totalBoxScoreDisplay.textContent);
-      
+
+      // ---- SAVE TO LOCALSTORAGE ----
+      try {
+        localStorage.setItem(
+          LOCAL_STORAGE_SEQUENCES_KEY,
+          JSON.stringify(sequences)
+        );
+        console.log(
+          "MAIN_JS: Sequences saved to localStorage:",
+          JSON.stringify(sequences)
+        );
+      } catch (e) {
+        console.warn("MAIN_JS: Could not save sequences to localStorage.", e);
+      }
+      // -----------------------------
+
       sendMessageToServer({
-        action: 'submitBoxScore',
+        action: "submitBoxScore",
         lobbyId: state.currentLobbyId,
-        sequences: sequences, // This map now only contains owned characters and their S-value
-        totalScore: totalScore
+        sequences: sequences,
+        totalScore: totalScore,
       });
+
+      if (elements.submitBoxScoreBtn) {
+        elements.submitBoxScoreBtn.disabled = true;
+        elements.submitBoxScoreBtn.innerHTML =
+          '<i class="bi bi-hourglass-split me-2"></i>Submitting...';
+      }
     });
   }
 
@@ -411,10 +447,10 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("Main script initialization complete.");
 
   // TEMPORARY FOR TESTING BOX SCORE SCREEN
-// Use the setter function from state.js
-// state.setLobbyInfo("testLobby123", true, "P1"); // This will set isCurrentUserHost and myAssignedSlot
-// showScreen('box-score-screen'); // UNCOMMENT TO TEST
-// END TEMPORARY
+  // Use the setter function from state.js
+  // state.setLobbyInfo("testLobby123", true, "P1"); // This will set isCurrentUserHost and myAssignedSlot
+  // showScreen('box-score-screen'); // UNCOMMENT TO TEST
+  // END TEMPORARY
 
   // Add event listeners for draft screen
   elements.draftBackBtn.addEventListener("click", () => {

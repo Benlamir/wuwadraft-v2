@@ -4,6 +4,7 @@ import { EQUILIBRATION_PHASE_NAME } from "./config.js";
 import * as state from "./state.js"; // Use state variables
 import { sendMessageToServer } from "./websocket.js"; // Import function to send messages
 import { ALL_RESONATORS_DATA, SEQUENCE_POINTS } from "./resonatorData.js";
+import { LOCAL_STORAGE_SEQUENCES_KEY } from "./config.js";
 
 // --- ADD HELPER FUNCTION ---
 // Helper function to toggle visibility using Bootstrap's d-none class
@@ -1226,25 +1227,47 @@ export function updateTotalBoxScore() {
 
 // --- NEW FUNCTION: populateBoxScoreScreen ---
 export function populateBoxScoreScreen() {
-  if (
-    !elements.limitedResonatorsList ||
-    !ALL_RESONATORS_DATA ||
-    !SEQUENCE_POINTS
-  ) {
+  if (!elements.limitedResonatorsList || !ALL_RESONATORS_DATA) {
     console.error(
-      "Cannot populate box score screen, critical elements or data missing."
+      "UI_VIEWS_BSS_ERROR: Cannot populate - critical elements/data missing."
     );
     return;
   }
 
-  elements.limitedResonatorsList.innerHTML = ""; // Clear previous entries
+  // ---- LOAD FROM LOCALSTORAGE ----
+  let lastSubmittedSequences = {};
+  try {
+    const savedData = localStorage.getItem(LOCAL_STORAGE_SEQUENCES_KEY);
+    console.log(
+      "POPULATE_BSS_DEBUG: Raw savedData from localStorage:",
+      savedData
+    );
+    if (savedData) {
+      lastSubmittedSequences = JSON.parse(savedData);
+      console.log(
+        "POPULATE_BSS_DEBUG: Parsed lastSubmittedSequences:",
+        lastSubmittedSequences
+      );
+    } else {
+      console.log("POPULATE_BSS_DEBUG: No savedData found in localStorage.");
+    }
+  } catch (e) {
+    console.warn(
+      "POPULATE_BSS_WARN: Could not parse sequences from localStorage.",
+      e
+    );
+    lastSubmittedSequences = {}; // Default to empty if error
+  }
+  // -----------------------------
+
+  elements.limitedResonatorsList.innerHTML = "";
   const limitedResonators = ALL_RESONATORS_DATA.filter(
     (resonator) => resonator.isLimited === true
   );
 
   if (limitedResonators.length === 0) {
     elements.limitedResonatorsList.innerHTML =
-      '<p class="text-muted">No limited resonators found in data to declare sequences for.</p>';
+      '<p class="text-muted">No limited resonators found to declare sequences for.</p>';
     updateTotalBoxScore();
     return;
   }
@@ -1264,26 +1287,38 @@ export function populateBoxScoreScreen() {
     selectElement.className = "form-select sequence-select text-center";
     selectElement.dataset.resonatorName = resonator.name;
 
-    // Add "Not Owned" option
     const notOwnedOption = document.createElement("option");
     notOwnedOption.value = "-1";
     notOwnedOption.textContent = "Not Owned";
     selectElement.appendChild(notOwnedOption);
 
-    // Add S0-S6 options
     for (let i = 0; i <= 6; i++) {
       const option = document.createElement("option");
       option.value = i.toString();
       option.textContent = `S${i}`;
       selectElement.appendChild(option);
     }
-    selectElement.value = "-1"; // Default to "Not Owned"
+
+    // ---- PRE-FILL LOGIC ----
+    const previouslySelectedValue = lastSubmittedSequences[resonator.name];
+    // console.log(`POPULATE_BSS_LOOP_DEBUG: For ${resonator.name}, previouslySelectedValue is: ${previouslySelectedValue}`);
+    if (
+      previouslySelectedValue !== undefined &&
+      parseInt(previouslySelectedValue) >= -1 && // Allow -1 for "Not Owned"
+      parseInt(previouslySelectedValue) <= 6
+    ) {
+      selectElement.value = previouslySelectedValue.toString();
+    } else {
+      selectElement.value = "-1"; // Default to "Not Owned"
+    }
+    // -------------------------
 
     selectElement.addEventListener("change", updateTotalBoxScore);
     selectDiv.appendChild(selectElement);
 
     const pointsDisplay = document.createElement("div");
     pointsDisplay.className = "col-md-3 resonator-points-display text-md-start";
+    // updateTotalBoxScore will populate this after all elements are set
     pointsDisplay.innerHTML = "<small>Points: 0</small>";
 
     resonatorRow.appendChild(nameLabel);
@@ -1293,5 +1328,15 @@ export function populateBoxScoreScreen() {
     elements.limitedResonatorsList.appendChild(resonatorRow);
   });
 
-  updateTotalBoxScore();
+  updateTotalBoxScore(); // Calculate initial total score based on pre-filled/default values
+
+  // Ensure submit button is enabled when screen is populated
+  if (elements.submitBoxScoreBtn) {
+    elements.submitBoxScoreBtn.disabled = false;
+    elements.submitBoxScoreBtn.innerHTML =
+      '<i class="bi bi-check-circle-fill me-2"></i>Submit Score & Proceed';
+  }
+  console.log(
+    "UI_VIEWS_BSS: Box Score Screen populated. Submit button ensured enabled."
+  );
 }
