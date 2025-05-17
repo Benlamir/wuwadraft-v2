@@ -86,14 +86,28 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       case "lobbyStateUpdate":
+        console.log("MH_TRACE: Case lobbyStateUpdate");
         console.log(
           "MH_DEBUG: lobbyStateUpdate received from server:",
           JSON.stringify(message)
         );
-        console.log(
-          "MessageHandler: Received lobbyStateUpdate message:",
-          message
-        );
+
+        // Ensure state module is updated with the latest granular info
+        state.setCurrentDraftState(message); // Store the whole message
+
+        // ---- START CRITICAL FIX/VERIFICATION ----
+        if (message.hasOwnProperty("currentPhase")) {
+          state.setDraftPhase(message.currentPhase); // This calls the setter in state.js
+        } else {
+          state.setDraftPhase(null); // Important if phase legitimately becomes null (e.g. draft reset to waiting)
+        }
+
+        if (message.hasOwnProperty("currentTurn")) {
+          state.setDraftTurn(message.currentTurn); // This calls the setter in state.js
+        } else {
+          state.setDraftTurn(null);
+        }
+        // ---- END CRITICAL FIX/VERIFICATION ----
 
         // Store equilibration settings
         if (message.hasOwnProperty("equilibrationEnabled")) {
@@ -111,28 +125,22 @@ export function handleWebSocketMessage(jsonData) {
           state.setAvailableResonators(message.availableResonators);
         }
 
-        // Update UI elements
-        updateLobbyWaitScreenUI(message);
+        // Handle turn expiry
+        if (message.hasOwnProperty("turnExpiresAt")) {
+          state.setTurnExpiry(message.turnExpiresAt);
+          startOrUpdateTimerDisplay();
+        } else {
+          state.setTurnExpiry(null);
+          stopTimerDisplay();
+        }
 
-        // Handle screen transitions based on lobby state
-        if (message.lobbyState === "DRAFTING") {
+        // Screen Logic
+        if (state.currentPhase) {
+          // Check if draft is active (BAN, PICK, EQUILIBRATE_BANS)
           console.log(
-            "MessageHandler: State is DRAFTING. Updating draft screen."
+            `MessageHandler: Phase from state.js is '${state.currentPhase}'. Updating/showing draft screen.`
           );
-          // Set the current phase from the message
-          if (message.hasOwnProperty("currentPhase")) {
-            state.setDraftPhase(message.currentPhase);
-            console.log(
-              `MessageHandler: Updated currentPhase to ${message.currentPhase}`
-            );
-          }
-          if (message.hasOwnProperty("currentTurn")) {
-            state.setDraftTurn(message.currentTurn);
-            console.log(
-              `MessageHandler: Updated currentTurn to ${message.currentTurn}`
-            );
-          }
-          updateDraftScreenUI(message);
+          updateDraftScreenUI(message); // Pass the raw message as draftState
           showScreen("draft-screen");
         } else if (message.lobbyState === "WAITING") {
           console.log(

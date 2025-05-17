@@ -45,26 +45,19 @@ export function setAssignedSlot(slot) {
 
 // --- ADD NEW UPDATE FUNCTIONS BELOW THIS LINE ---
 export function setDraftPhase(phase) {
-  const changed = phase !== currentPhase;
-  console.log(
-    `STATE_JS_DEBUG: Setting currentPhase from ${currentPhase} to ${phase}`
-  );
+  const previousPhase = currentPhase;
   currentPhase = phase;
-  if (changed) {
-    console.log(`State: Phase changed to ${phase}`);
-  }
+  console.log(
+    `STATE_JS_DEBUG: Global state.currentPhase changed from '${previousPhase}' to '${currentPhase}'`
+  );
 }
 
 export function setDraftTurn(turn) {
-  const changed = turn !== currentTurn;
-  console.log(
-    `STATE_JS_DEBUG: Setting currentTurn from ${currentTurn} to ${turn}`
-  );
-  console.log(`STATE_JS_DEBUG: Turn change triggered by lobbyStateUpdate`);
+  const previousTurn = currentTurn;
   currentTurn = turn;
-  if (changed) {
-    console.log(`State: Turn changed to ${turn}`);
-  }
+  console.log(
+    `STATE_JS_DEBUG: Global state.currentTurn changed from '${previousTurn}' to '${currentTurn}'`
+  );
 }
 
 export function setActiveElementFilter(filter) {

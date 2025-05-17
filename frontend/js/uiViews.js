@@ -369,42 +369,36 @@ function updateSlotGlowState(slot, isActive, isFilled, type) {
 // --- ADD NEW FUNCTION for Pick Slots ---
 function updatePickSlots(draftState) {
   console.log(
-    "UI_VIEWS_DEBUG: updatePickSlots called with draftState:",
-    draftState
+    "UPDATE_PICK_SLOTS: Called. draftState.player1Picks:",
+    JSON.stringify(draftState.player1Picks),
+    "draftState.player2Picks:",
+    JSON.stringify(draftState.player2Picks)
   );
-  console.log(
-    "UI_VIEWS_DEBUG: player1Picks from draftState:",
-    draftState.player1Picks
-  );
-  console.log(
-    "UI_VIEWS_DEBUG: player2Picks from draftState:",
-    draftState.player2Picks
-  );
-  console.log("UI_VIEWS_DEBUG: currentPhase:", draftState.currentPhase);
-  console.log("UI_VIEWS_DEBUG: currentTurn:", draftState.currentTurn);
-
   const p1Picks = draftState.player1Picks || [];
   const p2Picks = draftState.player2Picks || [];
+  console.log(
+    "UPDATE_PICK_SLOTS: Parsed p1Picks for slots:",
+    JSON.stringify(p1Picks)
+  );
+  console.log(
+    "UPDATE_PICK_SLOTS: Parsed p2Picks for slots:",
+    JSON.stringify(p2Picks)
+  );
+
   const currentPhase = draftState.currentPhase;
   const currentTurn = draftState.currentTurn;
 
-  // Assuming 3 pick slots per player for now
   const p1SlotElements = [elements.p1Pick1, elements.p1Pick2, elements.p1Pick3];
-  const p2SlotElements = [elements.p2Pick1, elements.p2Pick2, elements.p2Pick3];
-
   console.log(
-    "UI_VIEWS_DEBUG: P1 slot elements found:",
+    "UPDATE_PICK_SLOTS: P1 Slot Elements:",
     p1SlotElements.map((el) => !!el)
-  );
-  console.log(
-    "UI_VIEWS_DEBUG: P2 slot elements found:",
-    p2SlotElements.map((el) => !!el)
-  );
+  ); // Check if elements are found
 
-  // Update Player 1 slots
   p1SlotElements.forEach((slot, index) => {
     if (!slot) {
-      console.warn(`UI_VIEWS_DEBUG: P1 slot ${index + 1} element not found`);
+      console.error(
+        `UPDATE_PICK_SLOTS_ERROR: P1 pick slot element at index ${index} not found!`
+      );
       return;
     }
     const pickName = p1Picks[index];
@@ -413,38 +407,52 @@ function updatePickSlots(draftState) {
       currentTurn === "P1" &&
       !pickName &&
       index === p1Picks.length;
-
-    console.log(`UI_VIEWS_DEBUG: Updating P1 slot ${index + 1}:`, {
-      pickName,
-      isActive,
-      currentPhase,
-      currentTurn,
-      picksLength: p1Picks.length,
-    });
-
+    console.log(
+      `UPDATE_PICK_SLOTS: P1 Slot ${
+        index + 1
+      }, pickName: ${pickName}, isActive: ${isActive}`
+    );
     if (pickName) {
       const resonator = findResonatorByName(pickName);
+      console.log(
+        `UPDATE_PICK_SLOTS: P1 Slot ${
+          index + 1
+        } findResonatorByName('${pickName}') result:`,
+        resonator
+      );
       if (resonator && resonator.image_pick) {
-        console.log(
-          `UI_VIEWS_DEBUG: Setting P1 slot ${index + 1} image for ${pickName}`
-        );
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
+        console.log(
+          `UPDATE_PICK_SLOTS: P1 Slot ${
+            index + 1
+          } updated with image for ${pickName}. InnerHTML set.`
+        );
       } else {
-        console.warn(`UI_VIEWS_DEBUG: No image found for P1 pick ${pickName}`);
-        slot.innerHTML = `<span>?</span>`;
+        slot.innerHTML = `<span>${pickName || "?"}</span>`;
+        console.log(
+          `UPDATE_PICK_SLOTS: P1 Slot ${
+            index + 1
+          } set with text for ${pickName} (resonator or image_pick missing).`
+        );
       }
     } else {
-      console.log(`UI_VIEWS_DEBUG: Clearing P1 slot ${index + 1}`);
       slot.innerHTML = "";
+      console.log(`UPDATE_PICK_SLOTS: Clearing P1 Slot ${index + 1}`);
     }
-
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
   });
 
-  // Update Player 2 slots
+  const p2SlotElements = [elements.p2Pick1, elements.p2Pick2, elements.p2Pick3];
+  console.log(
+    "UPDATE_PICK_SLOTS: P2 Slot Elements:",
+    p2SlotElements.map((el) => !!el)
+  );
+
   p2SlotElements.forEach((slot, index) => {
     if (!slot) {
-      console.warn(`UI_VIEWS_DEBUG: P2 slot ${index + 1} element not found`);
+      console.error(
+        `UPDATE_PICK_SLOTS_ERROR: P2 pick slot element at index ${index} not found!`
+      );
       return;
     }
     const pickName = p2Picks[index];
@@ -453,31 +461,38 @@ function updatePickSlots(draftState) {
       currentTurn === "P2" &&
       !pickName &&
       index === p2Picks.length;
-
-    console.log(`UI_VIEWS_DEBUG: Updating P2 slot ${index + 1}:`, {
-      pickName,
-      isActive,
-      currentPhase,
-      currentTurn,
-      picksLength: p2Picks.length,
-    });
-
+    console.log(
+      `UPDATE_PICK_SLOTS: P2 Slot ${
+        index + 1
+      }, pickName: ${pickName}, isActive: ${isActive}`
+    );
     if (pickName) {
       const resonator = findResonatorByName(pickName);
+      console.log(
+        `UPDATE_PICK_SLOTS: P2 Slot ${
+          index + 1
+        } findResonatorByName('${pickName}') result:`,
+        resonator
+      );
       if (resonator && resonator.image_pick) {
-        console.log(
-          `UI_VIEWS_DEBUG: Setting P2 slot ${index + 1} image for ${pickName}`
-        );
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
+        console.log(
+          `UPDATE_PICK_SLOTS: P2 Slot ${
+            index + 1
+          } updated with image for ${pickName}. InnerHTML set.`
+        );
       } else {
-        console.warn(`UI_VIEWS_DEBUG: No image found for P2 pick ${pickName}`);
-        slot.innerHTML = `<span>?</span>`;
+        slot.innerHTML = `<span>${pickName || "?"}</span>`;
+        console.log(
+          `UPDATE_PICK_SLOTS: P2 Slot ${
+            index + 1
+          } set with text for ${pickName} (resonator or image_pick missing).`
+        );
       }
     } else {
-      console.log(`UI_VIEWS_DEBUG: Clearing P2 slot ${index + 1}`);
       slot.innerHTML = "";
+      console.log(`UPDATE_PICK_SLOTS: Clearing P2 Slot ${index + 1}`);
     }
-
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
   });
 }
