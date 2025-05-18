@@ -125,6 +125,9 @@ export function handleWebSocketMessage(jsonData) {
 
         // Now, specifically update localPlayerHasSubmittedScore for THIS client based on the new state
         // This logic assumes state.myAssignedSlot is already correctly set for the current client
+        console.log(
+          `MH_LSU_DEBUG_SLOT_CHECK: MySlot is '${state.myAssignedSlot}' before setting localPlayerHasSubmittedScore.`
+        );
         if (state.myAssignedSlot === "P1") {
           state.setLocalPlayerHasSubmittedScore(state.player1ScoreSubmitted); // Use the value just set in state
           console.log(
