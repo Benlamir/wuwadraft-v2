@@ -514,12 +514,22 @@ def handler(event, context):
                 # --- BEGIN NOTIFICATION BLOCK ---
                 # Fetch the latest lobby state again to ensure we have player names/IDs
                 try:
-                    updated_response = lobbies_table.get_item(Key={'lobbyId': lobby_id})
+                    logger.info(f"JOIN_LOBBY_BROADCAST: Attempting to fetch lobby item for broadcast. LobbyID: {lobby_id}")
+                    updated_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
                     updated_lobby_item = updated_response.get('Item')
+
                     if not updated_lobby_item:
-                        logger.error(f"Could not re-fetch lobby {lobby_id} for state update broadcast.")
+                        logger.error(f"JOIN_LOBBY_BROADCAST_ERROR: Lobby item for {lobby_id} is NULL after get_item for broadcast.")
                         # Don't fail the whole join, just log error and return
                         return {'statusCode': 200, 'body': 'Player joined lobby, but failed to broadcast update.'}
+
+                    # VERY IMPORTANT LOGS:
+                    p1_score_submitted_from_db = updated_lobby_item.get('player1ScoreSubmitted')
+                    p2_score_submitted_from_db = updated_lobby_item.get('player2ScoreSubmitted')
+                    logger.info(f"JOIN_LOBBY_BROADCAST_DATA: LobbyID: {lobby_id}, Fetched P1ScoreSubmitted: {p1_score_submitted_from_db} (type: {type(p1_score_submitted_from_db)})")
+                    logger.info(f"JOIN_LOBBY_BROADCAST_DATA: LobbyID: {lobby_id}, Fetched P2ScoreSubmitted: {p2_score_submitted_from_db} (type: {type(p2_score_submitted_from_db)})")
+                    # Log the entire item to be sure
+                    logger.info(f"JOIN_LOBBY_BROADCAST_FULL_ITEM: {json.dumps(updated_lobby_item, cls=DecimalEncoder)}")
 
                     # Prepare the state update payload
                     state_payload = {
@@ -537,9 +547,11 @@ def handler(event, context):
                         "player1Picks": updated_lobby_item.get('player1Picks', []),
                         "player2Picks": updated_lobby_item.get('player2Picks', []),
                         "availableResonators": updated_lobby_item.get('availableResonators', []),
-                        "turnExpiresAt": updated_lobby_item.get('turnExpiresAt')
+                        "turnExpiresAt": updated_lobby_item.get('turnExpiresAt'),
+                        "player1ScoreSubmitted": bool(p1_score_submitted_from_db),  # Explicitly cast to bool after logging
+                        "player2ScoreSubmitted": bool(p2_score_submitted_from_db)   # Explicitly cast to bool after logging
                     }
-                    logger.info(f"Broadcasting lobby state update: {state_payload}")
+                    logger.info(f"JOIN_LOBBY_BROADCAST_PAYLOAD: Broadcasting lobby state update: {json.dumps(state_payload, cls=DecimalEncoder)}")
 
                     # Get all current participant connection IDs
                     participants = [
