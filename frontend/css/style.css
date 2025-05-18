@@ -510,6 +510,30 @@ header {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
+/* Sequence Overlay */
+.sequence-overlay-container {
+  position: absolute;
+  top: 3px; /* Fine-tune */
+  right: 3px; /* Fine-tune */
+  display: flex;
+  flex-direction: column; 
+  align-items: flex-end;
+  gap: 2px; /* Space between P1 and P2 sequence lines if both shown */
+  background-color: rgba(0, 0, 0, 0.6); 
+  padding: 2px 4px;
+  border-radius: 3px;
+  pointer-events: none; 
+  font-size: 0.6em; /* Make it quite small */
+  line-height: 1;
+  z-index: 10; /* Ensure it's above the image but potentially below other things if needed */
+}
+
+.sequence-display {
+  color: #fff;
+  font-weight: normal; /* Normal weight might be better for small text */
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+}
+
 /* Rarity Gradients */
 .character-button.rarity-5 {
   background: linear-gradient(to bottom, #ff9800, black);

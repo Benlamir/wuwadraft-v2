@@ -795,10 +795,10 @@ export function updateDraftScreenUI(draftState) {
 
   // Update Player Names
   if (elements.draftP1Name) {
-    elements.draftP1Name.textContent = draftState.player1Name || "[P1 Name]";
+    elements.draftP1Name.textContent = `P1: ${draftState.player1Name}`;
   }
   if (elements.draftP2Name) {
-    elements.draftP2Name.textContent = draftState.player2Name || "[P2 Name]";
+    elements.draftP2Name.textContent = `P2: ${draftState.player2Name}`;
   }
 
   // Update Pick and Ban Slots
@@ -947,7 +947,14 @@ function renderCharacterGrid(draftState) {
     "Current Turn:",
     draftState.currentTurn
   );
-  console.log("RENDER_GRID: My Slot:", state.myAssignedSlot);
+
+  // Add logs BSS related data from draftstate
+  console.log("RENDER_GRID: Equilibration Enabled in draftState:", draftState.equilibrationEnabled);
+  // Check if sequences are objects, otherwise default to empty object for safety
+  const p1SequencesFromState = typeof draftState.player1Sequences === 'object' && draftState.player1Sequences !== null ? draftState.player1Sequences : {};
+  const p2SequencesFromState = typeof draftState.player2Sequences === 'object' && draftState.player2Sequences !== null ? draftState.player2Sequences : {};
+  console.log("RENDER_GRID: P1 Sequences in draftState:", JSON.stringify(p1SequencesFromState));
+  console.log("RENDER_GRID: P2 Sequences in draftState:", JSON.stringify(p2SequencesFromState));
 
   if (!elements.characterGridContainer) {
     console.error(
@@ -958,25 +965,11 @@ function renderCharacterGrid(draftState) {
 
   // Log 5: Active filter
   const activeFilter = state.activeElementFilter || "All";
-  console.log(`RENDER_GRID: Active filter: ${activeFilter}`);
-
-  // console.log(`UI: Rendering grid with filter: ${activeFilter}`);
-
-  // console.log(
-  //   "UI: Rendering character grid. Raw draftState:",
-  //   draftState
-  // );
-  // Log 2: Clear the grid
   elements.characterGridContainer.innerHTML = "";
-  console.log("RENDER_GRID: Cleared characterGridContainer.");
 
   // Log 3: Available Resonators from draftState
   const availableResonatorsFromServer = draftState.availableResonators || [];
-  console.log(
-    "RENDER_GRID: availableResonatorsFromServer (length):",
-    availableResonatorsFromServer.length,
-    JSON.stringify(availableResonatorsFromServer)
-  );
+
   if (
     availableResonatorsFromServer.length === 0 &&
     draftState.currentPhase !== DRAFT_COMPLETE_PHASE
@@ -1032,7 +1025,6 @@ function renderCharacterGrid(draftState) {
 
   // Loop over the filtered list
   resonatorsToDisplay.forEach((resonator) => {
-    console.log(`RENDER_GRID_LOOP: Creating button for ${resonator.name}`); // Check if loop is running
     const button = document.createElement("button");
     button.classList.add("character-button", "stylish-button");
     button.dataset.resonatorId = resonator.id;
@@ -1053,6 +1045,34 @@ function renderCharacterGrid(draftState) {
         <span class="character-name">${resonator.name}</span>
     `;
 
+  // --- NEW: Add Sequence Overlay Logic ---
+  if (draftState.equilibrationEnabled && resonator.isLimited) {
+    // p1SequencesFromState and p2SequencesFromState are already safely defaulted to {} if null/undefined
+    const p1SeqVal = p1SequencesFromState[resonator.name];
+    const p2SeqVal = p2SequencesFromState[resonator.name];
+
+    // Only create container if there's at least one sequence to show
+    let hasSequenceInfo = false;
+    const sequenceTexts = [];
+
+    if (p1SeqVal !== undefined && p1SeqVal >= -1) { // Allow "Not Owned" (-1) or S0-S6
+      sequenceTexts.push(`<span class="sequence-display p1-sequence">P1: ${p1SeqVal === -1 ? 'N/A' : 'S'+p1SeqVal}</span>`);
+      hasSequenceInfo = true;
+    }
+    if (p2SeqVal !== undefined && p2SeqVal >= -1) {
+      sequenceTexts.push(`<span class="sequence-display p2-sequence">P2: ${p2SeqVal === -1 ? 'N/A' : 'S'+p2SeqVal}</span>`);
+      hasSequenceInfo = true;
+    }
+
+    if (hasSequenceInfo) {
+      const sequenceOverlayContainer = document.createElement('div');
+      sequenceOverlayContainer.className = 'sequence-overlay-container';
+      sequenceOverlayContainer.innerHTML = sequenceTexts.join(''); // Add all sequence texts
+      button.appendChild(sequenceOverlayContainer);
+    }
+  }
+  // --- END NEW ---
+
     // Determine button state based on draftState
     let isActuallyAvailableOnServer = availableSet.has(resonator.name);
     let isPickedByP1 = p1PicksSet.has(resonator.name);
@@ -1068,21 +1088,9 @@ function renderCharacterGrid(draftState) {
     if (draftState.currentPhase === state.EQUILIBRATION_PHASE_NAME) {
       isMyTurnContext =
         state.myAssignedSlot === draftState.currentEquilibrationBanner;
-      console.log(
-        `RENDER_GRID: EQ Phase. MySlot=${state.myAssignedSlot}, EQBanner=${draftState.currentEquilibrationBanner}, isMyTurnContext=${isMyTurnContext}`
-      );
     } else {
       isMyTurnContext = state.myAssignedSlot === draftState.currentTurn;
-      console.log(
-        `RENDER_GRID: Standard Phase. MySlot=${state.myAssignedSlot}, currentTurn=${draftState.currentTurn}, isMyTurnContext=${isMyTurnContext}`
-      );
-      //   `DEBUG (${resonator.name}): isBanned=${isBanned}, isPickedP1=${isPickedByP1}, isPickedP2=${isPickedByP2}, isActuallyAvailableOnServer=${isActuallyAvailableOnServer}, availableSet:`,
-      //   availableSet,
-      //   "bansSet:",
-      //   bansSet
-      // );
     }
-    // --- END DEBUG LOG ---
 
     // Remove previous state classes
     button.classList.remove(
@@ -1128,9 +1136,6 @@ function renderCharacterGrid(draftState) {
 
     try {
       elements.characterGridContainer.appendChild(button);
-      console.log(
-        `RENDER_GRID_LOOP: Successfully appended button for ${resonator.name}`
-      );
     } catch (e) {
       console.error(
         `RENDER_GRID_ERROR: Failed to append button for ${resonator.name}:`,
