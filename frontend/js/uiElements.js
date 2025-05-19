@@ -75,7 +75,7 @@ export const elements = {
 
 // Function to populate the elements object
 export function initializeElements() {
-  console.log("UI: Initializing elements...");
+  //console.log("UI: Initializing elements...");
   // Get the header element
   elements.header = document.querySelector("header");
 
@@ -200,15 +200,15 @@ export function initializeElements() {
   );
 
   // Debug logs for new elements
-  console.log("Check element - boxScoreScreen:", elements.boxScoreScreen);
-  console.log(
-    "Check element - enableEquilibrationToggle:",
-    elements.enableEquilibrationToggle
-  );
-  console.log("Check element - draftP1Name:", elements.draftP1Name);
-  console.log("Check element - draftP2Name:", elements.draftP2Name);
+  //console.log("Check element - boxScoreScreen:", elements.boxScoreScreen);
+  //console.log(
+  //  "Check element - enableEquilibrationToggle:",
+  //  elements.enableEquilibrationToggle
+  //);
+  //console.log("Check element - draftP1Name:", elements.draftP1Name);
+  //console.log("Check element - draftP2Name:", elements.draftP2Name);
 
-  console.log("UI: Elements initialized.", elements);
+  //console.log("UI: Elements initialized.", elements);
 
   // Check for missing elements (optional but helpful)
   for (const key in elements) {

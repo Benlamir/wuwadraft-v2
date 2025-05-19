@@ -10,15 +10,15 @@ import {
 import { elements } from "./uiElements.js"; // Import elements object
 
 export function handleWebSocketMessage(jsonData) {
-  console.log("MH_TRACE: handleWebSocketMessage START");
-  console.log("MH_TRACE: Raw data:", jsonData);
+  //console.log("MH_TRACE: handleWebSocketMessage START");
+  //console.log("MH_TRACE: Raw data:", jsonData);
   try {
     const message = JSON.parse(jsonData);
-    console.log("MH_TRACE: Parsed message:", message);
+    //console.log("MH_TRACE: Parsed message:", message);
 
     switch (message.type) {
       case "lobbyCreated":
-        console.log("MessageHandler: Received lobbyCreated message:", message);
+        //console.log("MessageHandler: Received lobbyCreated message:", message);
         state.setLobbyInfo(message.lobbyId, true, message.message);
         if (message.hasOwnProperty("equilibrationEnabled")) {
           state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
@@ -40,7 +40,7 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       case "lobbyJoined":
-        console.log("MessageHandler: Received lobbyJoined message:", message);
+        //console.log("MessageHandler: Received lobbyJoined message:", message);
         state.setLobbyInfo(message.lobbyId, false, message.message);
         state.setAssignedSlot(message.assignedSlot);
 
@@ -52,9 +52,9 @@ export function handleWebSocketMessage(jsonData) {
             state.myAssignedSlot &&
             !message.playerScoreSubmitted
           ) {
-            console.log(
-              "MH_TRACE: Equilibration ON, player new/score not submitted, redirecting to Box Score Screen."
-            );
+            //console.log(
+            //  "MH_TRACE: Equilibration ON, player new/score not submitted, redirecting to Box Score Screen."
+            //);
             state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
             state.setLocalPlayerHasSubmittedScore(false);
             state.setHasPopulatedBoxScoreScreenThisTurn(false); // Ensure this is set to FALSE here
@@ -73,9 +73,9 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       case "boxScoreSubmitted":
-        console.log(
-          "MH_TRACE: Case boxScoreSubmitted - score acknowledged by server for this client."
-        );
+        //console.log(
+        //  "MH_TRACE: Case boxScoreSubmitted - score acknowledged by server for this client."
+        //);
         state.setLocalPlayerHasSubmittedScore(true);
         state.setHasPopulatedBoxScoreScreenThisTurn(false); // Reset flag here
         showScreen("lobby-wait-screen");
@@ -86,11 +86,14 @@ export function handleWebSocketMessage(jsonData) {
         break;
 
       case "lobbyStateUpdate":
-        console.log("MH_TRACE: Case lobbyStateUpdate");
         console.log(
-          "MH_DEBUG: lobbyStateUpdate received from server:",
-          JSON.stringify(message)
+          "MH_DEBUG: lobbyStateUpdate received from server:", JSON.stringify(message)
         );
+        //console.log("MH_TRACE: Case lobbyStateUpdate");
+        //console.log(
+         // "MH_DEBUG: lobbyStateUpdate received from server:",
+        //  JSON.stringify(message)
+        //);
 
         // Ensure state module is updated with the latest granular info
         state.setCurrentDraftState(message); // Store the whole message
@@ -125,9 +128,9 @@ export function handleWebSocketMessage(jsonData) {
 
         // Now, specifically update localPlayerHasSubmittedScore for THIS client based on the new state
         // This logic assumes state.myAssignedSlot is already correctly set for the current client
-        console.log(
-          `MH_LSU_DEBUG_SLOT_CHECK: MySlot is '${state.myAssignedSlot}' before setting localPlayerHasSubmittedScore.`
-        );
+        //console.log(
+         // `MH_LSU_DEBUG_SLOT_CHECK: MySlot is '${state.myAssignedSlot}' before setting localPlayerHasSubmittedScore.`
+        //);
         if (state.myAssignedSlot === "P1") {
           state.setLocalPlayerHasSubmittedScore(state.player1ScoreSubmitted); // Use the value just set in state
           console.log(
@@ -135,14 +138,14 @@ export function handleWebSocketMessage(jsonData) {
           );
         } else if (state.myAssignedSlot === "P2") {
           state.setLocalPlayerHasSubmittedScore(state.player2ScoreSubmitted); // Use the value just set in state
-          console.log(
-            `MH_LSU_DEBUG: MySlot is P2. Server P2Submitted=${p2SubmittedServer}. localPlayerHasSubmittedScore=${state.localPlayerHasSubmittedScore}`
-          );
+          //console.log(
+          //  `MH_LSU_DEBUG: MySlot is P2. Server P2Submitted=${p2SubmittedServer}. localPlayerHasSubmittedScore=${state.localPlayerHasSubmittedScore}`
+          //);
         } else {
           state.setLocalPlayerHasSubmittedScore(false); // Not an active player in a slot
-          console.log(
-            "MH_LSU_DEBUG: Not P1 or P2, localPlayerHasSubmittedScore set to false."
-          );
+          //console.log(
+          //  "MH_LSU_DEBUG: Not P1 or P2, localPlayerHasSubmittedScore set to false."
+          //);
         }
 
         // Update draft state if present
@@ -161,17 +164,17 @@ export function handleWebSocketMessage(jsonData) {
           message.hasOwnProperty("turnExpiresAt") &&
           message.turnExpiresAt !== null
         ) {
-          console.log(
-            "MH_TIMER_DEBUG: turnExpiresAt is PRESENT:",
-            message.turnExpiresAt,
-            ". Calling startOrUpdateTimerDisplay."
-          );
+          //console.log(
+          //  "MH_TIMER_DEBUG: turnExpiresAt is PRESENT:",
+          //  message.turnExpiresAt,
+          //  ". Calling startOrUpdateTimerDisplay."
+          //);
           state.setTurnExpiry(message.turnExpiresAt); // Update state
           startOrUpdateTimerDisplay(); // Attempt to start/update visual timer
         } else {
-          console.log(
-            "MH_TIMER_DEBUG: turnExpiresAt is NULL or MISSING. Calling stopTimerDisplay."
-          );
+          //console.log(
+          //  "MH_TIMER_DEBUG: turnExpiresAt is NULL or MISSING. Calling stopTimerDisplay."
+          //);
           state.setTurnExpiry(null); // Update state
           stopTimerDisplay(); // Stop visual timer
         }
@@ -179,13 +182,13 @@ export function handleWebSocketMessage(jsonData) {
         // Screen Logic
         if (state.currentPhase) {
           // If draft is active (BAN, PICK, EQUILIBRATE_BANS)
-          console.log(
-            `MessageHandler: Phase from state.js is '${state.currentPhase}'. Updating/showing draft screen.`
-          );
+          //console.log(
+          //  `MessageHandler: Phase from state.js is '${state.currentPhase}'. Updating/showing draft screen.`
+          //);
           updateDraftScreenUI(message);
           showScreen("draft-screen");
         } else if (message.lobbyState === "WAITING") {
-          console.log("MH_LSU_WAITING: Processing WAITING state.");
+          //console.log("MH_LSU_WAITING: Processing WAITING state.");
           updateLobbyWaitScreenUI(message);
 
           const isPlayer =
@@ -197,9 +200,9 @@ export function handleWebSocketMessage(jsonData) {
             isPlayer &&
             !state.localPlayerHasSubmittedScore
           ) {
-            console.log(
-              "MH_LSU_WAITING: EQ ON, player, scores NOT submitted for this player. Redirecting to BSS."
-            );
+            //console.log(
+             // "MH_LSU_WAITING: EQ ON, player, scores NOT submitted for this player. Redirecting to BSS."
+            //);
             const currentActiveScreen =
               document.querySelector(".screen.active");
             if (
@@ -225,9 +228,9 @@ export function handleWebSocketMessage(jsonData) {
               }
             }
           } else {
-            console.log(
-              "MH_LSU_WAITING: WAITING state, but NOT redirecting to BSS (EQ_Off or NotPlayer or ScoresSubmitted by this player). Showing lobby-wait-screen."
-            );
+            //console.log(
+            //  "MH_LSU_WAITING: WAITING state, but NOT redirecting to BSS (EQ_Off or NotPlayer or ScoresSubmitted by this player). Showing lobby-wait-screen."
+            //);
             state.setHasPopulatedBoxScoreScreenThisTurn(false);
             showScreen("lobby-wait-screen");
           }
@@ -242,8 +245,8 @@ export function handleWebSocketMessage(jsonData) {
 
       // --- NEW CASE ADDED ---
       case "forceRedirect":
-        console.log("MH_TRACE: Case forceRedirect");
-        console.log("Received forceRedirect:", message);
+        //console.log("MH_TRACE: Case forceRedirect");
+        //console.log("Received forceRedirect:", message);
         const redirectMessage =
           message.message ||
           "An action requires you to return to the main screen.";
@@ -251,15 +254,15 @@ export function handleWebSocketMessage(jsonData) {
 
         // Reset client state (lobby ID, role, slot, currentDraftState etc.)
         state.clearLobbyState();
-        console.log("MH_TRACE: Client state reset via clearLobbyState().");
+        //console.log("MH_TRACE: Client state reset via clearLobbyState().");
 
         // Navigate back to the welcome screen
         // Ensure uiViews is imported correctly
         showScreen("welcome-screen");
-        console.log(
-          "MH_TRACE: Navigated to welcome screen due to:",
-          message.reason
-        ); // Log reason
+        //console.log(
+        //  "MH_TRACE: Navigated to welcome screen due to:",
+        //  message.reason
+        //); // Log reason
 
         // Optional: Consider closing the WebSocket connection here if desired
         // import { closeWebSocket } from './websocket.js';
@@ -268,23 +271,23 @@ export function handleWebSocketMessage(jsonData) {
       // --- END NEW CASE ---
 
       case "error":
-        console.log("MH_TRACE: Case error");
+        //console.log("MH_TRACE: Case error");
         console.error("MessageHandler: Server error:", message.message);
         alert(`Server Error: ${message.message}`); // Show error to user
         break;
 
       case "echo":
-        console.log("MH_TRACE: Case echo");
-        console.log("MessageHandler: Echo:", message.received_message);
+        //console.log("MH_TRACE: Case echo");
+        //console.log("MessageHandler: Echo:", message.received_message);
         break;
 
       default:
-        console.log("MH_TRACE: Case default");
-        console.log("MessageHandler: Unknown message type:", message.type);
+        //console.log("MH_TRACE: Case default");
+        //console.log("MessageHandler: Unknown message type:", message.type);
     }
   } catch (error) {
-    console.error("MH_TRACE: ERROR in handleWebSocketMessage:", error);
-    console.error("MH_TRACE: Received data that caused error:", jsonData);
+    //console.error("MH_TRACE: ERROR in handleWebSocketMessage:", error);
+    //console.error("MH_TRACE: Received data that caused error:", jsonData);
   }
-  console.log("MH_TRACE: handleWebSocketMessage END");
+  //console.log("MH_TRACE: handleWebSocketMessage END");
 }

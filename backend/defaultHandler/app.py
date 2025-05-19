@@ -26,7 +26,7 @@ class DecimalEncoder(json.JSONEncoder):
             else:
                 # Keep precision for floats stored as Decimal
                 # Using str() preserves precision accurately
-                return str(obj)
+                return float(obj)
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 # --- END Helper Function ---
@@ -202,38 +202,43 @@ def get_apigw_management_client(event):
     logger.info(f"Creating ApiGatewayManagementApi client with endpoint: {endpoint_url}")
     return boto3.client('apigatewaymanagementapi', endpoint_url=endpoint_url)
 
-def send_message_to_client(apigw_client, connection_id, payload):
-    """Sends a JSON payload to a specific connectionId."""
+def send_message_to_client(apigw_client, connection_id, payload_dict): # Expects a Python dictionary
+    """Sends a JSON payload to a specific connectionId, using DecimalEncoder."""
+    logger.info(f"SEND_MSG_CLIENT_ENTRY: Received payload_dict for {connection_id}: {payload_dict}") # Log raw dict
     try:
-        logger.info(f"Sending message to {connection_id}: {json.dumps(payload)}")
+        # Serialize the dict to JSON string using DecimalEncoder
+        payload_json_string = json.dumps(payload_dict, cls=DecimalEncoder)
+
+        # Log exactly what is being prepared to be sent
+        logger.info(f"SEND_MESSAGE_TO_CLIENT: Connection: {connection_id}, Payload being sent: {payload_json_string}")
+
         apigw_client.post_to_connection(
             ConnectionId=connection_id,
-            Data=json.dumps(payload).encode('utf-8') # Send JSON string as bytes
+            Data=payload_json_string.encode('utf-8') # Encode the string to bytes
         )
         logger.info(f"Message sent successfully to {connection_id}")
         return True
     except apigw_client.exceptions.GoneException:
         logger.warning(f"Client {connection_id} is gone. Cannot send message.")
-        # TODO: Consider cleaning up connection from Connections table here if needed
     except Exception as e:
-        logger.error(f"Failed to post message to connectionId {connection_id}: {str(e)}")
+        # Log the full exception details
+        logger.error(f"Failed to post message to connectionId {connection_id}: {str(e)}", exc_info=True) 
     return False
 
 # --- Helper Function to Broadcast Lobby State ---
 def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_connection_id=None):
-    """Fetches the latest lobby state and broadcasts it to all participants."""
     try:
-        logger.info(f"Broadcasting state for lobby {lobby_id}. Last Action: {last_action}. Excluding: {exclude_connection_id}")
-        # Use ConsistentRead to get the absolute latest state
+        logger.info(f"BROADCAST_LOBBY_STATE: Fetching item for lobby {lobby_id}. Last Action: {last_action}")
         final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
         final_lobby_item_for_broadcast = final_response.get('Item')
 
         if not final_lobby_item_for_broadcast:
-            logger.warning(f"Cannot broadcast state for lobby {lobby_id}, item not found (may have been deleted).")
-            return False # Cannot broadcast if lobby doesn't exist
+            logger.warning(f"BROADCAST_LOBBY_STATE: Cannot broadcast, lobby {lobby_id} item not found.")
+            return False
 
-        # Construct the broadcast payload (ensure Decimal is handled for json.dumps)
-        state_payload = {
+        logger.info(f"BROADCAST_LOBBY_STATE_ITEM_DUMP for {lobby_id}: {json.dumps(final_lobby_item_for_broadcast, cls=DecimalEncoder)}")
+
+        state_payload = { # This is a Python dictionary
             "type": "lobbyStateUpdate",
             "lobbyId": lobby_id,
             "hostName": final_lobby_item_for_broadcast.get('hostName'),
@@ -249,8 +254,6 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
             "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
             "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []),
             "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'),
-            
-            # Equilibration and box score fields
             "equilibrationEnabled": final_lobby_item_for_broadcast.get('equilibrationEnabled', False),
             "player1ScoreSubmitted": final_lobby_item_for_broadcast.get('player1ScoreSubmitted', False),
             "player2ScoreSubmitted": final_lobby_item_for_broadcast.get('player2ScoreSubmitted', False),
@@ -262,16 +265,12 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
             "equilibrationBansAllowed": final_lobby_item_for_broadcast.get('equilibrationBansAllowed', 0),
             "equilibrationBansMade": final_lobby_item_for_broadcast.get('equilibrationBansMade', 0)
         }
-
-        # Add lastAction if provided
         if last_action:
             state_payload["lastAction"] = last_action
 
-        # Use DecimalEncoder for safe JSON serialization
-        payload_json = json.dumps(state_payload, cls=DecimalEncoder)
-        logger.info(f"Constructed broadcast payload (JSON): {payload_json}")
+        # Log the dictionary that is about to be passed to send_message_to_client
+        logger.info(f"BROADCAST_LOBBY_STATE: Constructed state_payload DICT for lobby {lobby_id}: {state_payload}")
 
-        # Get all participant connection IDs from the fetched item
         participants = [
             final_lobby_item_for_broadcast.get('hostConnectionId'),
             final_lobby_item_for_broadcast.get('player1ConnectionId'),
@@ -279,28 +278,21 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
         ]
         valid_connection_ids = [pid for pid in participants if pid]
 
-        # Send to all valid connections, optionally excluding one
-        failed_sends = []
         success_count = 0
         for recipient_id in valid_connection_ids:
             if recipient_id == exclude_connection_id:
-                continue # Skip excluded connection
-            # Use the JSON string created with the encoder
-            if send_message_to_client(apigw_client, recipient_id, json.loads(payload_json)): # Send dict back to helper
+                continue
+            # Pass the Python dictionary directly.
+            # send_message_to_client will handle the serialization with DecimalEncoder.
+            if send_message_to_client(apigw_client, recipient_id, state_payload):
                  success_count += 1
-            else:
-                failed_sends.append(recipient_id)
 
-        if failed_sends:
-            logger.warning(f"Failed to send state update to some connections: {failed_sends}")
-
-        logger.info(f"Broadcast complete. Sent to {success_count} participant(s).")
-        return True # Indicate broadcast attempt was made
+        logger.info(f"Broadcast complete for lobby {lobby_id}. Sent to {success_count} participant(s).")
+        return True
 
     except Exception as broadcast_err:
         logger.error(f"Error during broadcast_lobby_state for {lobby_id}: {str(broadcast_err)}", exc_info=True)
         return False
-# --- End Helper Function ---
 
 def handler(event, context):
     logger.info(f"Raw event received: {json.dumps(event)}")
@@ -998,6 +990,9 @@ def handler(event, context):
                 
                 # 3. If more EQ bans:
                 if eq_bans_made < eq_bans_allowed:
+                    # Log lobby state before update
+                    logger.info(f"MAKE_ACTION_DEBUG (equilibrationBan): Lobby item BEFORE update for lobby {lobby_id}: {json.dumps(lobby_item, cls=DecimalEncoder)}")
+
                     # Update DDB with new ban and increment counter
                     try:
                         lobbies_table.update_item(
@@ -1017,6 +1012,11 @@ def handler(event, context):
                             }
                         )
                         logger.info(f"Updated lobby {lobby_id} with equilibration ban {eq_bans_made} of {eq_bans_allowed}")
+                        
+                        # Immediately re-fetch and log to see what changed
+                        refetched_item_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                        refetched_item = refetched_item_response.get('Item')
+                        logger.info(f"MAKE_ACTION_DEBUG (equilibrationBan): Lobby item AFTER update (re-fetched) for lobby {lobby_id}: {json.dumps(refetched_item, cls=DecimalEncoder)}")
                         
                         # Broadcast the update
                         broadcast_lobby_state(lobby_id, apigw_management_client, f"{player_making_action} made equilibration ban {eq_bans_made} of {eq_bans_allowed}: {resonator_name}")
@@ -1077,6 +1077,11 @@ def handler(event, context):
                             }
                         )
                         logger.info(f"Updated lobby {lobby_id} to start standard draft after equilibration bans")
+                        
+                        # Immediately re-fetch and log to see what changed
+                        refetched_item_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                        refetched_item = refetched_item_response.get('Item')
+                        logger.info(f"MAKE_ACTION_DEBUG (equilibrationBanFinal): Lobby item AFTER update (re-fetched) for lobby {lobby_id}: {json.dumps(refetched_item, cls=DecimalEncoder)}")
                         
                         # Broadcast the update
                         broadcast_lobby_state(lobby_id, apigw_management_client, f"Equilibration bans complete. {player_making_action} made final ban: {resonator_name}. Starting standard draft.")
@@ -1176,6 +1181,9 @@ def handler(event, context):
                 logger.info(f"  UpdateExpression: {update_expression}")
                 logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_values, cls=DecimalEncoder)}")
 
+                # Log lobby state before update
+                logger.info(f"MAKE_ACTION_DEBUG (makeBan): Lobby item BEFORE update for lobby {lobby_id}: {json.dumps(lobby_item, cls=DecimalEncoder)}")
+
                 try:
                     lobbies_table.update_item(
                         Key={'lobbyId': lobby_id},
@@ -1184,6 +1192,11 @@ def handler(event, context):
                         ExpressionAttributeValues={**expression_values, ':expected_index': current_step_index}
                     )
                     logger.info(f"STANDARD_BAN: Successfully updated lobby {lobby_id}")
+
+                    # Immediately re-fetch and log to see what changed
+                    refetched_item_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                    refetched_item = refetched_item_response.get('Item')
+                    logger.info(f"MAKE_ACTION_DEBUG (makeBan): Lobby item AFTER update (re-fetched) for lobby {lobby_id}: {json.dumps(refetched_item, cls=DecimalEncoder)}")
 
                     # Broadcast the update
                     broadcast_lobby_state(lobby_id, apigw_management_client, f"{player_making_action} banned {resonator_name}")
@@ -1202,11 +1215,9 @@ def handler(event, context):
 
         # --- ADD makePick HANDLER ---
         elif action == 'makePick':
-            # --- ADD THIS LOGGING ---
             connection_id = event.get('requestContext', {}).get('connectionId')
             logger.info(f"--- !!! Entered 'makePick' action block !!! --- Connection: {connection_id}")
             logger.info(f"DEBUG: 'makePick' received message data: {message_data}")
-            # --- END LOGGING ---
 
             resonator_name = message_data.get('resonatorName')
             if not resonator_name:
@@ -1355,7 +1366,8 @@ def handler(event, context):
                             currentPhase = :next_phase,
                             currentTurn = :next_turn,
                             currentStepIndex = :next_index,
-                            turnExpiresAt = :expires
+                            turnExpiresAt = :expires,
+                            lastAction = :last_action_val 
                     """
                     expression_attribute_values_dict = {
                         ':empty_list': [],
@@ -1365,7 +1377,8 @@ def handler(event, context):
                         ':next_turn': actual_next_turn,
                         ':next_index': next_step_index,
                         ':expected_index': current_step_index,
-                        ':expires': turn_expires_at_iso
+                        ':expires': turn_expires_at_iso,
+                        ':last_action_val': f'{current_turn} picked {resonator_name}'
                     }
                 elif current_turn == 'P2':
                     player_pick_list_key = ":new_pick_p2"
@@ -1375,7 +1388,8 @@ def handler(event, context):
                             currentPhase = :next_phase,
                             currentTurn = :next_turn,
                             currentStepIndex = :next_index,
-                            turnExpiresAt = :expires
+                            turnExpiresAt = :expires,
+                            lastAction = :last_action_val 
                     """
                     expression_attribute_values_dict = {
                         ':empty_list': [],
@@ -1385,7 +1399,8 @@ def handler(event, context):
                         ':next_turn': actual_next_turn,
                         ':next_index': next_step_index,
                         ':expected_index': current_step_index,
-                        ':expires': turn_expires_at_iso
+                        ':expires': turn_expires_at_iso,
+                        ':last_action_val': f'{current_turn} picked {resonator_name}'
                     }
                 else:
                     # Should not happen if validation passed, but handle defensively
@@ -1401,14 +1416,6 @@ def handler(event, context):
                 logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_attribute_values_dict)}")
                 # --- END LOGGING ---
 
-                logger.info(f"Attempting to update lobby {lobby_id} state in DynamoDB for {current_turn} pick (using index).")
-                lobbies_table.update_item(
-                    Key={'lobbyId': lobby_id},
-                    UpdateExpression=update_expression_string,
-                    ConditionExpression=condition_expression_string,
-                    ExpressionAttributeValues=expression_attribute_values_dict
-                )
-
             except ClientError as e:
                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
                     logger.warning(f"Conditional check failed for pick update in lobby {lobby_id}. State likely changed. Index={current_step_index}")
@@ -1420,64 +1427,51 @@ def handler(event, context):
             except Exception as e:
                  logger.error(f"Unexpected error updating lobby {lobby_id} after pick: {str(e)}")
                  return {'statusCode': 500, 'body': 'Internal server error during update.'}
-            # --- End of Step 3 ---
-
-            # --- Step 4: Fetch Final State and Broadcast ---
+            
             try:
-                # Fetch the absolute latest state FOR BROADCASTING using ConsistentRead
-                logger.info(f"Fetching final lobby state for broadcast after pick. Lobby: {lobby_id}")
-                final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
-                final_lobby_item_for_broadcast = final_response.get('Item')
+                logger.info(f"Attempting to update lobby {lobby_id} state in DynamoDB for {current_turn} pick (using index).")
+                lobbies_table.update_item(
+                    Key={'lobbyId': lobby_id},
+                    UpdateExpression=update_expression_string,
+                    ConditionExpression=condition_expression_string,
+                    ExpressionAttributeValues=expression_attribute_values_dict
+                )
 
-                if not final_lobby_item_for_broadcast:
-                     logger.error(f"Critical error: Failed to re-fetch lobby {lobby_id} for broadcast after pick.")
-                     return {'statusCode': 500, 'body': 'Internal error preparing broadcast state.'}
+                # Immediately re-fetch and log to see what changed
+                refetched_item_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                refetched_item = refetched_item_response.get('Item')
+                logger.info(f"MAKE_ACTION_DEBUG (makePick): Lobby item AFTER update (re-fetched) for lobby {lobby_id}: {json.dumps(refetched_item, cls=DecimalEncoder)}")
 
-                # Construct the broadcast payload (Ensure all relevant fields are included)
-                state_payload = {
-                    "type": "lobbyStateUpdate",
-                    "lobbyId": lobby_id,
-                    "hostName": final_lobby_item_for_broadcast.get('hostName'),
-                    "player1Name": final_lobby_item_for_broadcast.get('player1Name'),
-                    "player2Name": final_lobby_item_for_broadcast.get('player2Name'),
-                    "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'),
-                    "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),
-                    "bans": final_lobby_item_for_broadcast.get('bans', []),
-                    "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
-                    "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
-                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []),
-                    "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'),
-                    "lastAction": f'{current_turn} picked {resonator_name}'
-                }
 
-                logger.info(f"Broadcasting FINAL lobby state update after pick: {json.dumps(state_payload)}")
-                
-                # Get all participants
-                participants = []
-                try:
-                    response = connections_table.scan(
-                        FilterExpression=Attr('currentLobbyId').eq(lobby_id)
-                    )
-                    participants = response.get('Items', [])
-                except Exception as e:
-                    logger.error(f"Error fetching participants for broadcast: {str(e)}")
-                    return {'statusCode': 500, 'body': 'Error fetching participants for broadcast.'}
+                # --- End of Step 3 ---
 
-                # Send to all valid connections
-                valid_connection_ids = [p['connectionId'] for p in participants if 'connectionId' in p]
-                failed_sends = []
-                for recipient_id in valid_connection_ids:
-                    if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
-                        failed_sends.append(recipient_id)
-                
-                if failed_sends:
-                    logger.warning(f"Failed to send pick update to some participants: {failed_sends}")
-
-            except Exception as broadcast_err:
-                 logger.error(f"Error broadcasting lobby state update after pick for {lobby_id}: {str(broadcast_err)}")
+                last_action_for_broadcast = f'{current_turn} picked {resonator_name}'
+                logger.info(f"MAKE_PICK_DEBUG: Calling centralized broadcast_lobby_state for lobby {lobby_id}. Last Action: '{last_action_for_broadcast}'")
+                    
+                # apigw_management_client is the client object initialized at the start of your main Lambda handler
+                broadcast_success = broadcast_lobby_state(lobby_id, apigw_management_client, last_action_for_broadcast) 
+                    
+                if broadcast_success:
+                    logger.info(f"MAKE_PICK_DEBUG: Centralized broadcast after pick successful for lobby {lobby_id}.")
+                else:
+                    logger.warning(f"MAKE_PICK_DEBUG: Centralized broadcast after pick may have encountered issues for lobby {lobby_id} (check broadcast_lobby_state logs).")
+                    # --- END OF REPLACEMENT ---
+            
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                        logger.warning(f"Conditional check failed for pick update in lobby {lobby_id}. State likely changed. Index={current_step_index}")
+                        send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Action failed, state may have changed. Please wait for update."})
+                        return {'statusCode': 409, 'body': 'Conflict, state changed during request.'}
+                else:
+                    logger.error(f"MAKE_PICK_ERROR: ClientError updating DDB for lobby {lobby_id}: {str(e)}", exc_info=True)
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Failed to record pick."}) # Send error to client
+                    return {'statusCode': 500, 'body': 'Failed to process pick due to database error.'}
+            except Exception as e:
+                logger.error(f"MAKE_PICK_ERROR: Unexpected error for lobby {lobby_id}: {str(e)}", exc_info=True)
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Server error processing pick."}) # Send error to client
+                return {'statusCode': 500, 'body': 'Internal server error processing pick.'}
 
             return {'statusCode': 200, 'body': 'Pick processed successfully.'}
-            # --- END Final Return ---
 
         # --- ADD TIMEOUT HANDLER ---
         elif action == 'turnTimeout':
@@ -1630,6 +1624,9 @@ def handler(event, context):
                     turn_expires_at_iso = expires_at_dt.isoformat()
                 logger.info(f"Setting next turn expiry (after timeout) for lobby {lobby_id} to: {turn_expires_at_iso}")
 
+                # Log lobby state before update
+                logger.info(f"TIMEOUT_HANDLER_DEBUG: Lobby item BEFORE update for lobby {lobby_id}: {json.dumps(lobby_item, cls=DecimalEncoder)}")
+
                 update_expression = ""
                 expression_attribute_values = {}
 
@@ -1638,15 +1635,18 @@ def handler(event, context):
                         currentPhase = :next_phase,
                         currentTurn = :next_turn,
                         currentStepIndex = :next_index,
-                        turnExpiresAt = :expires
+                        turnExpiresAt = :expires,
+                        lastAction = :last_action
                 """
+                last_action = f'{timed_out_player} timed out, randomly {action_taken} {random_choice}'
                 base_values = {
                     ':new_available': new_available_list,
                     ':next_phase': next_phase,
                     ':next_turn': actual_next_turn,
                     ':next_index': next_step_index,
                     ':expires': turn_expires_at_iso,
-                    ':expected_index': current_step_index # Use the int version here
+                    ':expected_index': current_step_index, # Use the int version here
+                    ':last_action': last_action
                 }
 
                 if is_ban_phase:
@@ -1661,76 +1661,39 @@ def handler(event, context):
                 else: # Should not happen
                      raise ValueError(f"Invalid timed_out_player: {timed_out_player}")
 
-                logger.info(f"Attempting to update lobby {lobby_id} state after timeout.")
+                logger.info(f"TIMEOUT_HANDLER_DEBUG: Attempting to update lobby {lobby_id} state after timeout.")
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
                     UpdateExpression=update_expression,
                     ConditionExpression="currentStepIndex = :expected_index", # Check against expected int index
                     ExpressionAttributeValues=expression_attribute_values
                 )
-                logger.info(f"Successfully updated lobby {lobby_id} state after timeout.")
+                logger.info(f"TIMEOUT_HANDLER_DEBUG: Successfully updated lobby {lobby_id} state after timeout.")
+
+                # Immediately re-fetch and log to see what changed
+                refetched_item_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                refetched_item = refetched_item_response.get('Item')
+                logger.info(f"TIMEOUT_HANDLER_DEBUG: Lobby item AFTER update (re-fetched) for lobby {lobby_id}: {json.dumps(refetched_item, cls=DecimalEncoder)}")
+
+                # Call centralized broadcast function
+                logger.info(f"TIMEOUT_HANDLER_DEBUG: Calling centralized broadcast_lobby_state for lobby {lobby_id}. Last Action: '{last_action}'")
+                broadcast_success = broadcast_lobby_state(lobby_id, apigw_management_client, last_action)
+                
+                if broadcast_success:
+                    logger.info(f"TIMEOUT_HANDLER_DEBUG: Centralized broadcast after timeout successful for lobby {lobby_id}.")
+                else:
+                    logger.warning(f"TIMEOUT_HANDLER_DEBUG: Centralized broadcast after timeout may have encountered issues for lobby {lobby_id}.")
 
             except ClientError as e:
                 if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
                     logger.warning(f"Conditional check failed for lobby {lobby_id} during timeout update. State may have changed.")
                     return {'statusCode': 409, 'body': 'State changed during timeout processing.'}
                 else:
-                    logger.error(f"Failed to update lobby {lobby_id} after timeout (ClientError): {str(e)}")
+                    logger.error(f"Failed to update lobby {lobby_id} after timeout (ClientError): {str(e)}", exc_info=True)
                     return {'statusCode': 500, 'body': 'Failed to update lobby state after timeout.'}
             except Exception as e:
-                 logger.error(f"Unexpected error updating lobby {lobby_id} after timeout: {str(e)}")
+                 logger.error(f"Unexpected error updating/broadcasting lobby {lobby_id} after timeout: {str(e)}", exc_info=True)
                  return {'statusCode': 500, 'body': 'Internal server error during timeout update.'}
-
-            # 7. *** Fetch Final State and Broadcast ***
-            try:
-                logger.info(f"Fetching final lobby state for broadcast after timeout. Lobby: {lobby_id}")
-                final_response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
-                final_lobby_item_for_broadcast = final_response.get('Item')
-                if not final_lobby_item_for_broadcast:
-                    logger.error(f"Failed to fetch final state for broadcast after timeout. Lobby: {lobby_id}")
-                    return {'statusCode': 500, 'body': 'Failed to fetch final state for broadcast.'}
-
-                state_payload = {
-                    "type": "lobbyStateUpdate",
-                    "lobbyId": lobby_id,
-                    "hostName": final_lobby_item_for_broadcast.get('hostName'),
-                    "player1Name": final_lobby_item_for_broadcast.get('player1Name'),
-                    "player2Name": final_lobby_item_for_broadcast.get('player2Name'),
-                    "currentPhase": final_lobby_item_for_broadcast.get('currentPhase'),
-                    "currentTurn": final_lobby_item_for_broadcast.get('currentTurn'),
-                    "bans": final_lobby_item_for_broadcast.get('bans', []),
-                    "player1Picks": final_lobby_item_for_broadcast.get('player1Picks', []),
-                    "player2Picks": final_lobby_item_for_broadcast.get('player2Picks', []),
-                    "availableResonators": final_lobby_item_for_broadcast.get('availableResonators', []),
-                    "turnExpiresAt": final_lobby_item_for_broadcast.get('turnExpiresAt'),
-                    "lastAction": f'{timed_out_player} timed out, randomly {action_taken} {random_choice}'
-                }
-
-                logger.info(f"Broadcasting FINAL lobby state update after timeout: {json.dumps(state_payload)}")
-                
-                # Get all participants
-                participants = []
-                try:
-                    response = connections_table.scan(
-                        FilterExpression=Attr('currentLobbyId').eq(lobby_id)
-                    )
-                    participants = response.get('Items', [])
-                except Exception as e:
-                    logger.error(f"Error fetching participants for broadcast: {str(e)}")
-                    return {'statusCode': 500, 'body': 'Error fetching participants for broadcast.'}
-
-                # Send to all valid connections
-                valid_connection_ids = [p['connectionId'] for p in participants if 'connectionId' in p]
-                failed_sends = []
-                for recipient_id in valid_connection_ids:
-                    if not send_message_to_client(apigw_management_client, recipient_id, state_payload):
-                        failed_sends.append(recipient_id)
-                
-                if failed_sends:
-                    logger.warning(f"Failed to send timeout update to some participants: {failed_sends}")
-
-            except Exception as broadcast_err:
-                 logger.error(f"Error broadcasting lobby state update after timeout for {lobby_id}: {str(broadcast_err)}")
 
             return {'statusCode': 200, 'body': 'Timeout processed successfully.'}
 

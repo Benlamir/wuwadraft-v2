@@ -241,13 +241,13 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
       } else if (actionText.includes("joined as player")) {
         // Apply the blue info class for the host joining
         elements.lobbyStatusDisplay.classList.add("lobby-status-info");
-        console.log("Applying lobby-status-info class"); // Debug log
+        //console.log("Applying lobby-status-info class"); // Debug log
       } else {
         // Default case for other lastAction messages (uses default text color)
-        console.log(
-          "Applying default style for lastAction:",
-          lobbyStateData.lastAction
-        );
+        //console.log(
+        //  "Applying default style for lastAction:",
+        //  lobbyStateData.lastAction
+        //);
       }
     } else {
       // No specific lastAction, show default status text based on lobbyState
@@ -369,31 +369,31 @@ function updateSlotGlowState(slot, isActive, isFilled, type) {
 
 // --- ADD NEW FUNCTION for Pick Slots ---
 function updatePickSlots(draftState) {
-  console.log(
-    "UPDATE_PICK_SLOTS: Called. draftState.player1Picks:",
-    JSON.stringify(draftState.player1Picks),
-    "draftState.player2Picks:",
-    JSON.stringify(draftState.player2Picks)
-  );
+  //console.log(
+  //  "UPDATE_PICK_SLOTS: Called. draftState.player1Picks:",
+  //  JSON.stringify(draftState.player1Picks),
+  //  "draftState.player2Picks:",
+  //  JSON.stringify(draftState.player2Picks)
+  //);
   const p1Picks = draftState.player1Picks || [];
   const p2Picks = draftState.player2Picks || [];
-  console.log(
-    "UPDATE_PICK_SLOTS: Parsed p1Picks for slots:",
-    JSON.stringify(p1Picks)
-  );
-  console.log(
-    "UPDATE_PICK_SLOTS: Parsed p2Picks for slots:",
-    JSON.stringify(p2Picks)
-  );
+  //console.log(
+  //  "UPDATE_PICK_SLOTS: Parsed p1Picks for slots:",
+  //  JSON.stringify(p1Picks)
+  //);
+  //console.log(
+  //  "UPDATE_PICK_SLOTS: Parsed p2Picks for slots:",
+  //  JSON.stringify(p2Picks)
+  //);
 
   const currentPhase = draftState.currentPhase;
   const currentTurn = draftState.currentTurn;
 
   const p1SlotElements = [elements.p1Pick1, elements.p1Pick2, elements.p1Pick3];
-  console.log(
-    "UPDATE_PICK_SLOTS: P1 Slot Elements:",
-    p1SlotElements.map((el) => !!el)
-  ); // Check if elements are found
+  //console.log(
+  //  "UPDATE_PICK_SLOTS: P1 Slot Elements:",
+  //  p1SlotElements.map((el) => !!el)
+  //); // Check if elements are found
 
   p1SlotElements.forEach((slot, index) => {
     if (!slot) {
@@ -408,46 +408,46 @@ function updatePickSlots(draftState) {
       currentTurn === "P1" &&
       !pickName &&
       index === p1Picks.length;
-    console.log(
-      `UPDATE_PICK_SLOTS: P1 Slot ${
-        index + 1
-      }, pickName: ${pickName}, isActive: ${isActive}`
-    );
+    //console.log(
+    //  `UPDATE_PICK_SLOTS: P1 Slot ${
+    //    index + 1
+    //  }, pickName: ${pickName}, isActive: ${isActive}`
+    //);
     if (pickName) {
       const resonator = findResonatorByName(pickName);
-      console.log(
-        `UPDATE_PICK_SLOTS: P1 Slot ${
-          index + 1
-        } findResonatorByName('${pickName}') result:`,
-        resonator
-      );
+      //console.log(
+      //  `UPDATE_PICK_SLOTS: P1 Slot ${
+      //    index + 1
+      //  } findResonatorByName('${pickName}') result:`,
+      //  resonator
+      //);
       if (resonator && resonator.image_pick) {
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
-        console.log(
-          `UPDATE_PICK_SLOTS: P1 Slot ${
-            index + 1
-          } updated with image for ${pickName}. InnerHTML set.`
-        );
+        //console.log(
+        // `UPDATE_PICK_SLOTS: P1 Slot ${
+        //   index + 1
+        //  } updated with image for ${pickName}. InnerHTML set.`
+        //);
       } else {
         slot.innerHTML = `<span>${pickName || "?"}</span>`;
-        console.log(
-          `UPDATE_PICK_SLOTS: P1 Slot ${
-            index + 1
-          } set with text for ${pickName} (resonator or image_pick missing).`
-        );
+        //console.log(
+        //  `UPDATE_PICK_SLOTS: P1 Slot ${
+        //    index + 1
+        //  } set with text for ${pickName} (resonator or image_pick missing).`
+        //);
       }
     } else {
       slot.innerHTML = "";
-      console.log(`UPDATE_PICK_SLOTS: Clearing P1 Slot ${index + 1}`);
+      //onsole.log(`UPDATE_PICK_SLOTS: Clearing P1 Slot ${index + 1}`);
     }
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
   });
 
   const p2SlotElements = [elements.p2Pick1, elements.p2Pick2, elements.p2Pick3];
-  console.log(
-    "UPDATE_PICK_SLOTS: P2 Slot Elements:",
-    p2SlotElements.map((el) => !!el)
-  );
+  //console.log(
+    //"UPDATE_PICK_SLOTS: P2 Slot Elements:",
+  //  p2SlotElements.map((el) => !!el)
+  //);
 
   p2SlotElements.forEach((slot, index) => {
     if (!slot) {
@@ -462,37 +462,37 @@ function updatePickSlots(draftState) {
       currentTurn === "P2" &&
       !pickName &&
       index === p2Picks.length;
-    console.log(
-      `UPDATE_PICK_SLOTS: P2 Slot ${
-        index + 1
-      }, pickName: ${pickName}, isActive: ${isActive}`
-    );
+    //console.log(
+    //  `UPDATE_PICK_SLOTS: P2 Slot ${
+    //    index + 1
+    //  }, pickName: ${pickName}, isActive: ${isActive}`
+    //);
     if (pickName) {
       const resonator = findResonatorByName(pickName);
-      console.log(
-        `UPDATE_PICK_SLOTS: P2 Slot ${
-          index + 1
-        } findResonatorByName('${pickName}') result:`,
-        resonator
-      );
+      //console.log(
+      //  `UPDATE_PICK_SLOTS: P2 Slot ${
+      //    index + 1
+      //  } findResonatorByName('${pickName}') result:`,
+      //  resonator
+      //);
       if (resonator && resonator.image_pick) {
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
-        console.log(
-          `UPDATE_PICK_SLOTS: P2 Slot ${
-            index + 1
-          } updated with image for ${pickName}. InnerHTML set.`
-        );
+        //console.log(
+        //  `UPDATE_PICK_SLOTS: P2 Slot ${
+        //    index + 1
+        //  } updated with image for ${pickName}. InnerHTML set.`
+        //);
       } else {
         slot.innerHTML = `<span>${pickName || "?"}</span>`;
-        console.log(
-          `UPDATE_PICK_SLOTS: P2 Slot ${
-            index + 1
-          } set with text for ${pickName} (resonator or image_pick missing).`
-        );
+        //console.log(
+        //  `UPDATE_PICK_SLOTS: P2 Slot ${
+        //    index + 1
+        //  } set with text for ${pickName} (resonator or image_pick missing).`
+        //);
       }
     } else {
       slot.innerHTML = "";
-      console.log(`UPDATE_PICK_SLOTS: Clearing P2 Slot ${index + 1}`);
+      //console.log(`UPDATE_PICK_SLOTS: Clearing P2 Slot ${index + 1}`);
     }
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
   });
@@ -597,9 +597,9 @@ function updateCountdown(expiryTime, intervalId) {
       state.myAssignedSlot === state.currentTurn &&
       state.timerIntervalId === intervalId
     ) {
-      console.log(
-        "UI_VIEWS_TIMER: Timer expired for my turn. Sending turnTimeout action."
-      );
+      //console.log(
+      //  "UI_VIEWS_TIMER: Timer expired for my turn. Sending turnTimeout action."
+      //);
       sendMessageToServer({
         action: "turnTimeout",
         expectedPhase: state.currentPhase,
@@ -645,9 +645,9 @@ export function startOrUpdateTimerDisplay() {
   }
   // Ensure the inner structure (span) is present
   if (!timerElement.querySelector("span")) {
-    console.log(
-      "UI_VIEWS_TIMER: startOrUpdateTimerDisplay - timerTextSpan missing. Re-initializing timer HTML."
-    );
+    //console.log(
+    //  "UI_VIEWS_TIMER: startOrUpdateTimerDisplay - timerTextSpan missing. Re-initializing timer HTML."
+    //);
     timerElement.innerHTML =
       '<i class="bi bi-clock timer-icon me-1"></i> <span>Time Remaining: --:--</span>';
   }
@@ -710,9 +710,9 @@ export function updateDraftScreenUI(draftState) {
 
   // Show/hide controls based on host status
   const isHost = state.isCurrentUserHost;
-  console.log(
-    `[uiViews] updateDraftScreenUI: Setting visibility. isHost = ${isHost}`
-  );
+  //console.log(
+  //  `[uiViews] updateDraftScreenUI: Setting visibility. isHost = ${isHost}`
+  //);
 
   // Show host controls ONLY if host
   toggleElementVisibility(elements.draftHostControls, isHost);
@@ -726,7 +726,7 @@ export function updateDraftScreenUI(draftState) {
 
   // If draft is complete, return early
   if (draftState.currentPhase === "DRAFT_COMPLETE") {
-    console.log("UI: Rendering Draft Complete state.");
+    //console.log("UI: Rendering Draft Complete state.");
     if (elements.draftPhaseStatus) {
       elements.draftPhaseStatus.textContent = "Draft Complete!";
       elements.draftPhaseStatus.classList.add("text-success", "fw-bold"); // Example styling
@@ -862,7 +862,7 @@ export function initializePasswordToggle() {
         }
       }
     });
-    console.log("UI: Password toggle listener attached.");
+    //console.log("UI: Password toggle listener attached.");
   } else {
     console.warn(
       "UI: Could not attach password toggle listener (elements missing)."
@@ -889,7 +889,7 @@ export function initializeLobbyIdToggle() {
         }
       }
     });
-    console.log("UI: Lobby ID display toggle listener attached.");
+    //console.log("UI: Lobby ID display toggle listener attached.");
   } else {
     console.warn(
       "UI: Could not attach lobby ID display toggle listener (elements missing)."
@@ -917,7 +917,7 @@ export function initializeCopyButton() {
         }
       }
     });
-    console.log("UI: Copy button listener attached.");
+    //console.log("UI: Copy button listener attached.");
   } else {
     console.warn(
       "UI: Could not attach copy button listener (elements missing)."
@@ -940,21 +940,55 @@ export function applyCharacterFilter(filterElement) {
 }
 
 function renderCharacterGrid(draftState) {
-  // Log 1: Function entry and basic draftState info
   console.log(
-    "RENDER_GRID: Entry. Current Phase:",
-    draftState.currentPhase,
-    "Current Turn:",
-    draftState.currentTurn
+    "RENDER_GRID_ENTRY: Received draftState:",
+    JSON.parse(JSON.stringify(draftState))
+  ); // Log a deep copy
+  console.log(
+    "RENDER_GRID_DATA_CHECK: draftState.equilibrationEnabled:",
+    draftState.equilibrationEnabled
+  );
+  console.log(
+    "RENDER_GRID_DATA_CHECK: draftState.player1Sequences:",
+    JSON.stringify(draftState.player1Sequences)
+  );
+  console.log(
+    "RENDER_GRID_DATA_CHECK: draftState.player2Sequences:",
+    JSON.stringify(draftState.player2Sequences)
   );
 
+  // Log 1: Function entry and basic draftState info
+  //console.log(
+  //  "RENDER_GRID: Entry. Current Phase:",
+  //  draftState.currentPhase,
+  //  "Current Turn:",
+  //  draftState.currentTurn
+  //);
+
   // Add logs BSS related data from draftstate
-  console.log("RENDER_GRID: Equilibration Enabled in draftState:", draftState.equilibrationEnabled);
+  //console.log(
+  //  "RENDER_GRID: Equilibration Enabled in draftState:",
+  //  draftState.equilibrationEnabled
+  //);
   // Check if sequences are objects, otherwise default to empty object for safety
-  const p1SequencesFromState = typeof draftState.player1Sequences === 'object' && draftState.player1Sequences !== null ? draftState.player1Sequences : {};
-  const p2SequencesFromState = typeof draftState.player2Sequences === 'object' && draftState.player2Sequences !== null ? draftState.player2Sequences : {};
-  console.log("RENDER_GRID: P1 Sequences in draftState:", JSON.stringify(p1SequencesFromState));
-  console.log("RENDER_GRID: P2 Sequences in draftState:", JSON.stringify(p2SequencesFromState));
+  const p1SequencesFromState =
+    typeof draftState.player1Sequences === "object" &&
+    draftState.player1Sequences !== null
+      ? draftState.player1Sequences
+      : {};
+  const p2SequencesFromState =
+    typeof draftState.player2Sequences === "object" &&
+    draftState.player2Sequences !== null
+      ? draftState.player2Sequences
+      : {};
+  //console.log(
+  //  "RENDER_GRID: P1 Sequences in draftState:",
+  //  JSON.stringify(p1SequencesFromState)
+  //);
+  //console.log(
+  //  "RENDER_GRID: P2 Sequences in draftState:",
+  //  JSON.stringify(p2SequencesFromState)
+  //);
 
   if (!elements.characterGridContainer) {
     console.error(
@@ -982,9 +1016,9 @@ function renderCharacterGrid(draftState) {
   const player1Picks = draftState.player1Picks || [];
   const player2Picks = draftState.player2Picks || [];
   const bans = draftState.bans || [];
-  console.log("RENDER_GRID: P1 Picks:", JSON.stringify(player1Picks));
-  console.log("RENDER_GRID: P2 Picks:", JSON.stringify(player2Picks));
-  console.log("RENDER_GRID: Bans:", JSON.stringify(bans));
+  //onsole.log("RENDER_GRID: P1 Picks:", JSON.stringify(player1Picks));
+  //console.log("RENDER_GRID: P2 Picks:", JSON.stringify(player2Picks));
+  //console.log("RENDER_GRID: Bans:", JSON.stringify(bans));
   const currentTurn = draftState.currentTurn || state.currentTurn;
 
   const isMyTurn = state.myAssignedSlot === currentTurn;
@@ -1008,10 +1042,10 @@ function renderCharacterGrid(draftState) {
         );
 
   // Log 6: Resonators to display after filtering ALL_RESONATORS_DATA
-  console.log(
-    "RENDER_GRID: resonatorsToDisplay after client-side filter (length):",
-    resonatorsToDisplay.length
-  );
+  //console.log(
+  //  "RENDER_GRID: resonatorsToDisplay after client-side filter (length):",
+  //  resonatorsToDisplay.length
+  //);
 
   if (resonatorsToDisplay.length === 0 && activeFilter !== "All") {
     elements.characterGridContainer.innerHTML = `<p class="text-center text-muted fst-italic">No resonators match the '${activeFilter}' filter.</p>`;
@@ -1045,33 +1079,42 @@ function renderCharacterGrid(draftState) {
         <span class="character-name">${resonator.name}</span>
     `;
 
-  // --- NEW: Add Sequence Overlay Logic ---
-  if (draftState.equilibrationEnabled && resonator.isLimited) {
-    // p1SequencesFromState and p2SequencesFromState are already safely defaulted to {} if null/undefined
-    const p1SeqVal = p1SequencesFromState[resonator.name];
-    const p2SeqVal = p2SequencesFromState[resonator.name];
+    // --- NEW: Add Sequence Overlay Logic ---
+    if (draftState.equilibrationEnabled && resonator.isLimited) {
+      // p1SequencesFromState and p2SequencesFromState are already safely defaulted to {} if null/undefined
+      const p1SeqVal = p1SequencesFromState[resonator.name];
+      const p2SeqVal = p2SequencesFromState[resonator.name];
 
-    // Only create container if there's at least one sequence to show
-    let hasSequenceInfo = false;
-    const sequenceTexts = [];
+      // Only create container if there's at least one sequence to show
+      let hasSequenceInfo = false;
+      const sequenceTexts = [];
 
-    if (p1SeqVal !== undefined && p1SeqVal >= -1) { // Allow "Not Owned" (-1) or S0-S6
-      sequenceTexts.push(`<span class="sequence-display p1-sequence">P1: ${p1SeqVal === -1 ? 'N/A' : 'S'+p1SeqVal}</span>`);
-      hasSequenceInfo = true;
-    }
-    if (p2SeqVal !== undefined && p2SeqVal >= -1) {
-      sequenceTexts.push(`<span class="sequence-display p2-sequence">P2: ${p2SeqVal === -1 ? 'N/A' : 'S'+p2SeqVal}</span>`);
-      hasSequenceInfo = true;
-    }
+      if (p1SeqVal !== undefined && p1SeqVal >= -1) {
+        // Allow "Not Owned" (-1) or S0-S6
+        sequenceTexts.push(
+          `<span class="sequence-display p1-sequence">P1: ${
+            p1SeqVal === -1 ? "N/A" : "S" + p1SeqVal
+          }</span>`
+        );
+        hasSequenceInfo = true;
+      }
+      if (p2SeqVal !== undefined && p2SeqVal >= -1) {
+        sequenceTexts.push(
+          `<span class="sequence-display p2-sequence">P2: ${
+            p2SeqVal === -1 ? "N/A" : "S" + p2SeqVal
+          }</span>`
+        );
+        hasSequenceInfo = true;
+      }
 
-    if (hasSequenceInfo) {
-      const sequenceOverlayContainer = document.createElement('div');
-      sequenceOverlayContainer.className = 'sequence-overlay-container';
-      sequenceOverlayContainer.innerHTML = sequenceTexts.join(''); // Add all sequence texts
-      button.appendChild(sequenceOverlayContainer);
+      if (hasSequenceInfo) {
+        const sequenceOverlayContainer = document.createElement("div");
+        sequenceOverlayContainer.className = "sequence-overlay-container";
+        sequenceOverlayContainer.innerHTML = sequenceTexts.join(""); // Add all sequence texts
+        button.appendChild(sequenceOverlayContainer);
+      }
     }
-  }
-  // --- END NEW ---
+    // --- END NEW ---
 
     // Determine button state based on draftState
     let isActuallyAvailableOnServer = availableSet.has(resonator.name);
@@ -1150,9 +1193,9 @@ export function handleCharacterSelection(event) {
   const resonatorName = button.dataset.resonatorName;
   const localCurrentPhase = state.currentPhase; // Read from state.js
   const localCurrentTurn = state.currentTurn; // Read from state.js
-  console.log(
-    `HANDLE_SELECTION_DEBUG: Clicked ${resonatorName}. state.currentPhase=${localCurrentPhase}, state.currentTurn=${localCurrentTurn}, state.myAssignedSlot=${state.myAssignedSlot}`
-  );
+  //console.log(
+  //  `HANDLE_SELECTION_DEBUG: Clicked ${resonatorName}. state.currentPhase=${localCurrentPhase}, state.currentTurn=${localCurrentTurn}, state.myAssignedSlot=${state.myAssignedSlot}`
+  //);
 
   if (!resonatorName) {
     console.error(
@@ -1166,7 +1209,7 @@ export function handleCharacterSelection(event) {
 
   let action = null;
   const phase = state.currentPhase;
-  console.log(`HANDLE_SELECTION_DEBUG: state.currentPhase is: ${phase}`); // Debug log for phase
+  //console.log(`HANDLE_SELECTION_DEBUG: state.currentPhase is: ${phase}`); // Debug log for phase
 
   if (phase?.startsWith("BAN") || phase === EQUILIBRATION_PHASE_NAME) {
     action = "makeBan";
@@ -1243,18 +1286,18 @@ export function populateBoxScoreScreen() {
   let lastSubmittedSequences = {};
   try {
     const savedData = localStorage.getItem(LOCAL_STORAGE_SEQUENCES_KEY);
-    console.log(
-      "POPULATE_BSS_DEBUG: Raw savedData from localStorage:",
-      savedData
-    );
+    //console.log(
+    //  "POPULATE_BSS_DEBUG: Raw savedData from localStorage:",
+    //  savedData
+    //);
     if (savedData) {
       lastSubmittedSequences = JSON.parse(savedData);
-      console.log(
-        "POPULATE_BSS_DEBUG: Parsed lastSubmittedSequences:",
-        lastSubmittedSequences
-      );
+      //console.log(
+      //  "POPULATE_BSS_DEBUG: Parsed lastSubmittedSequences:",
+      //  lastSubmittedSequences
+      //);
     } else {
-      console.log("POPULATE_BSS_DEBUG: No savedData found in localStorage.");
+      //console.log("POPULATE_BSS_DEBUG: No savedData found in localStorage.");
     }
   } catch (e) {
     console.warn(
@@ -1341,7 +1384,7 @@ export function populateBoxScoreScreen() {
     elements.submitBoxScoreBtn.innerHTML =
       '<i class="bi bi-check-circle-fill me-2"></i>Submit Score & Proceed';
   }
-  console.log(
-    "UI_VIEWS_BSS: Box Score Screen populated. Submit button ensured enabled."
-  );
+  //console.log(
+  //  "UI_VIEWS_BSS: Box Score Screen populated. Submit button ensured enabled."
+  //);
 }
