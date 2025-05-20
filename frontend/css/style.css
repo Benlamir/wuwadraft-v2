@@ -1,6 +1,17 @@
 /* Import Google Fonts */
 @import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap");
 
+/* Player Color Variables */
+:root {
+  --p1-color: #007bff; /* Bootstrap Blue */
+  --p1-color-light: rgba(0, 123, 255, 0.15);
+  --p1-color-text: #007bff;
+
+  --p2-color: #dc3545; /* Bootstrap Red */
+  --p2-color-light: rgba(220, 53, 69, 0.15);
+  --p2-color-text: #dc3545;
+}
+
 /* Custom Styles */
 
 /* Basic Body Styling */
@@ -508,6 +519,36 @@ header {
   border: none;
   background-color: transparent;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  overflow: visible; /* Allow badges to be visible outside the button */
+}
+
+/* Sequence Badge Styles */
+.char-seq-badge {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75em;
+  font-weight: bold;
+  color: white;
+  border-radius: 3px;
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.p1-seq-badge {
+  background-color: var(--p1-color);
+  top: -5px;
+  left: -5px;
+}
+
+.p2-seq-badge {
+  background-color: var(--p2-color);
+  top: -5px;
+  right: -5px;
 }
 
 /* Sequence Overlay */
@@ -516,13 +557,13 @@ header {
   top: 3px; /* Fine-tune */
   right: 3px; /* Fine-tune */
   display: flex;
-  flex-direction: column; 
+  flex-direction: column;
   align-items: flex-end;
   gap: 2px; /* Space between P1 and P2 sequence lines if both shown */
-  background-color: rgba(0, 0, 0, 0.6); 
+  background-color: rgba(0, 0, 0, 0.6);
   padding: 2px 4px;
   border-radius: 3px;
-  pointer-events: none; 
+  pointer-events: none;
   font-size: 0.6em; /* Make it quite small */
   line-height: 1;
   z-index: 10; /* Ensure it's above the image but potentially below other things if needed */
@@ -531,7 +572,7 @@ header {
 .sequence-display {
   color: #fff;
   font-weight: normal; /* Normal weight might be better for small text */
-  text-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
 }
 
 /* Rarity Gradients */
@@ -1321,4 +1362,106 @@ body.draft-active-background header {
 .player-score-display.text-info {
   opacity: 1;
   font-weight: 500;
+}
+
+/* Player Name Color Styling */
+.p1-name-colored {
+  color: var(--p1-color-text);
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.p2-name-colored {
+  color: var(--p2-color-text);
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Themed Area Headers */
+.player-area h4.p1-themed-area {
+  border-left: 5px solid var(--p1-color);
+  background-color: var(--p1-color-light);
+  padding-left: 15px;
+  transition: all 0.3s ease;
+}
+
+.player-area h4.p2-themed-area {
+  border-left: 5px solid var(--p2-color);
+  background-color: var(--p2-color-light);
+  padding-left: 15px;
+  transition: all 0.3s ease;
+}
+
+/* Player Name Color Styling */
+.player-area h4.p1-themed-header span {
+  color: var(--p1-color-text);
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.player-area h4.p2-themed-header span {
+  color: var(--p2-color-text);
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Themed Header Styling */
+.player-area h4.p1-themed-header {
+  border-left: 4px solid var(--p1-color);
+  padding-left: 12px;
+  background-color: var(--p1-color-light);
+  transition: all 0.3s ease;
+}
+
+.player-area h4.p2-themed-header {
+  border-left: 4px solid var(--p2-color);
+  padding-left: 12px;
+  background-color: var(--p2-color-light);
+  transition: all 0.3s ease;
+}
+
+/* Pick Slot Sequence Badge Styles */
+.pick-slot {
+  position: relative; /* Ensure proper positioning context for badges */
+}
+
+.pick-slot .pick-slot-seq-badge {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9em;
+  font-weight: bold;
+  color: white;
+  border-radius: 4px;
+  box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
+  z-index: 20;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.pick-slot .p1-seq-badge-color {
+  background-color: var(--p1-color);
+  top: 5px;
+  left: 5px;
+}
+
+.pick-slot .p2-seq-badge-color {
+  background-color: var(--p2-color);
+  top: 5px;
+  right: 5px;
+}
+
+/* Themed Pick Slots */
+.pick-slot.p1-picked-slot-themed.past-pick {
+  border: 2px solid var(--p1-color);
+  box-shadow: 0 0 6px var(--p1-color);
+  background-color: var(--p1-color-light);
+}
+
+.pick-slot.p2-picked-slot-themed.past-pick {
+  border: 2px solid var(--p2-color);
+  box-shadow: 0 0 6px var(--p2-color);
+  background-color: var(--p2-color-light);
 }

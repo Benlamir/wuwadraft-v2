@@ -369,130 +369,101 @@ function updateSlotGlowState(slot, isActive, isFilled, type) {
 
 // --- ADD NEW FUNCTION for Pick Slots ---
 function updatePickSlots(draftState) {
-  //console.log(
-  //  "UPDATE_PICK_SLOTS: Called. draftState.player1Picks:",
-  //  JSON.stringify(draftState.player1Picks),
-  //  "draftState.player2Picks:",
-  //  JSON.stringify(draftState.player2Picks)
-  //);
   const p1Picks = draftState.player1Picks || [];
   const p2Picks = draftState.player2Picks || [];
-  //console.log(
-  //  "UPDATE_PICK_SLOTS: Parsed p1Picks for slots:",
-  //  JSON.stringify(p1Picks)
-  //);
-  //console.log(
-  //  "UPDATE_PICK_SLOTS: Parsed p2Picks for slots:",
-  //  JSON.stringify(p2Picks)
-  //);
+  const p1Sequences =
+    typeof draftState.player1Sequences === "object" &&
+    draftState.player1Sequences !== null
+      ? draftState.player1Sequences
+      : {};
+  const p2Sequences =
+    typeof draftState.player2Sequences === "object" &&
+    draftState.player2Sequences !== null
+      ? draftState.player2Sequences
+      : {};
 
   const currentPhase = draftState.currentPhase;
   const currentTurn = draftState.currentTurn;
 
+  // --- Player 1 Pick Slots ---
   const p1SlotElements = [elements.p1Pick1, elements.p1Pick2, elements.p1Pick3];
-  //console.log(
-  //  "UPDATE_PICK_SLOTS: P1 Slot Elements:",
-  //  p1SlotElements.map((el) => !!el)
-  //); // Check if elements are found
-
   p1SlotElements.forEach((slot, index) => {
-    if (!slot) {
-      console.error(
-        `UPDATE_PICK_SLOTS_ERROR: P1 pick slot element at index ${index} not found!`
-      );
-      return;
-    }
+    if (!slot) return;
+    slot.classList.remove(
+      "p1-picked-slot-themed",
+      "p2-picked-slot-themed",
+      "has-sequence-badge"
+    );
+    slot.innerHTML = "";
+
     const pickName = p1Picks[index];
     const isActive =
       currentPhase?.startsWith("PICK") &&
       currentTurn === "P1" &&
       !pickName &&
       index === p1Picks.length;
-    //console.log(
-    //  `UPDATE_PICK_SLOTS: P1 Slot ${
-    //    index + 1
-    //  }, pickName: ${pickName}, isActive: ${isActive}`
-    //);
+
     if (pickName) {
       const resonator = findResonatorByName(pickName);
-      //console.log(
-      //  `UPDATE_PICK_SLOTS: P1 Slot ${
-      //    index + 1
-      //  } findResonatorByName('${pickName}') result:`,
-      //  resonator
-      //);
       if (resonator && resonator.image_pick) {
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
-        //console.log(
-        // `UPDATE_PICK_SLOTS: P1 Slot ${
-        //   index + 1
-        //  } updated with image for ${pickName}. InnerHTML set.`
-        //);
       } else {
         slot.innerHTML = `<span>${pickName || "?"}</span>`;
-        //console.log(
-        //  `UPDATE_PICK_SLOTS: P1 Slot ${
-        //    index + 1
-        //  } set with text for ${pickName} (resonator or image_pick missing).`
-        //);
       }
-    } else {
-      slot.innerHTML = "";
-      //onsole.log(`UPDATE_PICK_SLOTS: Clearing P1 Slot ${index + 1}`);
+      slot.classList.add("p1-picked-slot-themed");
+
+      // Add Sequence Badge if BSS is enabled and sequence exists for this picked resonator
+      if (draftState.equilibrationEnabled && resonator && resonator.isLimited) {
+        const seqVal = p1Sequences[resonator.name];
+        if (seqVal !== undefined && seqVal >= 0) {
+          const seqBadge = document.createElement("div");
+          seqBadge.className = "pick-slot-seq-badge p1-seq-badge-color";
+          seqBadge.textContent = seqVal.toString();
+          slot.appendChild(seqBadge);
+          slot.classList.add("has-sequence-badge");
+        }
+      }
     }
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
   });
 
+  // --- Player 2 Pick Slots ---
   const p2SlotElements = [elements.p2Pick1, elements.p2Pick2, elements.p2Pick3];
-  //console.log(
-    //"UPDATE_PICK_SLOTS: P2 Slot Elements:",
-  //  p2SlotElements.map((el) => !!el)
-  //);
-
   p2SlotElements.forEach((slot, index) => {
-    if (!slot) {
-      console.error(
-        `UPDATE_PICK_SLOTS_ERROR: P2 pick slot element at index ${index} not found!`
-      );
-      return;
-    }
+    if (!slot) return;
+    slot.classList.remove(
+      "p1-picked-slot-themed",
+      "p2-picked-slot-themed",
+      "has-sequence-badge"
+    );
+    slot.innerHTML = "";
+
     const pickName = p2Picks[index];
     const isActive =
       currentPhase?.startsWith("PICK") &&
       currentTurn === "P2" &&
       !pickName &&
       index === p2Picks.length;
-    //console.log(
-    //  `UPDATE_PICK_SLOTS: P2 Slot ${
-    //    index + 1
-    //  }, pickName: ${pickName}, isActive: ${isActive}`
-    //);
+
     if (pickName) {
       const resonator = findResonatorByName(pickName);
-      //console.log(
-      //  `UPDATE_PICK_SLOTS: P2 Slot ${
-      //    index + 1
-      //  } findResonatorByName('${pickName}') result:`,
-      //  resonator
-      //);
       if (resonator && resonator.image_pick) {
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
-        //console.log(
-        //  `UPDATE_PICK_SLOTS: P2 Slot ${
-        //    index + 1
-        //  } updated with image for ${pickName}. InnerHTML set.`
-        //);
       } else {
         slot.innerHTML = `<span>${pickName || "?"}</span>`;
-        //console.log(
-        //  `UPDATE_PICK_SLOTS: P2 Slot ${
-        //    index + 1
-        //  } set with text for ${pickName} (resonator or image_pick missing).`
-        //);
       }
-    } else {
-      slot.innerHTML = "";
-      //console.log(`UPDATE_PICK_SLOTS: Clearing P2 Slot ${index + 1}`);
+      slot.classList.add("p2-picked-slot-themed");
+
+      if (draftState.equilibrationEnabled && resonator && resonator.isLimited) {
+        const seqVal = p2Sequences[resonator.name];
+        if (seqVal !== undefined && seqVal >= 0) {
+          const seqBadge = document.createElement("div");
+          seqBadge.className = "pick-slot-seq-badge p2-seq-badge-color";
+          seqBadge.textContent = seqVal.toString();
+          slot.appendChild(seqBadge);
+          slot.classList.add("has-sequence-badge");
+        }
+      }
     }
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
   });
@@ -793,12 +764,37 @@ export function updateDraftScreenUI(draftState) {
     console.warn("UI Update Warning: Draft phase status element not found");
   }
 
-  // Update Player Names
-  if (elements.draftP1Name) {
-    elements.draftP1Name.textContent = `P1: ${draftState.player1Name}`;
+  // Update player names with color coding
+  if (elements.draftP1Name && draftState.player1Name) {
+    elements.draftP1Name.innerHTML = `<span class="p1-name-colored">${draftState.player1Name}</span>`;
+    // Get the parent h4 element and add themed class
+    const p1Header = elements.draftP1Name.closest("h4");
+    if (p1Header) {
+      p1Header.classList.add("p1-themed-header");
+      p1Header.classList.remove("p2-themed-header");
+    }
+  } else if (elements.draftP1Name) {
+    elements.draftP1Name.textContent = "Waiting for Player 1...";
+    const p1Header = elements.draftP1Name.closest("h4");
+    if (p1Header) {
+      p1Header.classList.remove("p1-themed-header", "p2-themed-header");
+    }
   }
-  if (elements.draftP2Name) {
-    elements.draftP2Name.textContent = `P2: ${draftState.player2Name}`;
+
+  if (elements.draftP2Name && draftState.player2Name) {
+    elements.draftP2Name.innerHTML = `<span class="p2-name-colored">${draftState.player2Name}</span>`;
+    // Get the parent h4 element and add themed class
+    const p2Header = elements.draftP2Name.closest("h4");
+    if (p2Header) {
+      p2Header.classList.add("p2-themed-header");
+      p2Header.classList.remove("p1-themed-header");
+    }
+  } else if (elements.draftP2Name) {
+    elements.draftP2Name.textContent = "Waiting for Player 2...";
+    const p2Header = elements.draftP2Name.closest("h4");
+    if (p2Header) {
+      p2Header.classList.remove("p1-themed-header", "p2-themed-header");
+    }
   }
 
   // Update Pick and Ban Slots
@@ -1081,37 +1077,36 @@ function renderCharacterGrid(draftState) {
 
     // --- NEW: Add Sequence Overlay Logic ---
     if (draftState.equilibrationEnabled && resonator.isLimited) {
-      // p1SequencesFromState and p2SequencesFromState are already safely defaulted to {} if null/undefined
-      const p1SeqVal = p1SequencesFromState[resonator.name];
-      const p2SeqVal = p2SequencesFromState[resonator.name];
+      const p1Sequences =
+        typeof draftState.player1Sequences === "object" &&
+        draftState.player1Sequences !== null
+          ? draftState.player1Sequences
+          : {};
+      const p2Sequences =
+        typeof draftState.player2Sequences === "object" &&
+        draftState.player2Sequences !== null
+          ? draftState.player2Sequences
+          : {};
 
-      // Only create container if there's at least one sequence to show
-      let hasSequenceInfo = false;
-      const sequenceTexts = [];
+      const p1SeqVal = p1Sequences[resonator.name];
+      const p2SeqVal = p2Sequences[resonator.name];
 
-      if (p1SeqVal !== undefined && p1SeqVal >= -1) {
-        // Allow "Not Owned" (-1) or S0-S6
-        sequenceTexts.push(
-          `<span class="sequence-display p1-sequence">P1: ${
-            p1SeqVal === -1 ? "N/A" : "S" + p1SeqVal
-          }</span>`
-        );
-        hasSequenceInfo = true;
-      }
-      if (p2SeqVal !== undefined && p2SeqVal >= -1) {
-        sequenceTexts.push(
-          `<span class="sequence-display p2-sequence">P2: ${
-            p2SeqVal === -1 ? "N/A" : "S" + p2SeqVal
-          }</span>`
-        );
-        hasSequenceInfo = true;
+      // P1 Sequence Number (Top-Left)
+      if (p1SeqVal !== undefined && p1SeqVal >= 0) {
+        // Only show for S0-S6
+        const p1SeqBadge = document.createElement("div");
+        p1SeqBadge.className = "char-seq-badge p1-seq-badge";
+        p1SeqBadge.textContent = p1SeqVal.toString();
+        button.appendChild(p1SeqBadge);
       }
 
-      if (hasSequenceInfo) {
-        const sequenceOverlayContainer = document.createElement("div");
-        sequenceOverlayContainer.className = "sequence-overlay-container";
-        sequenceOverlayContainer.innerHTML = sequenceTexts.join(""); // Add all sequence texts
-        button.appendChild(sequenceOverlayContainer);
+      // P2 Sequence Number (Top-Right)
+      if (p2SeqVal !== undefined && p2SeqVal >= 0) {
+        // Only show for S0-S6
+        const p2SeqBadge = document.createElement("div");
+        p2SeqBadge.className = "char-seq-badge p2-seq-badge";
+        p2SeqBadge.textContent = p2SeqVal.toString();
+        button.appendChild(p2SeqBadge);
       }
     }
     // --- END NEW ---
