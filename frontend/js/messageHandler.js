@@ -164,17 +164,15 @@ export function handleWebSocketMessage(jsonData) {
           message.hasOwnProperty("turnExpiresAt") &&
           message.turnExpiresAt !== null
         ) {
-          //console.log(
-          //  "MH_TIMER_DEBUG: turnExpiresAt is PRESENT:",
-          //  message.turnExpiresAt,
-          //  ". Calling startOrUpdateTimerDisplay."
-          //);
+          console.log(
+            "MH_TIMER_RECEIVED_EXPIRY: Server sent turnExpiresAt:", message.turnExpiresAt, " (Type:", typeof message.turnExpiresAt, ")"
+          );
           state.setTurnExpiry(message.turnExpiresAt); // Update state
           startOrUpdateTimerDisplay(); // Attempt to start/update visual timer
         } else {
-          //console.log(
-          //  "MH_TIMER_DEBUG: turnExpiresAt is NULL or MISSING. Calling stopTimerDisplay."
-          //);
+          console.log(
+            "MH_TIMER_DEBUG: turnExpiresAt is NULL or MISSING. Calling stopTimerDisplay."
+          );
           state.setTurnExpiry(null); // Update state
           stopTimerDisplay(); // Stop visual timer
         }

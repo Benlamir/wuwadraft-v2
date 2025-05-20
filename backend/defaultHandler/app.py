@@ -1543,7 +1543,7 @@ def handler(event, context):
                 # Parse the expiry time string to datetime object
                 expires_at = datetime.fromisoformat(turn_expires_at_db.replace('Z', '+00:00'))
                 # Add a 2-second grace period to account for network delays and timing differences
-                grace_period = timedelta(seconds=2)
+                grace_period = timedelta(seconds=3)
                 if now < expires_at - grace_period: # Only reject if we're well before the expiry
                     logger.warning(f"Timeout check failed for lobby {lobby_id}. Expiry {turn_expires_at_db} has not passed yet ({now.isoformat()}). Client timer might be fast or message delayed.")
                     return {'statusCode': 400, 'body': 'Timeout condition not met (time has not passed).'}

@@ -529,7 +529,9 @@ export function stopTimerDisplay() {
 function updateCountdown(expiryTime, intervalId) {
   // Check if this interval should still be running
   if (state.timerIntervalId === null || intervalId !== state.timerIntervalId) {
-    // console.log(`UI_VIEWS_TIMER: updateCountdown (interval ${intervalId}) - Mismatch or timer already cleared by state (${state.timerIntervalId}). Clearing this interval.`);
+    console.log(
+      `UI_VIEWS_TIMER: updateCountdown (interval ${intervalId}) - Mismatch or timer already cleared by state (${state.timerIntervalId}). Clearing this interval.`
+    );
     clearInterval(intervalId);
     return;
   }
@@ -563,19 +565,44 @@ function updateCountdown(expiryTime, intervalId) {
     timerElement.classList.add("timer-low");
     clearInterval(intervalId); // Stop this interval
 
-    // Only allow the client whose turn it was to send the timeout action
-    if (
-      state.myAssignedSlot === state.currentTurn &&
-      state.timerIntervalId === intervalId
-    ) {
-      //console.log(
-      //  "UI_VIEWS_TIMER: Timer expired for my turn. Sending turnTimeout action."
-      //);
+    // --- DETAILED LOGGING FOR TIMEOUT DECISION ---
+    const isMyTurn = state.myAssignedSlot === state.currentTurn;
+    const isCurrentInterval = state.timerIntervalId === intervalId;
+    const currentTimerIdInState = state.timerIntervalId;
+
+    console.log(
+      `UI_VIEWS_TIMER_EXPIRED: intervalId=${intervalId} reached 0ms.`
+    );
+    console.log(
+      `UI_VIEWS_TIMER_EXPIRED: Is it my turn? (mySlot: ${state.myAssignedSlot} === currentTurn: ${state.currentTurn}) -> ${isMyTurn}`
+    );
+    console.log(
+      `UI_VIEWS_TIMER_EXPIRED: Is this the current interval? (this intervalId: ${intervalId} === state.timerIntervalId: ${currentTimerIdInState}) -> ${isCurrentInterval}`
+    );
+
+    if (isMyTurn && isCurrentInterval) {
+      console.log(
+        "UI_VIEWS_TIMER_EXPIRED: CONDITIONS MET. Sending turnTimeout action."
+      );
       sendMessageToServer({
         action: "turnTimeout",
         expectedPhase: state.currentPhase,
         expectedTurn: state.myAssignedSlot,
       });
+    } else {
+      console.log(
+        "UI_VIEWS_TIMER_EXPIRED: CONDITIONS NOT MET. Not sending turnTimeout."
+      );
+      if (!isMyTurn) {
+        console.log(
+          `UI_VIEWS_TIMER_EXPIRED: Reason: Not my turn (mySlot: ${state.myAssignedSlot}, currentTurn: ${state.currentTurn})`
+        );
+      }
+      if (!isCurrentInterval) {
+        console.log(
+          `UI_VIEWS_TIMER_EXPIRED: Reason: Not the current timer interval (thisId: ${intervalId}, stateId: ${currentTimerIdInState})`
+        );
+      }
     }
     state.clearTimerInterval(); // Clear from state AFTER sending timeout
   } else {
@@ -597,11 +624,19 @@ function updateCountdown(expiryTime, intervalId) {
 
 // This function starts a new timer cycle
 export function startOrUpdateTimerDisplay() {
-  // console.log("UI_VIEWS_TIMER: startOrUpdateTimerDisplay called. currentTurnExpiresAt:", state.currentTurnExpiresAt);
+  console.log(
+    "TIMER_START_ATTEMPT: Using state.currentTurnExpiresAt =",
+    state.currentTurnExpiresAt,
+    " (Type:",
+    typeof state.currentTurnExpiresAt,
+    ")"
+  );
   stopTimerDisplay(); // Clear any previous timer first
 
   if (!state.currentTurnExpiresAt) {
-    // console.log("UI_VIEWS_TIMER: No currentTurnExpiresAt in state. Timer will not start.");
+    console.log(
+      "TIMER_START_ATTEMPT: No valid currentTurnExpiresAt in state. Timer will not start."
+    );
     return;
   }
 
@@ -616,15 +651,18 @@ export function startOrUpdateTimerDisplay() {
   }
   // Ensure the inner structure (span) is present
   if (!timerElement.querySelector("span")) {
-    //console.log(
-    //  "UI_VIEWS_TIMER: startOrUpdateTimerDisplay - timerTextSpan missing. Re-initializing timer HTML."
-    //);
     timerElement.innerHTML =
       '<i class="bi bi-clock timer-icon me-1"></i> <span>Time Remaining: --:--</span>';
   }
 
   try {
     const expiryTimestamp = new Date(state.currentTurnExpiresAt).getTime();
+    const now = Date.now();
+    const initialRemainingMs = expiryTimestamp - now; // Calculate initial remaining
+    console.log(
+      `TIMER_INIT: Initial remainingMs = ${initialRemainingMs} (ServerExpiry: ${expiryTimestamp}, ClientNow: ${now})`
+    );
+
     if (isNaN(expiryTimestamp)) {
       console.error(
         "UI_VIEWS_TIMER: Invalid expiry timestamp:",
@@ -633,12 +671,12 @@ export function startOrUpdateTimerDisplay() {
       return;
     }
 
-    const now = Date.now();
-    if (expiryTimestamp <= now) {
-      // console.log("UI_VIEWS_TIMER: Expiry time is in the past. Setting timer display to 00:00.");
+    if (initialRemainingMs <= 0) {
+      console.log(
+        "TIMER_INIT: Turn already expired or will expire in next tick."
+      );
       const timerTextSpan = timerElement.querySelector("span");
       if (timerTextSpan) {
-        // Check again as it might have been just added
         timerTextSpan.textContent = "Time Remaining: 00:00";
       }
       timerElement.classList.add("timer-low");
@@ -649,7 +687,6 @@ export function startOrUpdateTimerDisplay() {
       updateCountdown(expiryTimestamp, newIntervalId);
     }, 1000);
     state.setTimerIntervalId(newIntervalId); // Store the new interval ID in state
-    // console.log(`UI_VIEWS_TIMER: New timer interval started with ID: ${newIntervalId}. Expiry: ${state.currentTurnExpiresAt}`);
 
     // Call updateCountdown once immediately using a slight delay to ensure DOM is fully ready
     setTimeout(() => {
