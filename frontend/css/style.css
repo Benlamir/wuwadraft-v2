@@ -7,9 +7,9 @@
   --p1-color-light: rgba(0, 123, 255, 0.15);
   --p1-color-text: #007bff;
 
-  --p2-color: #dc3545; /* Bootstrap Red */
-  --p2-color-light: rgba(220, 53, 69, 0.15);
-  --p2-color-text: #dc3545;
+  --p2-color: #A020F0; /* Bootstrap Red */
+  --p2-color-light: rgba(160, 32, 240, 0.15);
+  --p2-color-text: #A020F0;
 }
 
 /* Custom Styles */
