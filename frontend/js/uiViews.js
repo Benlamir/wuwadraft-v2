@@ -88,6 +88,11 @@ export function showScreen(screenIdToShow) {
 // --- UI Update Functions ---
 
 export function updateLobbyWaitScreenUI(lobbyStateData) {
+
+  console.log(
+   "[updateLobbyWaitScreenUI CALLED] isCurrentUserHost:", state.isCurrentUserHost, 
+   "myAssignedSlot:", state.myAssignedSlot
+  );
   // console.log("UI: Updating lobby wait screen", lobbyStateData);
 
   // --- DEBUG: Verify all button elements exist ---
@@ -791,6 +796,10 @@ export function startOrUpdateTimerDisplay() {
 
 // --- MODIFY updateDraftScreenUI FUNCTION ---
 export function updateDraftScreenUI(draftState) {
+  console.log(
+    "[updateDraftScreenUI CALLED] isCurrentUserHost:", state.isCurrentUserHost,
+    "myAssignedSlot:", state.myAssignedSlot 
+  );
   // console.log("UI: Updating draft screen UI with state:", draftState);
   if (!elements || !elements.draftScreen) {
     // console.error(
