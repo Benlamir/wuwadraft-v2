@@ -71,6 +71,18 @@ export const elements = {
   hostResetDraftBtn: null,
   draftPlayerControls: null,
   resetLocalSequencesBtn: null,
+  // Ban Area Containers
+  draftBansArea: null,
+  eqBansSlotsContainer: null,
+  standardBansSlotsContainer: null,
+  // EQ Ban Slots
+  eqBanSlot1: null,
+  eqBanSlot2: null,
+  // Standard Ban Slots
+  stdBanSlot1: null,
+  stdBanSlot2: null,
+  stdBanSlot3: null,
+  stdBanSlot4: null,
 };
 
 // Function to populate the elements object
@@ -242,4 +254,21 @@ export function initializeElements() {
     console.error("[Init Check] characterGridContainer element not found!");
   if (!elements.draftPhaseStatus)
     console.error("[Init Check] draftPhaseStatus element not found!");
+
+  // Ban Area Containers
+  elements.draftBansArea = document.getElementById("draft-bans-area");
+  elements.eqBansSlotsContainer = document.getElementById("eq-bans-slots");
+  elements.standardBansSlotsContainer = document.getElementById(
+    "standard-bans-slots"
+  );
+
+  // EQ Ban Slots
+  elements.eqBanSlot1 = document.getElementById("eq-ban-slot-1");
+  elements.eqBanSlot2 = document.getElementById("eq-ban-slot-2");
+
+  // Standard Ban Slots
+  elements.stdBanSlot1 = document.getElementById("std-ban-slot-1");
+  elements.stdBanSlot2 = document.getElementById("std-ban-slot-2");
+  elements.stdBanSlot3 = document.getElementById("std-ban-slot-3");
+  elements.stdBanSlot4 = document.getElementById("std-ban-slot-4");
 }

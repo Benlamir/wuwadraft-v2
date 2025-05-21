@@ -471,36 +471,119 @@ function updatePickSlots(draftState) {
 
 // --- ADD NEW FUNCTION for Ban Slots ---
 function updateBanSlots(draftState) {
-  const bans = draftState.bans || [];
+  const allBans = draftState.bans || []; // This list contains ALL bans in order (EQ first, then standard)
   const currentPhase = draftState.currentPhase;
   const currentTurn = draftState.currentTurn;
 
-  const banSlotElements = elements.banSlots || [
-    elements.banSlot1,
-    elements.banSlot2,
-    elements.banSlot3,
-    elements.banSlot4,
+  // From BSS:
+  const isEqEnabled = draftState.equilibrationEnabled;
+  const eqBansAllowed = isEqEnabled
+    ? draftState.equilibrationBansAllowed || 0
+    : 0;
+  const eqBansMadeByLSP = isEqEnabled
+    ? draftState.equilibrationBansMade || 0
+    : 0; // How many EQ bans the LSP has ALREADY made
+  const eqBanner = isEqEnabled ? draftState.currentEquilibrationBanner : null; // Who is making EQ bans ('P1' or 'P2')
+
+  // Define references to EQ ban slot elements
+  const eqBanSlotElements = [elements.eqBanSlot1, elements.eqBanSlot2];
+  // Define references to Standard ban slot elements
+  const stdBanSlotElements = [
+    elements.stdBanSlot1,
+    elements.stdBanSlot2,
+    elements.stdBanSlot3,
+    elements.stdBanSlot4,
   ];
 
-  banSlotElements.forEach((slot, index) => {
-    if (!slot) return;
-    const banName = bans[index];
-    const isActive =
-      currentPhase?.startsWith("BAN") && !banName && index === bans.length;
+  // --- Populate EQ Ban Slots ---
+  // These slots are only relevant if equilibration is enabled AND there are EQ bans allowed.
+  // They show the first N bans from the `allBans` list, up to `eqBansAllowed`.
+  for (let i = 0; i < eqBanSlotElements.length; i++) {
+    const slot = eqBanSlotElements[i];
+    if (!slot) continue;
+
+    slot.innerHTML = ""; // Clear previous
+    let banName = null;
+    let isFilled = false;
+    let isActiveForPulse = false;
+
+    if (i < eqBansAllowed) {
+      // Is this EQ slot even part of the current draft's EQ ban count?
+      if (i < allBans.length && i < eqBansMadeByLSP) {
+        // This EQ ban has been made
+        banName = allBans[i];
+        isFilled = true;
+      } else if (
+        i === eqBansMadeByLSP &&
+        currentPhase === EQUILIBRATION_PHASE_NAME &&
+        currentTurn === eqBanner
+      ) {
+        // This is the NEXT EQ ban slot to be filled, it's the EQ phase, and it's the correct player's turn
+        isActiveForPulse = true;
+      }
+      // If i >= eqBansMadeByLSP, the slot is empty (either to be filled or won't be filled if eqBansMadeByLSP < eqBansAllowed due to timeout/completion)
+    } else {
+      // This EQ slot is not used in this draft (e.g., only 0 or 1 EQ ban allowed)
+      // Optionally hide it or style it as inactive/disabled non-pulsing
+      slot.classList.add("ban-slot-disabled"); // Add a class to style unused EQ slots
+    }
 
     if (banName) {
       const resonator = findResonatorByName(banName);
-      if (resonator && resonator.image_button) {
-        slot.innerHTML = `<img src="${resonator.image_button}" alt="${banName}" title="${banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`;
-      } else {
-        slot.innerHTML = `<span>X</span>`;
-      }
-    } else {
-      slot.innerHTML = "";
+      slot.innerHTML =
+        resonator && resonator.image_button
+          ? `<img src="${resonator.image_button}" alt="${banName}" title="${banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`
+          : `<span>X</span>`;
     }
+    updateSlotGlowState(slot, isActiveForPulse, isFilled, "ban");
+    if (!isFilled && !isActiveForPulse && i >= eqBansAllowed) {
+      // explicit clear if not used
+      slot.classList.remove("pulse-ban", "glow-ban");
+    }
+  }
 
-    updateSlotGlowState(slot, isActive, !!banName, "ban");
-  });
+  // --- Populate Standard Ban Slots ---
+  // These show bans from `allBans` list, starting AFTER the EQ bans.
+  // The number of EQ bans actually made and recorded in `allBans` before standard bans start
+  // is min(allBans.length, eqBansAllowed) but more simply, it's eqBansMadeByLSP if the EQ phase is over,
+  // or if still in EQ phase, it's eqBansMadeByLSP.
+  // The number of EQ bans that *will eventually be* in the `allBans` list from the EQ phase.
+  const numEqBansInTotalList = eqBansAllowed; // Assuming all allowed EQ bans will be made or forfeited, affecting indexing.
+
+  for (let i = 0; i < stdBanSlotElements.length; i++) {
+    const slot = stdBanSlotElements[i];
+    if (!slot) continue;
+
+    slot.innerHTML = ""; // Clear previous
+    let banName = null;
+    let isFilled = false;
+    let isActiveForPulse = false;
+
+    const overallBanIndex = numEqBansInTotalList + i; // Index in the `allBans` array for this standard ban slot
+
+    if (overallBanIndex < allBans.length) {
+      // This standard ban has been made
+      banName = allBans[overallBanIndex];
+      isFilled = true;
+    } else if (
+      overallBanIndex === allBans.length &&
+      currentPhase !== EQUILIBRATION_PHASE_NAME &&
+      currentPhase?.startsWith("BAN")
+    ) {
+      // This is the NEXT standard ban slot to be filled, it's a standard BAN phase
+      isActiveForPulse = true;
+    }
+    // If overallBanIndex > allBans.length, the slot is empty and not active for pulse.
+
+    if (banName) {
+      const resonator = findResonatorByName(banName);
+      slot.innerHTML =
+        resonator && resonator.image_button
+          ? `<img src="${resonator.image_button}" alt="${banName}" title="${banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`
+          : `<span>X</span>`;
+    }
+    updateSlotGlowState(slot, isActiveForPulse, isFilled, "ban");
+  }
 }
 
 // --- ADD TIMER DISPLAY FUNCTIONS ---
