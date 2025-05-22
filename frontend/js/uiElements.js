@@ -52,7 +52,6 @@ export const elements = {
   draftP1Name: null,
   draftP2Name: null,
   characterGridContainer: null,
-  draftBansSlotsContainer: null,
   draftP1PicksList: null,
   p1Pick1: null,
   p1Pick2: null,
@@ -61,11 +60,6 @@ export const elements = {
   p2Pick1: null,
   p2Pick2: null,
   p2Pick3: null,
-  banSlots: null,
-  banSlot1: null,
-  banSlot2: null,
-  banSlot3: null,
-  banSlot4: null,
   draftHostControls: null,
   hostDeleteDraftLobbyBtn: null,
   hostResetDraftBtn: null,
@@ -163,8 +157,6 @@ export function initializeElements() {
   elements.characterGridContainer = document.getElementById(
     "character-grid-container"
   );
-  elements.draftBansSlotsContainer =
-    document.getElementById("draft-bans-slots");
 
   // Draft Control Elements
   elements.draftHostControls = document.getElementById("draft-host-controls");
@@ -188,14 +180,6 @@ export function initializeElements() {
   elements.p2Pick2 = document.getElementById("p2-pick-2");
   elements.p2Pick3 = document.getElementById("p2-pick-3");
 
-  // Ban Slots
-  elements.banSlots =
-    elements.draftBansSlotsContainer?.querySelectorAll(".ban-slot");
-  elements.banSlot1 = document.getElementById("ban-slot-1");
-  elements.banSlot2 = document.getElementById("ban-slot-2");
-  elements.banSlot3 = document.getElementById("ban-slot-3");
-  elements.banSlot4 = document.getElementById("ban-slot-4");
-
   // Box Score Screen Elements
   elements.limitedResonatorsList = document.getElementById(
     "limited-resonators-list"
@@ -210,6 +194,23 @@ export function initializeElements() {
   elements.resetLocalSequencesBtn = document.getElementById(
     "reset-local-sequences-btn"
   );
+
+    // Ban Area Containers
+    elements.draftBansArea = document.getElementById("draft-bans-area");
+    elements.eqBansSlotsContainer = document.getElementById("eq-bans-slots");
+    elements.standardBansSlotsContainer = document.getElementById(
+      "standard-bans-slots"
+    );
+  
+    // EQ Ban Slots
+    elements.eqBanSlot1 = document.getElementById("eq-ban-slot-1");
+    elements.eqBanSlot2 = document.getElementById("eq-ban-slot-2");
+  
+    // Standard Ban Slots
+    elements.stdBanSlot1 = document.getElementById("std-ban-slot-1");
+    elements.stdBanSlot2 = document.getElementById("std-ban-slot-2");
+    elements.stdBanSlot3 = document.getElementById("std-ban-slot-3");
+    elements.stdBanSlot4 = document.getElementById("std-ban-slot-4");
 
   // Debug logs for new elements
   //console.log("Check element - boxScoreScreen:", elements.boxScoreScreen);
@@ -255,20 +256,4 @@ export function initializeElements() {
   if (!elements.draftPhaseStatus)
     console.error("[Init Check] draftPhaseStatus element not found!");
 
-  // Ban Area Containers
-  elements.draftBansArea = document.getElementById("draft-bans-area");
-  elements.eqBansSlotsContainer = document.getElementById("eq-bans-slots");
-  elements.standardBansSlotsContainer = document.getElementById(
-    "standard-bans-slots"
-  );
-
-  // EQ Ban Slots
-  elements.eqBanSlot1 = document.getElementById("eq-ban-slot-1");
-  elements.eqBanSlot2 = document.getElementById("eq-ban-slot-2");
-
-  // Standard Ban Slots
-  elements.stdBanSlot1 = document.getElementById("std-ban-slot-1");
-  elements.stdBanSlot2 = document.getElementById("std-ban-slot-2");
-  elements.stdBanSlot3 = document.getElementById("std-ban-slot-3");
-  elements.stdBanSlot4 = document.getElementById("std-ban-slot-4");
 }
