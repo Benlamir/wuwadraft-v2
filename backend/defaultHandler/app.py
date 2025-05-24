@@ -263,7 +263,8 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
             "player2Sequences": final_lobby_item_for_broadcast.get('player2Sequences'),
             "effectiveDraftOrder": final_lobby_item_for_broadcast.get('effectiveDraftOrder'),
             "equilibrationBansAllowed": final_lobby_item_for_broadcast.get('equilibrationBansAllowed', 0),
-            "equilibrationBansMade": final_lobby_item_for_broadcast.get('equilibrationBansMade', 0)
+            "equilibrationBansMade": final_lobby_item_for_broadcast.get('equilibrationBansMade', 0),
+            "currentEquilibrationBanner": final_lobby_item_for_broadcast.get('currentEquilibrationBanner')
         }
         if last_action:
             state_payload["lastAction"] = last_action
