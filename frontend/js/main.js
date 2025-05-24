@@ -440,6 +440,34 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     console.warn("Host Leave Slot Button not found during listener setup.");
   }
+
+
+  if (elements.boxScoreLeaveSlotBtn) { // Check if the element exists
+    elements.boxScoreLeaveSlotBtn.addEventListener("click", () => {
+      console.log("Host: Leave Player Slot button clicked (from BSS).");
+      // Verify user is host and currently in a slot
+      if (
+        state.isCurrentUserHost &&
+        (state.myAssignedSlot === "P1" || state.myAssignedSlot === "P2") &&
+        state.currentLobbyId
+      ) {
+        sendMessageToServer({
+          action: "hostLeaveSlot", // Same action as the button on the wait screen
+          lobbyId: state.currentLobbyId,
+        });
+        // UI update will be handled by the lobbyStateUpdate message received back from the server.
+        // The server should set the host's slot to null, clear their player-specific BSS data,
+        // and the client should then likely navigate to the lobby-wait-screen.
+      } else {
+        console.warn(
+          "BSS Leave slot button clicked, but conditions not met (not host, not in slot, or no lobbyId)."
+        );
+      }
+    });
+    console.log("[main.js] Event listener attached to host's Leave Slot button on BSS.");
+  } else {
+    console.warn("Host Leave Slot Button on BSS (boxScoreLeaveSlotBtn) not found during listener setup.");
+  }
   // --- END HOST CONTROL LISTENERS ---
 
   // --- Show Initial Screen ---
