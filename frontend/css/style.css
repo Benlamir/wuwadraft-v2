@@ -12,6 +12,10 @@
   --p2-color-text: #a020f0;
 }
 
+html {
+  height: 100%;
+}
+
 /* Custom Styles */
 
 /* Basic Body Styling */
@@ -23,7 +27,6 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  justify-content: center;
 }
 
 /* Background Effect - Always visible */
@@ -60,6 +63,99 @@ header {
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0));
   backdrop-filter: blur(8px);
 }
+
+/* --- Styles for the Main Content Area that WRAPS your screens --- */
+/* This targets the <div class="container-fluid mt-5"> that holds all .screen divs */
+/* To be more specific and avoid affecting other .container-fluid.mt-5 divs
+   you might have elsewhere (unlikely in a single-page app like this),
+   you could add a unique ID to this div in your HTML, e.g., id="main-content-area"
+   and then target #main-content-area in CSS.
+   For now, assuming body > .container-fluid.mt-5 is specific enough.
+*/
+body > .container-fluid.mt-5 { 
+  flex-grow: 1;             /* KEY: Makes this div expand, pushing footer down */
+  display: flex;            /* KEY: Make it a flex container to center its child (the active .screen) */
+  flex-direction: column;   /* Its children stack vertically (though usually only one .screen is active) */
+  align-items: center;      /* KEY: Horizontally centers the active .screen */
+  justify-content: center;  /* KEY: Vertically centers the active .screen */
+  
+  /* Account for your fixed header. The header has padding 1rem (16px) top/bottom.
+     Your container-fluid has mt-5 (Bootstrap margin-top: 3rem or 48px).
+     The header is fixed, so content will flow under it. You need padding-top
+     on this main content wrapper to prevent the actual screen content from being obscured.
+     Let's estimate header height to be around 50-70px.
+     Your header padding is 1rem (16px) + h1 size.
+     The mt-5 on container-fluid already pushes it down.
+     The fixed header means the content area STARTS from the top of the viewport.
+     So, the main content wrapper needs padding at its top to clear the fixed header.
+  */
+  padding-top: 70px; /* Adjust this value based on your actual fixed header's height */
+                     /* Or slightly more than what your header takes up. */
+  /* You might not need padding-bottom if footer handles its own spacing. */
+}
+
+/* Individual .screen styling (Your existing styles are good) */
+.screen {
+display: none;
+flex-direction: column;
+align-items: center;
+justify-content: center; 
+padding: 20px; 
+width: 100%; /* Make screens take full width of their centered container */
+/* max-width: 1200px; /* Optional: set a max-width for content within screens */
+}
+
+.screen.active {
+display: flex; 
+}
+
+
+/* --- Footer Styles --- */
+.app-footer {
+  flex-shrink: 0; /* Prevent footer from shrinking */
+  background-color: rgba(10, 10, 20, 0.85); 
+  color: rgba(220, 220, 220, 0.7);          
+  font-size: 0.85em;                        
+  padding-top: 0.75rem;    
+  padding-bottom: 0.75rem; 
+  border-top: 1px solid #333;               
+  backdrop-filter: blur(5px);
+  /* margin-top: auto; /* This is now less critical because of flex-grow:1 on the content wrapper above it */
+
+    /* --- NEW: Styles for fade effect --- */
+    opacity: 1; /* Default opacity */
+    transition: opacity 0.3s ease-in-out; /* Smooth transition for opacity */
+}
+
+/* When draft screen is active, make footer less prominent */
+body.draft-active-background .app-footer {
+    opacity: 0.3; /* Or your desired level of fade, e.g., 0.2, 0.4 */
+}
+
+/* Make footer fully visible when hovered, specifically when draft screen is active */
+body.draft-active-background .app-footer:hover {
+    opacity: 1;
+}
+
+/* ... (rest of your .app-footer p, .app-footer a, and .app-footer .text-muted styles from before) ... */
+.app-footer p {
+margin-bottom: 0.25rem; 
+}
+.app-footer p:last-child {
+margin-bottom: 0;
+}
+.app-footer .text-muted {
+color: rgba(200, 200, 200, 0.8) !important; 
+}
+.app-footer a {
+color: #87CEEB; 
+text-decoration: none;
+}
+.app-footer a:hover {
+color: #ADD8E6; 
+text-decoration: underline;
+}
+/* --- End Footer Styles --- */
 
 .site-title {
   font-size: 1.5rem;
