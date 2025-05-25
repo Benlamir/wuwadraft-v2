@@ -379,6 +379,18 @@ const ALL_RESONATORS_DATA = [
     element: ["Spectro"],
     weapon: "Broadblade",
   },
+  {
+    id: "resonator_id_32",
+    name: "Ciaconna",
+    image_button:
+      "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_ciaconna.webp",
+    image_pick:
+      "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/ciaccona.webp",
+    rarity: 5,
+    isLimited: true,
+    element: ["Aero"],
+    weapon: "Pistols",
+  },
 ];
 
 export { ALL_RESONATORS_DATA };
