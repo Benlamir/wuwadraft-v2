@@ -858,7 +858,7 @@ text-decoration: underline;
 }
 
 .player-area {
-  flex: 0 0 600px; /* Base size, no shrink */
+  flex: 0 0 200px; /* Base size, no shrink */
 }
 
 .center-area {
@@ -872,7 +872,7 @@ text-decoration: underline;
 /* --- Styling for Pick Slots Container --- */
 .pick-slots-container {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 5px;
   width: 100%;
   margin-top: 10px;
@@ -885,6 +885,9 @@ text-decoration: underline;
   border: 1px dashed rgba(255, 255, 255, 0.3);
   border-radius: 4px;
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+
 }
 
 /* --- Active Turn, Empty Slot --- */
@@ -909,16 +912,6 @@ text-decoration: underline;
   height: 100%;
   object-fit: contain;
   border-radius: 3px;
-}
-
-/* --- Media Queries for Draft Layout --- */
-@media (max-width: 1600px) {
-  .pick-slots-container {
-    flex-direction: column;
-  }
-  .player-area {
-    flex-basis: 200px;
-  }
 }
 
 @media (max-width: 767.98px) {
