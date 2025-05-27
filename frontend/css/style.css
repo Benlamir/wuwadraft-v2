@@ -72,13 +72,13 @@ header {
    and then target #main-content-area in CSS.
    For now, assuming body > .container-fluid.mt-5 is specific enough.
 */
-body > .container-fluid.mt-5 { 
-  flex-grow: 1;             /* KEY: Makes this div expand, pushing footer down */
-  display: flex;            /* KEY: Make it a flex container to center its child (the active .screen) */
-  flex-direction: column;   /* Its children stack vertically (though usually only one .screen is active) */
-  align-items: center;      /* KEY: Horizontally centers the active .screen */
-  justify-content: center;  /* KEY: Vertically centers the active .screen */
-  
+body > .container-fluid.mt-5 {
+  flex-grow: 1; /* KEY: Makes this div expand, pushing footer down */
+  display: flex; /* KEY: Make it a flex container to center its child (the active .screen) */
+  flex-direction: column; /* Its children stack vertically (though usually only one .screen is active) */
+  align-items: center; /* KEY: Horizontally centers the active .screen */
+  justify-content: center; /* KEY: Vertically centers the active .screen */
+
   /* Account for your fixed header. The header has padding 1rem (16px) top/bottom.
      Your container-fluid has mt-5 (Bootstrap margin-top: 3rem or 48px).
      The header is fixed, so content will flow under it. You need padding-top
@@ -90,70 +90,69 @@ body > .container-fluid.mt-5 {
      So, the main content wrapper needs padding at its top to clear the fixed header.
   */
   padding-top: 70px; /* Adjust this value based on your actual fixed header's height */
-                     /* Or slightly more than what your header takes up. */
+  /* Or slightly more than what your header takes up. */
   /* You might not need padding-bottom if footer handles its own spacing. */
 }
 
 /* Individual .screen styling (Your existing styles are good) */
 .screen {
-display: none;
-flex-direction: column;
-align-items: center;
-justify-content: center; 
-padding: 20px; 
-width: 100%; /* Make screens take full width of their centered container */
-/* max-width: 1200px; /* Optional: set a max-width for content within screens */
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  width: 100%; /* Make screens take full width of their centered container */
+  /* max-width: 1200px; /* Optional: set a max-width for content within screens */
 }
 
 .screen.active {
-display: flex; 
+  display: flex;
 }
-
 
 /* --- Footer Styles --- */
 .app-footer {
   flex-shrink: 0; /* Prevent footer from shrinking */
-  background-color: rgba(10, 10, 20, 0.85); 
-  color: rgba(220, 220, 220, 0.7);          
-  font-size: 0.85em;                        
-  padding-top: 0.75rem;    
-  padding-bottom: 0.75rem; 
-  border-top: 1px solid #333;               
+  background-color: rgba(10, 10, 20, 0.85);
+  color: rgba(220, 220, 220, 0.7);
+  font-size: 0.85em;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-top: 1px solid #333;
   backdrop-filter: blur(5px);
   /* margin-top: auto; /* This is now less critical because of flex-grow:1 on the content wrapper above it */
 
-    /* --- NEW: Styles for fade effect --- */
-    opacity: 1; /* Default opacity */
-    transition: opacity 0.3s ease-in-out; /* Smooth transition for opacity */
+  /* --- NEW: Styles for fade effect --- */
+  opacity: 1; /* Default opacity */
+  transition: opacity 0.3s ease-in-out; /* Smooth transition for opacity */
 }
 
 /* When draft screen is active, make footer less prominent */
 body.draft-active-background .app-footer {
-    opacity: 0.3; /* Or your desired level of fade, e.g., 0.2, 0.4 */
+  opacity: 0.3; /* Or your desired level of fade, e.g., 0.2, 0.4 */
 }
 
 /* Make footer fully visible when hovered, specifically when draft screen is active */
 body.draft-active-background .app-footer:hover {
-    opacity: 1;
+  opacity: 1;
 }
 
 /* ... (rest of your .app-footer p, .app-footer a, and .app-footer .text-muted styles from before) ... */
 .app-footer p {
-margin-bottom: 0.25rem; 
+  margin-bottom: 0.25rem;
 }
 .app-footer p:last-child {
-margin-bottom: 0;
+  margin-bottom: 0;
 }
 .app-footer .text-muted {
-color: rgba(200, 200, 200, 0.8) !important; 
+  color: rgba(200, 200, 200, 0.8) !important;
 }
 .app-footer a {
-color: #87CEEB; 
-text-decoration: none;
+  color: #87ceeb;
+  text-decoration: none;
 }
 .app-footer a:hover {
-color: #ADD8E6; 
-text-decoration: underline;
+  color: #add8e6;
+  text-decoration: underline;
 }
 /* --- End Footer Styles --- */
 
@@ -581,8 +580,9 @@ text-decoration: underline;
 /* Character Grid Container */
 .character-grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(auto-fit, 130px); /* Increased from 110px */
+  column-gap: 5px;
+  row-gap: 3px;
   padding: 5px;
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
@@ -591,6 +591,7 @@ text-decoration: underline;
   max-height: 480px;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  justify-content: left;
 }
 
 .center-area {
@@ -607,7 +608,8 @@ text-decoration: underline;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px;
+  padding: 10px; /* Increased from 8px */
+  padding-bottom: 22px; /* Increased from 18px to accommodate larger size */
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -615,7 +617,8 @@ text-decoration: underline;
   border: none;
   background-color: transparent;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
-  overflow: visible; /* Allow badges to be visible outside the button */
+  overflow: visible;
+  aspect-ratio: 1 / 1;
 }
 
 /* Sequence Badge Styles */
@@ -694,25 +697,30 @@ text-decoration: underline;
 
 /* Character Icon Container */
 .character-button img.character-icon {
-  display: block;
-  max-width: 100%;
-  height: auto;
+  width: 85%; /* Increased from 80% */
+  height: 85%; /* Increased from 80% */
+  object-fit: cover;
   margin: 0 auto;
   background-color: transparent;
-
-  /* Add mask for bottom fade */
   mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
-  transform: translateZ(0); /* Optional: Helps with rendering performance */
+  transform: translateZ(0);
 }
 
 /* Character Name */
 .character-name {
+  position: absolute;
+  bottom: 3px; /* Increased from 2px */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 95%;
   color: white;
   font-weight: bold;
-  font-size: 0.9em;
+  font-size: 0.85em; /* Increased from 0.75em */
   text-align: center;
-  margin-top: 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
   background-color: transparent;
 }
 
@@ -817,6 +825,8 @@ text-decoration: underline;
     gap: 10px;
   }
   .pick-slot {
+    height: auto;
+    min-height: 100px;
     flex: 0 1 150px;
   }
   .center-area {
@@ -825,12 +835,25 @@ text-decoration: underline;
     min-height: auto;
   }
   .character-grid-container {
-    grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+    grid-template-columns: repeat(auto-fit, 95px); /* Increased from 80px */
+    row-gap: 3px;
+    column-gap: 3px;
     max-height: 40vh;
     min-height: 250px;
-    overflow-y: auto;
-    scrollbar-gutter: auto;
-    width: 100%;
+  }
+
+  .character-button {
+    padding: 8px;
+    padding-bottom: 20px;
+  }
+
+  .character-button img.character-icon {
+    width: 82%;
+    height: 82%;
+  }
+
+  .character-name {
+    font-size: 0.8em;
   }
 }
 
@@ -858,7 +881,7 @@ text-decoration: underline;
 }
 
 .player-area {
-  flex: 0 0 200px; /* Base size, no shrink */
+  flex: 0 0 200px; /* Narrower width for vertical pick slots */
 }
 
 .center-area {
@@ -873,21 +896,19 @@ text-decoration: underline;
 .pick-slots-container {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
   width: 100%;
   margin-top: 10px;
 }
 
 /* --- Pick Slot Base Styles --- */
 .pick-slot {
-  /* Default state: Empty, not active turn */
   background-color: rgba(255, 255, 255, 0.05);
   border: 1px dashed rgba(255, 255, 255, 0.3);
   border-radius: 4px;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-
 }
 
 /* --- Active Turn, Empty Slot --- */
