@@ -191,8 +191,14 @@ export function clearTimerInterval() {
 
 // Add setter functions for equilibration state
 export function setEquilibrationEnabledForLobby(isEnabled) {
-  equilibrationEnabledForLobby = isEnabled;
-  console.log(`State: equilibrationEnabledForLobby set to ${isEnabled}`);
+  console.log(
+    `STATE_JS_SET_EQ_ENABLED: Trying to set from current '${equilibrationEnabledForLobby}' to '${isEnabled}'. Full new value:`,
+    isEnabled
+  );
+  equilibrationEnabledForLobby = !!isEnabled; // Ensure it's always a boolean
+  console.log(
+    `STATE_JS_SET_EQ_ENABLED: Successfully set to '${equilibrationEnabledForLobby}'.`
+  );
 }
 
 export function setLocalPlayerHasSubmittedScore(hasSubmitted) {

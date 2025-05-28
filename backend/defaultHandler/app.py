@@ -240,6 +240,14 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
             return False
 
         logger.info(f"BROADCAST_LOBBY_STATE_ITEM_DUMP for {lobby_id}: {json.dumps(final_lobby_item_for_broadcast, cls=DecimalEncoder)}")
+        
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        # ++ ADD THIS LOG LINE +++++++++++++++++++++++++++++++++++++++++++++++++++
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        logger.info(f"BROADCAST_DEBUG: Lobby {lobby_id} - Value of 'equilibrationEnabled' from DDB for broadcast: {final_lobby_item_for_broadcast.get('equilibrationEnabled')}")
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        # ++ END OF ADDED LOG LINE +++++++++++++++++++++++++++++++++++++++++++++++
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         state_payload = { # This is a Python dictionary
             "type": "lobbyStateUpdate",
@@ -537,6 +545,7 @@ def handler(event, context):
                         "lobbyState": updated_lobby_item.get('lobbyState', 'WAITING'),
                         "player1Ready": updated_lobby_item.get('player1Ready', False),
                         "player2Ready": updated_lobby_item.get('player2Ready', False),
+                        "equilibrationEnabled": updated_lobby_item.get('equilibrationEnabled', False),
                         "currentPhase": updated_lobby_item.get('currentPhase'),
                         "currentTurn": updated_lobby_item.get('currentTurn'),
                         "bans": updated_lobby_item.get('bans', []),
@@ -545,8 +554,22 @@ def handler(event, context):
                         "availableResonators": updated_lobby_item.get('availableResonators', []),
                         "turnExpiresAt": updated_lobby_item.get('turnExpiresAt'),
                         "player1ScoreSubmitted": bool(p1_score_submitted_from_db),  # Explicitly cast to bool after logging
-                        "player2ScoreSubmitted": bool(p2_score_submitted_from_db)   # Explicitly cast to bool after logging
+                        "player2ScoreSubmitted": bool(p2_score_submitted_from_db),   # Explicitly cast to bool after logging
+                        "player1WeightedBoxScore": updated_lobby_item.get('player1WeightedBoxScore'),
+                        "player2WeightedBoxScore": updated_lobby_item.get('player2WeightedBoxScore'),
+                        "player1Sequences": updated_lobby_item.get('player1Sequences'),
+                        "player2Sequences": updated_lobby_item.get('player2Sequences'),
+                        "effectiveDraftOrder": updated_lobby_item.get('effectiveDraftOrder'),
+                        "equilibrationBansAllowed": updated_lobby_item.get('equilibrationBansAllowed', 0),
+                        "equilibrationBansMade": updated_lobby_item.get('equilibrationBansMade', 0),
+                        "currentEquilibrationBanner": updated_lobby_item.get('currentEquilibrationBanner'),
+                        "lastAction": f"{player_name} joined as {assigned_slot}."
+                        
                     }
+                    if not state_payload.get('lastAction'): # If not already set by some other logic
+                        joining_player_name_for_action = player_name # This is the name of the player who just joined
+                        joining_player_assigned_slot = assigned_slot # This is the slot they were assigned
+                        state_payload['lastAction'] = f"{joining_player_name_for_action} joined as {joining_player_assigned_slot}."
                     logger.info(f"JOIN_LOBBY_BROADCAST_PAYLOAD: Broadcasting lobby state update: {json.dumps(state_payload, cls=DecimalEncoder)}")
 
                     # Get all current participant connection IDs
@@ -752,31 +775,36 @@ def handler(event, context):
                     else:
                         logger.info(f"Lobby {lobby_id}: No LSP priority or no clear LSP for Equilibration Bans (neutral order or equal scores below major threshold).")
 
-                    # Initialize draft_initialization_payload with common fields that are determined regardless of path
+                    logger.info(f"Lobby {lobby_id}: Both players ready. BSS results calculated. Transitioning to PRE_DRAFT_READY state.")
+                    logger.info(f"Lobby {lobby_id}: Calculated BSS - Draft Order: {effective_draft_order_to_use}, Roles: {assigned_player_roles}, EQ Bans Allowed: {num_equilibration_bans}, EQ Banner: {equilibration_banner_slot}")
+
+                    # This will be the payload used for the DynamoDB update for the PRE_DRAFT_READY state
                     draft_initialization_payload = {
+                        'lobbyState': PRE_DRAFT_READY_STATE,
+                        'equilibrationEnabled': is_equilibration_active, # IMPORTANT: Preserve this flag
+
+                        # Store the results of BSS calculations
                         'effectiveDraftOrder': effective_draft_order_to_use,
                         'playerRoles': assigned_player_roles,
                         'equilibrationBansAllowed': num_equilibration_bans,
                         'currentEquilibrationBanner': equilibration_banner_slot,
-                        'equilibrationBansMade': 0
-                    }
+                        'equilibrationBansMade': 0, # Always initialize to 0 here
 
-                    logger.info(f"Lobby {lobby_id}: Both players ready. BSS processing complete. Transitioning to PRE_DRAFT_READY state.")
-
-                    # Prepare the payload for the PRE_DRAFT_READY state.
-                    # This payload includes BSS results but no active turn information.
-                    draft_initialization_payload.update({
-                        'lobbyState': PRE_DRAFT_READY_STATE,
+                        # Ensure active draft turn fields are None (draft hasn't started)
                         'currentPhase': None,
                         'currentTurn': None,
                         'currentStepIndex': None,
                         'turnExpiresAt': None,
+
+                        # Initialize/reset draft lists
                         'availableResonators': list(ALL_RESONATOR_NAMES),
                         'bans': [],
                         'player1Picks': [],
                         'player2Picks': [],
+
+                        # Appropriate last action message
                         'lastAction': f"{last_action_for_draft_start} All players ready. Waiting for Host to start draft."
-                    })
+                    }
 
                     # --- DynamoDB update logic using the new draft_initialization_payload ---
                     try:
@@ -792,15 +820,15 @@ def handler(event, context):
                             expression_attribute_names[name_placeholder] = key
                             expression_attribute_values[value_placeholder] = value
                         
-                        expression_attribute_values[':waitState'] = 'WAITING'
+                        expression_attribute_values[':waitState'] = 'WAITING' # Condition: lobby was in WAITING
                         expression_attribute_names['#lobbyState_cond'] = 'lobbyState'
                         condition_item_expression = "#lobbyState_cond = :waitState"
 
                         update_item_expression = "SET " + ", ".join(update_expression_parts)
-
-                        logger.info(f"Lobby {lobby_id}: Updating DDB to PRE_DRAFT_READY. Update Expression: {update_item_expression}")
-                        logger.info(f"Lobby {lobby_id}: ExpressionAttributeNames: {expression_attribute_names}")
-                        logger.info(f"Lobby {lobby_id}: ExpressionAttributeValues: {json.dumps(expression_attribute_values, cls=DecimalEncoder, indent=2)}")
+                        
+                        logger.info(f"Lobby {lobby_id}: Updating DDB to PRE_DRAFT_READY. Expression: {update_item_expression}")
+                        logger.info(f"Lobby {lobby_id}: Names: {expression_attribute_names}")
+                        logger.info(f"Lobby {lobby_id}: Values: {json.dumps(expression_attribute_values, cls=DecimalEncoder, indent=2)}")
                         
                         lobbies_table.update_item(
                             Key={'lobbyId': lobby_id},
@@ -815,7 +843,6 @@ def handler(event, context):
                         logger.error(f"Lobby {lobby_id}: Error updating DDB to PRE_DRAFT_READY state: {str(e)}", exc_info=True)
                         raise
 
-                    # Broadcast state using the finalized lastAction from draft_initialization_payload
                     final_last_action = draft_initialization_payload.get('lastAction')
                     broadcast_lobby_state(lobby_id, apigw_management_client, last_action=final_last_action)
 
@@ -828,11 +855,11 @@ def handler(event, context):
                     logger.info(f"Lobby {lobby_id}: Neutral order roles assigned: {assigned_player_roles}")
                     last_action_for_draft_start = f"Draft starting with neutral order. {assigned_player_roles['ROLE_A']} is ROLE_A, {assigned_player_roles['ROLE_B']} is ROLE_B."
                     
-                    logger.info(f"Lobby {lobby_id}: Both players ready. BSS processing complete. Transitioning to PRE_DRAFT_READY state.")
+                    logger.info(f"Lobby {lobby_id}: Both players ready. BSS processing complete. is_equilibration_active = False. Transitioning to PRE_DRAFT_READY state.")
 
-                    # Prepare the payload for the PRE_DRAFT_READY state.
-                    draft_initialization_payload = {
+                    pre_draft_payload = {
                         'lobbyState': PRE_DRAFT_READY_STATE,
+                        'equilibrationEnabled': False, # Explicitly set to False when equilibration is OFF
                         'effectiveDraftOrder': effective_draft_order_to_use,
                         'playerRoles': assigned_player_roles,
                         'equilibrationBansAllowed': 0,
@@ -849,29 +876,35 @@ def handler(event, context):
                         'lastAction': f"{last_action_for_draft_start} All players ready. Waiting for Host to start draft."
                     }
 
-                    # --- DynamoDB update logic using the new draft_initialization_payload ---
                     try:
                         update_expression_parts = []
                         expression_attribute_values = {}
-                        expression_attribute_names = {}
+                        expression_attribute_names = {} 
 
-                        for key, value in draft_initialization_payload.items():
-                            name_placeholder = f"#{key}_attr"
-                            value_placeholder = f":val_{key}"
+                        for key, value in pre_draft_payload.items():
+                            name_placeholder = f"#{key}_attr" 
+                            value_placeholder = f":val_{key}" 
                             
                             update_expression_parts.append(f"{name_placeholder} = {value_placeholder}")
                             expression_attribute_names[name_placeholder] = key
                             expression_attribute_values[value_placeholder] = value
                         
-                        expression_attribute_values[':waitState'] = 'WAITING'
+                        expression_attribute_values[':waitState'] = 'WAITING' 
                         expression_attribute_names['#lobbyState_cond'] = 'lobbyState'
                         condition_item_expression = "#lobbyState_cond = :waitState"
 
                         update_item_expression = "SET " + ", ".join(update_expression_parts)
 
-                        logger.info(f"Lobby {lobby_id}: Updating DDB to PRE_DRAFT_READY. Update Expression: {update_item_expression}")
-                        logger.info(f"Lobby {lobby_id}: ExpressionAttributeNames: {expression_attribute_names}")
-                        logger.info(f"Lobby {lobby_id}: ExpressionAttributeValues: {json.dumps(expression_attribute_values, cls=DecimalEncoder, indent=2)}")
+                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        # ++ ADD THIS LOG BEFORE THE UPDATE ITEM CALL ++++++++++++++++++++++++++++
+                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        logger.info(f"DEBUG PRE_DRAFT_READY: About to update DDB for lobby {lobby_id}. Payload being used to build SET: {json.dumps(pre_draft_payload, cls=DecimalEncoder, indent=2)}")
+                        logger.info(f"DEBUG PRE_DRAFT_READY: Update Expression: {update_item_expression}")
+                        logger.info(f"DEBUG PRE_DRAFT_READY: ExpressionAttributeNames: {expression_attribute_names}")
+                        logger.info(f"DEBUG PRE_DRAFT_READY: ExpressionAttributeValues: {json.dumps(expression_attribute_values, cls=DecimalEncoder, indent=2)}")
+                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        # ++ END OF ADDED LOG LINES ++++++++++++++++++++++++++++++++++++++++++++++
+                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                         
                         lobbies_table.update_item(
                             Key={'lobbyId': lobby_id},
@@ -882,12 +915,21 @@ def handler(event, context):
                         )
                         logger.info(f"Lobby {lobby_id} successfully updated to PRE_DRAFT_READY state.")
 
+                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        # ++ ADD THIS LOG AFTER THE UPDATE (Optional but good) +++++++++++++++++++
+                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        # Re-fetch to confirm what was written, or at least log success of write before broadcast
+                        updated_lobby_item_after_pre_draft = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True).get('Item', {})
+                        logger.info(f"DEBUG PRE_DRAFT_READY: Lobby {lobby_id} state in DDB after update: equilibrationEnabled = {updated_lobby_item_after_pre_draft.get('equilibrationEnabled')}")
+                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        # ++ END OF ADDED LOG LINES ++++++++++++++++++++++++++++++++++++++++++++++
+                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
                     except Exception as e:
                         logger.error(f"Lobby {lobby_id}: Error updating DDB to PRE_DRAFT_READY state: {str(e)}", exc_info=True)
-                        raise
+                        raise 
 
-                    # Broadcast state using the finalized lastAction from draft_initialization_payload
-                    final_last_action = draft_initialization_payload.get('lastAction')
+                    final_last_action = pre_draft_payload.get('lastAction')
                     broadcast_lobby_state(lobby_id, apigw_management_client, last_action=final_last_action)
 
             return {'statusCode': 200, 'body': 'Player readiness updated.'}

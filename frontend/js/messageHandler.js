@@ -57,6 +57,15 @@ export function handleWebSocketMessage(jsonData) {
         let wasRedirectedToBSS = false;
         if (message.hasOwnProperty("equilibrationEnabled")) {
           state.setEquilibrationEnabledForLobby(message.equilibrationEnabled);
+
+          // +++ ADD LOGS HERE +++
+          console.log(
+            `LOBBY_JOINED_BSS_CHECK: LobbyID: ${message.lobbyId}, AssignedSlot: ${message.assignedSlot}, EquilibrationEnabled from MSG: ${message.equilibrationEnabled}, PlayerScoreSubmitted from MSG: ${message.playerScoreSubmitted}`
+          );
+          console.log(
+            `LOBBY_JOINED_BSS_CHECK: Current state.equilibrationEnabledForLobby: ${state.equilibrationEnabledForLobby}`
+          );
+
           if (
             message.equilibrationEnabled &&
             message.assignedSlot && // Check if they were assigned a player slot (P1/P2)
@@ -99,6 +108,30 @@ export function handleWebSocketMessage(jsonData) {
         console.log(
           "MH_DEBUG: lobbyStateUpdate received from server:",
           JSON.stringify(message)
+        );
+
+        // +++ ADD THIS LOG IMMEDIATELY +++
+        console.log(
+          "LOBBY_STATE_UPDATE_RECEIVED: Raw message.equilibrationEnabled:",
+          message.equilibrationEnabled
+        );
+
+        // Check what message.equilibrationEnabled is specifically
+        const incomingEqEnabled = message.equilibrationEnabled;
+        console.log(
+          `MH_LSU: Incoming message.equilibrationEnabled is: ${incomingEqEnabled} (type: ${typeof incomingEqEnabled})`
+        );
+
+        // Log before setting
+        console.log(
+          `MH_LSU: BEFORE setEquilibrationEnabledForLobby, current state.equilibrationEnabledForLobby is: ${state.equilibrationEnabledForLobby}`
+        );
+
+        state.setEquilibrationEnabledForLobby(incomingEqEnabled || false); // Use the captured variable
+
+        // Log after setting
+        console.log(
+          `MH_LSU: AFTER setEquilibrationEnabledForLobby, new state.equilibrationEnabledForLobby is: ${state.equilibrationEnabledForLobby}`
         );
 
         // Store the whole message as the current draft state
@@ -171,6 +204,12 @@ export function handleWebSocketMessage(jsonData) {
 
           const isPlayer =
             state.myAssignedSlot === "P1" || state.myAssignedSlot === "P2";
+
+          // +++ ADD LOGS HERE +++
+          console.log(
+            `LOBBY_STATE_UPDATE_BSS_CHECK (WAITING state): LobbyID: ${message.lobbyId}, isPlayer: ${isPlayer}, state.equilibrationEnabledForLobby: ${state.equilibrationEnabledForLobby}, state.localPlayerHasSubmittedScore: ${state.localPlayerHasSubmittedScore}`
+          );
+
           // Check if player needs to go to Box Score Screen
           if (
             state.equilibrationEnabledForLobby &&
