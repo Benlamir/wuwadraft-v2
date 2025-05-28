@@ -63,6 +63,7 @@ export const elements = {
   draftHostControls: null,
   hostDeleteDraftLobbyBtn: null,
   hostResetDraftBtn: null,
+  hostStartDraftBtn: null,
   draftPlayerControls: null,
   resetLocalSequencesBtn: null,
   // Ban Area Containers
@@ -164,6 +165,7 @@ export function initializeElements() {
     "host-delete-draft-lobby-btn"
   );
   elements.hostResetDraftBtn = document.getElementById("host-reset-draft-btn");
+  elements.hostStartDraftBtn = document.getElementById("host-start-draft-btn");
   elements.draftPlayerControls = document.getElementById(
     "draft-player-controls"
   );
@@ -195,22 +197,22 @@ export function initializeElements() {
     "reset-local-sequences-btn"
   );
 
-    // Ban Area Containers
-    elements.draftBansArea = document.getElementById("draft-bans-area");
-    elements.eqBansSlotsContainer = document.getElementById("eq-bans-slots");
-    elements.standardBansSlotsContainer = document.getElementById(
-      "standard-bans-slots"
-    );
-  
-    // EQ Ban Slots
-    elements.eqBanSlot1 = document.getElementById("eq-ban-slot-1");
-    elements.eqBanSlot2 = document.getElementById("eq-ban-slot-2");
-  
-    // Standard Ban Slots
-    elements.stdBanSlot1 = document.getElementById("std-ban-slot-1");
-    elements.stdBanSlot2 = document.getElementById("std-ban-slot-2");
-    elements.stdBanSlot3 = document.getElementById("std-ban-slot-3");
-    elements.stdBanSlot4 = document.getElementById("std-ban-slot-4");
+  // Ban Area Containers
+  elements.draftBansArea = document.getElementById("draft-bans-area");
+  elements.eqBansSlotsContainer = document.getElementById("eq-bans-slots");
+  elements.standardBansSlotsContainer = document.getElementById(
+    "standard-bans-slots"
+  );
+
+  // EQ Ban Slots
+  elements.eqBanSlot1 = document.getElementById("eq-ban-slot-1");
+  elements.eqBanSlot2 = document.getElementById("eq-ban-slot-2");
+
+  // Standard Ban Slots
+  elements.stdBanSlot1 = document.getElementById("std-ban-slot-1");
+  elements.stdBanSlot2 = document.getElementById("std-ban-slot-2");
+  elements.stdBanSlot3 = document.getElementById("std-ban-slot-3");
+  elements.stdBanSlot4 = document.getElementById("std-ban-slot-4");
 
   // Debug logs for new elements
   //console.log("Check element - boxScoreScreen:", elements.boxScoreScreen);
@@ -255,5 +257,4 @@ export function initializeElements() {
     console.error("[Init Check] characterGridContainer element not found!");
   if (!elements.draftPhaseStatus)
     console.error("[Init Check] draftPhaseStatus element not found!");
-
 }

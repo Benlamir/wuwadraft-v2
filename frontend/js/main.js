@@ -211,6 +211,47 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++ ADD THIS EVENT LISTENER FOR THE "START DRAFT" BUTTON ++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (elements.hostStartDraftBtn) {
+    elements.hostStartDraftBtn.addEventListener("click", () => {
+      // Check if the current user is the host and if there's a current lobby ID
+      if (state.isCurrentUserHost && state.currentLobbyId) {
+        console.log("Host: Start Draft button clicked.");
+        sendMessageToServer({
+          action: "hostStartsDraft",
+          lobbyId: state.currentLobbyId,
+        });
+
+        // Provide immediate feedback by disabling the button
+        // and changing its text. This will be updated by a lobbyStateUpdate
+        // when the draft actually starts or if there's an error.
+        elements.hostStartDraftBtn.disabled = true;
+        elements.hostStartDraftBtn.innerHTML =
+          '<i class="bi bi-hourglass-split"></i> Starting Draft...';
+      } else {
+        console.warn(
+          "Start Draft button clicked, but user is not host or no lobbyId found.",
+          "isHost:",
+          state.isCurrentUserHost,
+          "lobbyId:",
+          state.currentLobbyId
+        );
+      }
+    });
+    console.log(
+      "[main.js] Event listener attached to host's Start Draft button."
+    );
+  } else {
+    console.warn(
+      "Host Start Draft Button (elements.hostStartDraftBtn) not found during listener setup."
+    );
+  }
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++ END OF "START DRAFT" BUTTON EVENT LISTENER ++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
   // --- Box Score Submit Button ---
   if (elements.submitBoxScoreBtn) {
     elements.submitBoxScoreBtn.addEventListener("click", () => {
@@ -441,8 +482,8 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("Host Leave Slot Button not found during listener setup.");
   }
 
-
-  if (elements.boxScoreLeaveSlotBtn) { // Check if the element exists
+  if (elements.boxScoreLeaveSlotBtn) {
+    // Check if the element exists
     elements.boxScoreLeaveSlotBtn.addEventListener("click", () => {
       console.log("Host: Leave Player Slot button clicked (from BSS).");
       // Verify user is host and currently in a slot
@@ -464,9 +505,13 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
     });
-    console.log("[main.js] Event listener attached to host's Leave Slot button on BSS.");
+    console.log(
+      "[main.js] Event listener attached to host's Leave Slot button on BSS."
+    );
   } else {
-    console.warn("Host Leave Slot Button on BSS (boxScoreLeaveSlotBtn) not found during listener setup.");
+    console.warn(
+      "Host Leave Slot Button on BSS (boxScoreLeaveSlotBtn) not found during listener setup."
+    );
   }
   // --- END HOST CONTROL LISTENERS ---
 

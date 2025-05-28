@@ -176,6 +176,8 @@ NEUTRAL_DRAFT_ORDER_TEMPLATE_V2 = [
 EQUILIBRATION_PHASE_NAME = 'EQUILIBRATE_BANS'
 EQUILIBRATION_PHASE_TIMEOUT_SECONDS = 300 # 5 minutes
 
+PRE_DRAFT_READY_STATE = 'PRE_DRAFT_READY'
+
 DRAFT_COMPLETE_PHASE = 'DRAFT_COMPLETE' # Constant for completed state
 # --- End Draft Order Definition ---
 
@@ -759,63 +761,63 @@ def handler(event, context):
                         'equilibrationBansMade': 0
                     }
 
-                    if num_equilibration_bans > 0 and equilibration_banner_slot:
-                        # --- SETUP FOR EQUILIBRATION BAN PHASE ---
-                        logger.info(f"Lobby {lobby_id}: Finalizing setup for {EQUILIBRATION_PHASE_NAME} phase for {equilibration_banner_slot}.")
-                        eq_ban_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=EQUILIBRATION_PHASE_TIMEOUT_SECONDS)
-                        
-                        # Specific overrides for EQ Ban Phase
-                        draft_initialization_payload.update({
-                            'lobbyState': 'DRAFTING',
-                            'currentPhase': EQUILIBRATION_PHASE_NAME,
-                            'currentTurn': equilibration_banner_slot,
-                            'currentStepIndex': -1,
-                            'turnExpiresAt': eq_ban_expires_at_dt.isoformat(),
-                            'availableResonators': list(ALL_RESONATOR_NAMES),
-                            'bans': [],
-                            'player1Picks': [],
-                            'player2Picks': [],
-                            'lastAction': f"{equilibration_banner_slot} to make {num_equilibration_bans} Equilibration Ban(s). (Score diff: {weighted_score_diff})"
-                        })
-                        logger.info(f"Lobby {lobby_id}: Payload for EQ Ban phase finalized: {draft_initialization_payload}")
-                    else:
-                        # --- NO EQUILIBRATION BANS, SETUP FOR STANDARD DRAFT ---
-                        logger.info(f"Lobby {lobby_id}: Finalizing setup for standard draft. Initial lastAction: {last_action_for_draft_start}")
-                        first_step_info = effective_draft_order_to_use[0]
-                        first_phase_from_order = first_step_info['phase']
-                        first_turn_role_in_template = first_step_info['turnPlayerDesignation']
-                        
-                        actual_current_turn = None
-                        if 'P1_ROLE_IN_TEMPLATE' in assigned_player_roles:
-                            if first_turn_role_in_template == 'P1_ROLE':
-                                actual_current_turn = assigned_player_roles['P1_ROLE_IN_TEMPLATE']
-                            elif first_turn_role_in_template == 'P2_ROLE':
-                                actual_current_turn = assigned_player_roles['P2_ROLE_IN_TEMPLATE']
-                        elif 'ROLE_A' in assigned_player_roles:
-                            if first_turn_role_in_template == 'ROLE_A':
-                                actual_current_turn = assigned_player_roles['ROLE_A']
-                            elif first_turn_role_in_template == 'ROLE_B':
-                                actual_current_turn = assigned_player_roles['ROLE_B']
-                        
-                        if not actual_current_turn:
-                            logger.error(f"Lobby {lobby_id}: CRITICAL - Could not resolve actual current turn for standard draft start. Defaulting to P1.")
-                            actual_current_turn = 'P1'
+                    logger.info(f"Lobby {lobby_id}: Both players ready. BSS processing complete. Transitioning to PRE_DRAFT_READY state.")
 
-                        std_turn_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
+                    # Prepare the payload for the PRE_DRAFT_READY state.
+                    # This payload includes BSS results but no active turn information.
+                    draft_initialization_payload.update({
+                        'lobbyState': PRE_DRAFT_READY_STATE,
+                        'currentPhase': None,
+                        'currentTurn': None,
+                        'currentStepIndex': None,
+                        'turnExpiresAt': None,
+                        'availableResonators': list(ALL_RESONATOR_NAMES),
+                        'bans': [],
+                        'player1Picks': [],
+                        'player2Picks': [],
+                        'lastAction': f"{last_action_for_draft_start} All players ready. Waiting for Host to start draft."
+                    })
+
+                    # --- DynamoDB update logic using the new draft_initialization_payload ---
+                    try:
+                        update_expression_parts = []
+                        expression_attribute_values = {}
+                        expression_attribute_names = {}
+
+                        for key, value in draft_initialization_payload.items():
+                            name_placeholder = f"#{key}_attr"
+                            value_placeholder = f":val_{key}"
+                            
+                            update_expression_parts.append(f"{name_placeholder} = {value_placeholder}")
+                            expression_attribute_names[name_placeholder] = key
+                            expression_attribute_values[value_placeholder] = value
                         
-                        draft_initialization_payload.update({
-                            'lobbyState': 'DRAFTING',
-                            'currentPhase': first_phase_from_order,
-                            'currentTurn': actual_current_turn,
-                            'currentStepIndex': 0,
-                            'turnExpiresAt': std_turn_expires_at_dt.isoformat(),
-                            'availableResonators': list(ALL_RESONATOR_NAMES),
-                            'bans': [],
-                            'player1Picks': [],
-                            'player2Picks': [],
-                            'lastAction': last_action_for_draft_start
-                        })
-                        logger.info(f"Lobby {lobby_id}: Payload for standard draft start finalized: {draft_initialization_payload}")
+                        expression_attribute_values[':waitState'] = 'WAITING'
+                        expression_attribute_names['#lobbyState_cond'] = 'lobbyState'
+                        condition_item_expression = "#lobbyState_cond = :waitState"
+
+                        update_item_expression = "SET " + ", ".join(update_expression_parts)
+
+                        logger.info(f"Lobby {lobby_id}: Updating DDB to PRE_DRAFT_READY. Update Expression: {update_item_expression}")
+                        logger.info(f"Lobby {lobby_id}: ExpressionAttributeNames: {expression_attribute_names}")
+                        logger.info(f"Lobby {lobby_id}: ExpressionAttributeValues: {json.dumps(expression_attribute_values, cls=DecimalEncoder, indent=2)}")
+                        
+                        lobbies_table.update_item(
+                            Key={'lobbyId': lobby_id},
+                            UpdateExpression=update_item_expression,
+                            ConditionExpression=condition_item_expression,
+                            ExpressionAttributeNames=expression_attribute_names,
+                            ExpressionAttributeValues=expression_attribute_values
+                        )
+                        logger.info(f"Lobby {lobby_id} successfully updated to PRE_DRAFT_READY state.")
+
+                    except Exception as e:
+                        logger.error(f"Lobby {lobby_id}: Error updating DDB to PRE_DRAFT_READY state: {str(e)}", exc_info=True)
+                        raise
+
+                    # Broadcast state using the finalized lastAction from draft_initialization_payload
+                    final_last_action = draft_initialization_payload.get('lastAction')
+                    broadcast_lobby_state(lobby_id, apigw_management_client, last_action=final_last_action)
 
                 else: # Equilibration is OFF
                     logger.info(f"Lobby {lobby_id}: Equilibration is OFF. Using NEUTRAL_DRAFT_ORDER with random roles.")
@@ -826,75 +828,196 @@ def handler(event, context):
                     logger.info(f"Lobby {lobby_id}: Neutral order roles assigned: {assigned_player_roles}")
                     last_action_for_draft_start = f"Draft starting with neutral order. {assigned_player_roles['ROLE_A']} is ROLE_A, {assigned_player_roles['ROLE_B']} is ROLE_B."
                     
-                    # Initialize draft_initialization_payload with common fields
+                    logger.info(f"Lobby {lobby_id}: Both players ready. BSS processing complete. Transitioning to PRE_DRAFT_READY state.")
+
+                    # Prepare the payload for the PRE_DRAFT_READY state.
                     draft_initialization_payload = {
+                        'lobbyState': PRE_DRAFT_READY_STATE,
                         'effectiveDraftOrder': effective_draft_order_to_use,
                         'playerRoles': assigned_player_roles,
                         'equilibrationBansAllowed': 0,
                         'currentEquilibrationBanner': None,
-                        'equilibrationBansMade': 0
-                    }
-
-                    # --- NO EQUILIBRATION BANS, SETUP FOR STANDARD DRAFT ---
-                    logger.info(f"Lobby {lobby_id}: Finalizing setup for standard draft. Initial lastAction: {last_action_for_draft_start}")
-                    first_step_info = effective_draft_order_to_use[0]
-                    first_phase_from_order = first_step_info['phase']
-                    first_turn_role_in_template = first_step_info['turnPlayerDesignation']
-                    
-                    actual_current_turn = None
-                    if 'P1_ROLE_IN_TEMPLATE' in assigned_player_roles:
-                        if first_turn_role_in_template == 'P1_ROLE':
-                            actual_current_turn = assigned_player_roles['P1_ROLE_IN_TEMPLATE']
-                        elif first_turn_role_in_template == 'P2_ROLE':
-                            actual_current_turn = assigned_player_roles['P2_ROLE_IN_TEMPLATE']
-                    elif 'ROLE_A' in assigned_player_roles:
-                        if first_turn_role_in_template == 'ROLE_A':
-                            actual_current_turn = assigned_player_roles['ROLE_A']
-                        elif first_turn_role_in_template == 'ROLE_B':
-                            actual_current_turn = assigned_player_roles['ROLE_B']
-                    
-                    if not actual_current_turn:
-                        logger.error(f"Lobby {lobby_id}: CRITICAL - Could not resolve actual current turn for standard draft start. Defaulting to P1.")
-                        actual_current_turn = 'P1'
-
-                    std_turn_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
-                    
-                    draft_initialization_payload.update({
-                        'lobbyState': 'DRAFTING',
-                        'currentPhase': first_phase_from_order,
-                        'currentTurn': actual_current_turn,
-                        'currentStepIndex': 0,
-                        'turnExpiresAt': std_turn_expires_at_dt.isoformat(),
+                        'equilibrationBansMade': 0,
+                        'currentPhase': None,
+                        'currentTurn': None,
+                        'currentStepIndex': None,
+                        'turnExpiresAt': None,
                         'availableResonators': list(ALL_RESONATOR_NAMES),
                         'bans': [],
                         'player1Picks': [],
                         'player2Picks': [],
-                        'lastAction': last_action_for_draft_start
-                    })
-                    logger.info(f"Lobby {lobby_id}: Payload for standard draft start finalized: {draft_initialization_payload}")
+                        'lastAction': f"{last_action_for_draft_start} All players ready. Waiting for Host to start draft."
+                    }
 
-                # --- Now, the single DynamoDB update uses the finalized draft_initialization_payload ---
+                    # --- DynamoDB update logic using the new draft_initialization_payload ---
+                    try:
+                        update_expression_parts = []
+                        expression_attribute_values = {}
+                        expression_attribute_names = {}
+
+                        for key, value in draft_initialization_payload.items():
+                            name_placeholder = f"#{key}_attr"
+                            value_placeholder = f":val_{key}"
+                            
+                            update_expression_parts.append(f"{name_placeholder} = {value_placeholder}")
+                            expression_attribute_names[name_placeholder] = key
+                            expression_attribute_values[value_placeholder] = value
+                        
+                        expression_attribute_values[':waitState'] = 'WAITING'
+                        expression_attribute_names['#lobbyState_cond'] = 'lobbyState'
+                        condition_item_expression = "#lobbyState_cond = :waitState"
+
+                        update_item_expression = "SET " + ", ".join(update_expression_parts)
+
+                        logger.info(f"Lobby {lobby_id}: Updating DDB to PRE_DRAFT_READY. Update Expression: {update_item_expression}")
+                        logger.info(f"Lobby {lobby_id}: ExpressionAttributeNames: {expression_attribute_names}")
+                        logger.info(f"Lobby {lobby_id}: ExpressionAttributeValues: {json.dumps(expression_attribute_values, cls=DecimalEncoder, indent=2)}")
+                        
+                        lobbies_table.update_item(
+                            Key={'lobbyId': lobby_id},
+                            UpdateExpression=update_item_expression,
+                            ConditionExpression=condition_item_expression,
+                            ExpressionAttributeNames=expression_attribute_names,
+                            ExpressionAttributeValues=expression_attribute_values
+                        )
+                        logger.info(f"Lobby {lobby_id} successfully updated to PRE_DRAFT_READY state.")
+
+                    except Exception as e:
+                        logger.error(f"Lobby {lobby_id}: Error updating DDB to PRE_DRAFT_READY state: {str(e)}", exc_info=True)
+                        raise
+
+                    # Broadcast state using the finalized lastAction from draft_initialization_payload
+                    final_last_action = draft_initialization_payload.get('lastAction')
+                    broadcast_lobby_state(lobby_id, apigw_management_client, last_action=final_last_action)
+
+            return {'statusCode': 200, 'body': 'Player readiness updated.'}
+
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        # ++ ADD THIS NEW ELIF BLOCK FOR 'hostStartsDraft' +++++++++++++++++++++++
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        elif action == 'hostStartsDraft':
+            logger.info(f"Processing 'hostStartsDraft' action for connection {connection_id}")
+            lobby_id = message_data.get('lobbyId')
+
+            if not lobby_id:
+                logger.warning(f"hostStartsDraft request from {connection_id} missing lobbyId.")
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby ID missing for starting draft."})
+                return {'statusCode': 400, 'body': 'Missing lobbyId.'}
+
+            try:
+                # Get the current lobby state with ConsistentRead
+                response = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True)
+                lobby_item = response.get('Item')
+
+                if not lobby_item:
+                    logger.warning(f"Lobby {lobby_id} not found for hostStartsDraft by {connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby not found."})
+                    return {'statusCode': 404, 'body': 'Lobby not found.'}
+
+                logger.info(f"Lobby {lobby_id} found. Current state: {lobby_item.get('lobbyState')}")
+
+                # --- Step 1.5: Validation Logic ---
+                # 1. Verify the sender is the host
+                host_connection_id = lobby_item.get('hostConnectionId')
+                if connection_id != host_connection_id:
+                    logger.warning(f"Unauthorized 'hostStartsDraft' attempt on lobby {lobby_id} by non-host {connection_id}. Host is {host_connection_id}.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Only the host can start the draft."})
+                    return {'statusCode': 403, 'body': 'Forbidden: Not the host.'}
+
+                # 2. Verify the lobby is in the PRE_DRAFT_READY_STATE
+                if lobby_item.get('lobbyState') != PRE_DRAFT_READY_STATE:
+                    logger.warning(f"Host {connection_id} attempted to start draft for lobby {lobby_id}, but lobby is not in PRE_DRAFT_READY state. Current state: {lobby_item.get('lobbyState')}.")
+                    send_message_to_client(apigw_management_client, connection_id, {
+                        "type": "error",
+                        "message": f"Cannot start draft. Lobby is not in the correct state (current: {lobby_item.get('lobbyState')}). Ensure all players are ready and BSS is complete if enabled."
+                    })
+                    return {'statusCode': 400, 'body': 'Lobby not in PRE_DRAFT_READY state.'}
+                
+                logger.info(f"Host {connection_id} validated for starting draft in lobby {lobby_id} (State: {PRE_DRAFT_READY_STATE}).")
+                # --- End of Step 1.5 Validation Logic ---
+
+                # --- Step 1.6: Draft Initiation Logic ---
+                # Retrieve the pre-calculated BSS results and draft setup from the lobby item
+                effective_draft_order_to_use = lobby_item.get('effectiveDraftOrder')
+                assigned_player_roles = lobby_item.get('playerRoles', {}) # Default to empty dict if missing
+                num_equilibration_bans = lobby_item.get('equilibrationBansAllowed', 0)
+                equilibration_banner_slot = lobby_item.get('currentEquilibrationBanner') # This is 'P1' or 'P2'
+                
+                # Ensure essential draft setup data is present
+                if not effective_draft_order_to_use or not assigned_player_roles:
+                    logger.error(f"Lobby {lobby_id}: Critical draft setup data (effectiveDraftOrder or playerRoles) missing from PRE_DRAFT_READY state.")
+                    send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Internal server error: Draft setup data missing."})
+                    return {'statusCode': 500, 'body': 'Draft setup data missing.'}
+
+                draft_start_payload = {
+                    'lobbyState': 'DRAFTING', # Transition to active drafting
+                }
+
+                if num_equilibration_bans > 0 and equilibration_banner_slot:
+                    # --- SETUP FOR EQUILIBRATION BAN PHASE ---
+                    logger.info(f"Lobby {lobby_id}: Host starting draft. Initiating {EQUILIBRATION_PHASE_NAME} for {equilibration_banner_slot}.")
+                    eq_ban_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=EQUILIBRATION_PHASE_TIMEOUT_SECONDS)
+                    
+                    draft_start_payload.update({
+                        'currentPhase': EQUILIBRATION_PHASE_NAME,
+                        'currentTurn': equilibration_banner_slot,
+                        'currentStepIndex': -1, # Or 0 if you count EQ bans as steps in an order
+                        'turnExpiresAt': eq_ban_expires_at_dt.isoformat(),
+                        'lastAction': f"Host started the draft. {equilibration_banner_slot} to make {num_equilibration_bans} Equilibration Ban(s)."
+                    })
+                else:
+                    # --- NO EQUILIBRATION BANS (or BSS was off), SETUP FOR STANDARD DRAFT ---
+                    logger.info(f"Lobby {lobby_id}: Host starting draft. Initiating standard draft sequence.")
+                    
+                    first_step_info = effective_draft_order_to_use[0] # Get the first step from the stored order
+                    first_phase_from_order = first_step_info['phase']
+                    first_turn_role_in_template = first_step_info['turnPlayerDesignation'] # e.g., 'ROLE_A' or 'P1_ROLE'
+                    
+                    # Resolve the actual player ('P1' or 'P2') for the first turn
+                    actual_current_turn = resolve_turn_from_role(first_turn_role_in_template, assigned_player_roles)
+                    
+                    if not actual_current_turn:
+                        logger.error(f"Lobby {lobby_id}: CRITICAL - Could not resolve actual current turn for standard draft start from stored roles. Roles: {assigned_player_roles}, Designation: {first_turn_role_in_template}")
+                        send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Internal server error: Could not determine first turn."})
+                        return {'statusCode': 500, 'body': 'Could not determine first turn.'}
+
+                    std_turn_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
+                    
+                    draft_start_payload.update({
+                        'currentPhase': first_phase_from_order,
+                        'currentTurn': actual_current_turn,
+                        'currentStepIndex': 0, # Start at the first step of the standard order
+                        'turnExpiresAt': std_turn_expires_at_dt.isoformat(),
+                        'lastAction': f"Host started the draft. {actual_current_turn} to {first_phase_from_order.split('1')[0]}." # e.g., P1 to BAN.
+                    })
+
+                # --- Update DynamoDB ---
                 try:
                     update_expression_parts = []
                     expression_attribute_values = {}
                     expression_attribute_names = {}
 
-                    for key, value in draft_initialization_payload.items():
-                        name_placeholder = f"#{key}_key"
+                    for key, value in draft_start_payload.items():
+                        name_placeholder = f"#{key}_attr"
                         value_placeholder = f":val_{key}"
                         
                         update_expression_parts.append(f"{name_placeholder} = {value_placeholder}")
                         expression_attribute_names[name_placeholder] = key
                         expression_attribute_values[value_placeholder] = value
                     
-                    expression_attribute_values[':waitState'] = 'WAITING'
-
+                    # Condition: ensure lobby is still in PRE_DRAFT_READY state and this is the host
+                    expression_attribute_values[':expected_state'] = PRE_DRAFT_READY_STATE
+                    expression_attribute_values[':host_conn_id_cond'] = connection_id # The current connection_id (host)
+                    
+                    expression_attribute_names['#lobbyState_cond'] = 'lobbyState'
+                    expression_attribute_names['#hostConnId_cond'] = 'hostConnectionId'
+                    
                     update_item_expression = "SET " + ", ".join(update_expression_parts)
-                    condition_item_expression = "lobbyState = :waitState"
+                    condition_item_expression = "#lobbyState_cond = :expected_state AND #hostConnId_cond = :host_conn_id_cond"
 
-                    logger.info(f"Lobby {lobby_id}: Updating DDB to start draft/EQ. Update Expression: {update_item_expression}")
+                    logger.info(f"Lobby {lobby_id}: Host starting draft. Update Expression: {update_item_expression}")
                     logger.info(f"Lobby {lobby_id}: ExpressionAttributeNames: {expression_attribute_names}")
-                    logger.info(f"Lobby {lobby_id}: ExpressionAttributeValues: {expression_attribute_values}")
+                    logger.info(f"Lobby {lobby_id}: ExpressionAttributeValues: {json.dumps(expression_attribute_values, cls=DecimalEncoder, indent=2)}")
                     
                     lobbies_table.update_item(
                         Key={'lobbyId': lobby_id},
@@ -903,20 +1026,40 @@ def handler(event, context):
                         ExpressionAttributeNames=expression_attribute_names,
                         ExpressionAttributeValues=expression_attribute_values
                     )
-                    logger.info(f"Lobby {lobby_id} successfully updated for draft/EQ start.")
+                    logger.info(f"Lobby {lobby_id} successfully updated by host to start the draft.")
 
+                except ClientError as e:
+                    if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                        logger.warning(f"Lobby {lobby_id}: Conditional check failed for hostStartsDraft. State might have changed or not host. Current state in DB: {lobby_item.get('lobbyState')}")
+                        send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Failed to start draft, state changed or action not allowed."})
+                        # Broadcast current state so host sees the actual situation
+                        broadcast_lobby_state(lobby_id, apigw_management_client, last_action="Failed attempt to start draft due to state conflict.")
+                        return {'statusCode': 409, 'body': 'Conflict, state changed or not authorized.'}
+                    else:
+                        logger.error(f"Lobby {lobby_id}: ClientError updating DDB for hostStartsDraft: {str(e)}", exc_info=True)
+                        raise # Re-raise to be caught by the outer try/except
                 except Exception as e:
-                    logger.error(f"Lobby {lobby_id}: Error updating DDB for draft/EQ start: {str(e)}")
-                    raise
+                    logger.error(f"Lobby {lobby_id}: Error updating DDB for hostStartsDraft: {str(e)}", exc_info=True)
+                    raise # Re-raise
 
-                # Broadcast state using the finalized lastAction
-                final_last_action = draft_initialization_payload.get('lastAction', "Draft starting.")
+                # Broadcast the new state (draft is now active)
+                final_last_action = draft_start_payload.get('lastAction')
                 broadcast_lobby_state(lobby_id, apigw_management_client, last_action=final_last_action)
+                
+                return {'statusCode': 200, 'body': 'Draft started by host.'}
+                # --- End of Step 1.6 Draft Initiation Logic ---
 
-            # This broadcast will send the state, whether it's DRAFTING, EQUILIBRATE_BANS, or still WAITING (if scores weren't submitted)
-            broadcast_lobby_state(lobby_id, apigw_management_client, last_action=draft_initialization_payload.get('lastAction')) # Use lastAction from payload if draft started
-
-            return {'statusCode': 200, 'body': 'Player readiness updated.'}
+            except Exception as e:
+                logger.error(f"Error processing hostStartsDraft for lobby {lobby_id}: {str(e)}", exc_info=True)
+                send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Server error starting draft."})
+                return {'statusCode': 500, 'body': 'Server error starting draft.'}
+            
+            # This return will be moved or changed once full logic is implemented
+            # For now, just returning success. The actual DDB update and broadcast will happen inside the try.
+            # The actual return for a successful draft start will be after broadcasting.
+            # If validation fails in next steps, specific returns will be added.
+            # For this step, we are just setting up the structure.
+            return {'statusCode': 200, 'body': 'HostStartDraft action received.'}
 
         # --- ADD makeBan HANDLER ---
         elif action == 'makeBan':

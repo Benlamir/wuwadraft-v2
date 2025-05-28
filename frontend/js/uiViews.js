@@ -834,65 +834,84 @@ export function updateDraftScreenUI(draftState) {
     "myAssignedSlot:",
     state.myAssignedSlot
   );
-  // console.log("UI: Updating draft screen UI with state:", draftState);
   if (!elements || !elements.draftScreen) {
-    // console.error(
-    //   "UI Update Error: elements object or draftScreen element not initialized!"
-    // );
     return;
   }
 
-  // Show/hide controls based on host status
   const isHost = state.isCurrentUserHost;
-  //console.log(
-  //  `[uiViews] updateDraftScreenUI: Setting visibility. isHost = ${isHost}`
-  //);
+  const isPreDraftReadyState = draftState.lobbyState === "PRE_DRAFT_READY";
+  const isDraftComplete = draftState.currentPhase === "DRAFT_COMPLETE";
 
-  // Show host controls ONLY if host
+  // Manage visibility of the main control containers
   toggleElementVisibility(elements.draftHostControls, isHost);
-  // Show player controls ONLY if NOT host (i.e., is a player)
   toggleElementVisibility(elements.draftPlayerControls, !isHost);
-  // Hide the back button if host
-  toggleElementVisibility(elements.draftBackBtn, !isHost);
 
-  // Keep controls visible even in draft complete state
-  // (removed code that was hiding controls)
+  // If the user is the host, decide which specific host buttons to show
+  if (isHost) {
+    // Manage Start Draft button visibility
+    if (elements.hostStartDraftBtn) {
+      toggleElementVisibility(elements.hostStartDraftBtn, isPreDraftReadyState);
+      // Ensure button is enabled if it's visible and was previously disabled
+      if (isPreDraftReadyState && elements.hostStartDraftBtn.disabled) {
+        elements.hostStartDraftBtn.disabled = false;
+        elements.hostStartDraftBtn.innerHTML =
+          '<i class="bi bi-play-circle-fill"></i> Start Draft';
+      }
+    }
 
-  // If draft is complete, return early
-  if (draftState.currentPhase === "DRAFT_COMPLETE") {
-    //console.log("UI: Rendering Draft Complete state.");
+    // Manage Reset Draft button visibility
+    if (elements.hostResetDraftBtn) {
+      // Show Reset button if draft is active (not pre-draft) but not yet complete
+      toggleElementVisibility(
+        elements.hostResetDraftBtn,
+        !isPreDraftReadyState && !isDraftComplete && !!draftState.currentPhase
+      );
+    }
+
+    // Manage Delete Lobby button visibility
+    if (elements.hostDeleteDraftLobbyBtn) {
+      toggleElementVisibility(elements.hostDeleteDraftLobbyBtn, true);
+    }
+  }
+
+  // If draft is complete, handle UI and return early
+  if (isDraftComplete) {
+    console.log("UI: Rendering Draft Complete state.");
     if (elements.draftPhaseStatus) {
       elements.draftPhaseStatus.textContent = "Draft Complete!";
-      elements.draftPhaseStatus.classList.add("text-success", "fw-bold"); // Example styling
+      elements.draftPhaseStatus.classList.add("text-success", "fw-bold");
     }
-    if (elements.draftTimer) {
-      elements.draftTimer.textContent = ""; // Clear timer text
+    if (elements.hostStartDraftBtn) {
+      toggleElementVisibility(elements.hostStartDraftBtn, false);
     }
-    // Ensure final picks/bans are rendered
-    updatePickSlots(draftState);
-    updateBanSlots(draftState);
-
-    // Disable character grid entirely
-    if (elements.characterGridContainer) {
-      elements.characterGridContainer.innerHTML =
-        '<p class="text-center text-muted fst-italic mt-4">-- Draft Finished --</p>'; // Replace grid content
-    }
-    // Optionally hide filter controls
-    const filterControls = document.getElementById("draft-filter-controls");
-    if (filterControls) filterControls.style.display = "none";
-
-    stopTimerDisplay(); // Explicitly stop timer on completion
-    // Remove active turn class if draft completes
-    const playerAreas = document.querySelectorAll(
-      ".draft-main-flex-container .player-area"
-    );
-    playerAreas.forEach((area) => area.classList.remove("active-turn"));
+    stopTimerDisplay();
     return;
+  }
+
+  // Timer Display Management
+  if (elements.draftTimer) {
+    const timerTextSpan = elements.draftTimer.querySelector("span");
+    if (timerTextSpan) {
+      if (isPreDraftReadyState) {
+        stopTimerDisplay();
+        timerTextSpan.textContent = "Waiting for Host to Start Draft...";
+        elements.draftTimer.classList.remove("timer-low");
+      } else if (isDraftComplete) {
+        stopTimerDisplay();
+        timerTextSpan.textContent = "Draft Finished!";
+        elements.draftTimer.classList.remove("timer-low");
+      } else if (draftState.currentPhase && draftState.turnExpiresAt) {
+        startOrUpdateTimerDisplay();
+      } else {
+        stopTimerDisplay();
+        timerTextSpan.textContent = "Time Remaining: --:--";
+        elements.draftTimer.classList.remove("timer-low");
+      }
+    }
   }
 
   // Update Phase and Turn Status & Apply Class
   if (elements.draftPhaseStatus) {
-    // Reset phase styling classes first
     elements.draftPhaseStatus.classList.remove(
       "phase-ban",
       "phase-pick",
@@ -901,23 +920,27 @@ export function updateDraftScreenUI(draftState) {
       "fw-bold"
     );
 
-    const currentPhase = draftState.currentPhase || "N/A";
-    const turnPlayerName =
-      draftState.currentTurn === "P1"
-        ? draftState.player1Name || "Player 1"
-        : draftState.player2Name || "Player 2";
-    const isMyTurnText =
-      state.myAssignedSlot === draftState.currentTurn ? " (Your Turn)" : "";
-
-    // Set text content
-    if (currentPhase === "DRAFT_COMPLETE") {
+    if (isPreDraftReadyState) {
+      elements.draftPhaseStatus.textContent =
+        "Prepare for Draft - Waiting for Host";
+    } else if (isDraftComplete) {
       elements.draftPhaseStatus.textContent = "Draft Complete!";
       elements.draftPhaseStatus.classList.add("phase-complete");
     } else {
+      const currentPhase = draftState.currentPhase || "N/A";
+      const turnPlayerName =
+        draftState.currentTurn === "P1"
+          ? draftState.player1Name || "Player 1"
+          : draftState.player2Name || "Player 2";
+      const isMyTurnText =
+        state.myAssignedSlot === draftState.currentTurn ? " (Your Turn)" : "";
+
       elements.draftPhaseStatus.textContent = `Phase: ${currentPhase} | ${turnPlayerName}'s Turn${isMyTurnText}`;
 
-      // Add class based on current phase
-      if (currentPhase.startsWith("BAN")) {
+      if (
+        currentPhase.startsWith("BAN") ||
+        currentPhase === EQUILIBRATION_PHASE_NAME
+      ) {
         elements.draftPhaseStatus.classList.add("phase-ban");
       } else if (currentPhase.startsWith("PICK")) {
         elements.draftPhaseStatus.classList.add("phase-pick");
@@ -995,8 +1018,8 @@ export function updateDraftScreenUI(draftState) {
     console.error("Error updating active turn UI:", e);
   }
 
-  // Start/Update Timer
-  startOrUpdateTimerDisplay();
+  // The timer management is now handled in the unified timer display logic block above
+  // No need for additional timer calls at the end of the function
 }
 // --- END FUNCTION MODIFICATION ---
 
