@@ -587,8 +587,8 @@ body.draft-active-background .app-footer:hover {
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
   width: 100%;
-  min-height: 480px;
-  max-height: 480px;
+  min-height: 200px;
+  max-height: 800px;
   overflow-y: auto;
   scrollbar-gutter: stable;
   justify-content: left;
@@ -773,7 +773,7 @@ body.draft-active-background .app-footer:hover {
 .character-button:disabled:not(.unavailable) {
   /* Maybe slightly dimmer than fully available? */
   /* opacity: 0.8; */
-  /* cursor: default; */ /* Different cursor? */
+  /* cursor: default; /* Different cursor? */
 }
 
 /* Style for the button just clicked (temporary feedback) */
@@ -909,6 +909,8 @@ body.draft-active-background .app-footer:hover {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  height: 280px; /* Fixed height instead of min-height */
+  width: 100%; /* Ensure full width */
 }
 
 /* --- Active Turn, Empty Slot --- */
@@ -931,7 +933,7 @@ body.draft-active-background .app-footer:hover {
 .pick-slot img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover; /* Changed from contain to cover to fill the space */
   border-radius: 3px;
 }
 
