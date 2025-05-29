@@ -88,41 +88,6 @@ export function showScreen(screenIdToShow) {
 // --- UI Update Functions ---
 
 export function updateLobbyWaitScreenUI(lobbyStateData) {
-  console.log(
-    "[updateLobbyWaitScreenUI CALLED] isCurrentUserHost:",
-    state.isCurrentUserHost,
-    "myAssignedSlot:",
-    state.myAssignedSlot
-  );
-  console.log(
-    "UPDATE_LOBBY_UI_DEBUG: lobbyStateData received:",
-    JSON.stringify(lobbyStateData)
-  );
-  console.log(
-    "UPDATE_LOBBY_UI_DEBUG: Player 1 Ready from data:",
-    lobbyStateData.player1Ready,
-    "(type:",
-    typeof lobbyStateData.player1Ready,
-    ")"
-  );
-  console.log(
-    "UPDATE_LOBBY_UI_DEBUG: Player 2 Ready from data:",
-    lobbyStateData.player2Ready,
-    "(type:",
-    typeof lobbyStateData.player2Ready,
-    ")"
-  );
-
-  // --- DEBUG: Verify all button elements exist ---
-  // console.log("DEBUG: Verifying button elements...");
-  // console.log("player1ReadyBtn exists:", !!elements.player1ReadyBtn);
-  // console.log("player2ReadyBtn exists:", !!elements.player2ReadyBtn);
-  // console.log("lobbyBackBtn exists:", !!elements.lobbyBackBtn);
-  // console.log("hostDeleteLobbyBtn exists:", !!elements.hostDeleteLobbyBtn);
-  // console.log("hostJoinSlotBtn exists:", !!elements.hostJoinSlotBtn);
-  // console.log("hostKickP1Btn exists:", !!elements.hostKickP1Btn);
-  // console.log("hostKickP2Btn exists:", !!elements.hostKickP2Btn);
-
   // --- Update Lobby ID Display ---
   if (elements.lobbyIdDisplay) {
     elements.lobbyIdDisplay.textContent = "••••••••"; // Keep it masked initially on updates
@@ -171,10 +136,6 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
   const p1Submitted = lobbyStateData.player1ScoreSubmitted;
   const p2Score = lobbyStateData.player2WeightedBoxScore;
   const p2Submitted = lobbyStateData.player2ScoreSubmitted;
-
-  console.log(
-    `UI_VIEWS_DEBUG: p1Score extracted as: ${p1Score}, p1Submitted: ${p1Submitted}`
-  );
 
   if (elements.player1StatusElement) {
     const isReady = lobbyStateData.player1Ready === true;
@@ -260,17 +221,9 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
       ) {
         // Apply the red pulsing class for negative/warning events
         elements.lobbyStatusDisplay.classList.add("lobby-status-highlight");
-        console.log("Applying lobby-status-highlight class"); // Debug log
       } else if (actionText.includes("joined as player")) {
         // Apply the blue info class for the host joining
         elements.lobbyStatusDisplay.classList.add("lobby-status-info");
-        //console.log("Applying lobby-status-info class"); // Debug log
-      } else {
-        // Default case for other lastAction messages (uses default text color)
-        //console.log(
-        //  "Applying default style for lastAction:",
-        //  lobbyStateData.lastAction
-        //);
       }
     } else {
       // No specific lastAction, show default status text based on lobbyState
@@ -281,16 +234,8 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
         statusText = "Waiting for players to ready up...";
       }
       elements.lobbyStatusDisplay.textContent = statusText;
-      // Optionally add back a default class like text-muted if desired for standard waiting messages
-      // elements.lobbyStatusDisplay.classList.add("text-muted");
     }
   }
-
-  // --- DEBUG: Log current state ---
-  // console.log(
-  //   `DEBUG Ready Check: mySlot=${state.myAssignedSlot}, P1 Ready=${lobbyStateData.player1Ready}, P2 Ready=${lobbyStateData.player2Ready}`
-  // );
-  // console.log("DEBUG: isCurrentUserHost =", state.isCurrentUserHost);
 
   // --- Update Button Visibility using d-none class ---
   const isHost = state.isCurrentUserHost;
@@ -305,16 +250,6 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
     toggleElementVisibility(elements.player1ReadyBtn, shouldShowP1ReadyButton);
     elements.player1ReadyBtn.disabled = !shouldShowP1ReadyButton;
-
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // ++ ADD THIS LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    console.log(
-      `UIVIEWS_DEBUG: P1 Ready Button - Visible: ${shouldShowP1ReadyButton}, Disabled: ${elements.player1ReadyBtn.disabled}, PlayerActuallyReady: ${playerIsActuallyReady}`
-    );
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // ++ END OF ADDED LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   if (elements.player2ReadyBtn) {
@@ -325,16 +260,6 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
     toggleElementVisibility(elements.player2ReadyBtn, shouldShowP2ReadyButton);
     elements.player2ReadyBtn.disabled = !shouldShowP2ReadyButton;
-
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // ++ ADD THIS LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    console.log(
-      `UIVIEWS_DEBUG: P2 Ready Button - Visible: ${shouldShowP2ReadyButton}, Disabled: ${elements.player2ReadyBtn.disabled}, PlayerActuallyReady: ${playerIsActuallyReady}`
-    );
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // ++ END OF ADDED LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   // Player Back Button

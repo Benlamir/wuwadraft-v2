@@ -649,14 +649,6 @@ def handler(event, context):
             # Define the current event's last action message early
             current_event_last_action = f"{player_name} ({player_slot_key}) is Ready."
 
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++ ADD THIS LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            logger.info(f"READY_ACTION_DEBUG: Setting {ready_flag_key} to True for {player_name} ({player_slot_key}) in lobby {lobby_id}")
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++ END OF ADDED LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
             # 4. Update the player's ready status in WuwaDraftLobbies
             try:
                 logger.info(f"Updating {player_slot_key} ready status to True in lobby {lobby_id}")
@@ -685,14 +677,6 @@ def handler(event, context):
             p1_ready = updated_lobby_item.get('player1Ready', False)
             p2_ready = updated_lobby_item.get('player2Ready', False)
             current_lobby_state_from_db = updated_lobby_item.get('lobbyState', 'WAITING')
-
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++ ADD THIS LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            logger.info(f"READY_ACTION_DEBUG: After update - P1 Ready: {p1_ready}, P2 Ready: {p2_ready}, Current State: {current_lobby_state_from_db}")
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++ END OF ADDED LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
             draft_initialization_payload = {} # To store what needs to be updated in DDB
 
@@ -913,17 +897,6 @@ def handler(event, context):
                         condition_item_expression = "#lobbyState_cond = :waitState"
 
                         update_item_expression = "SET " + ", ".join(update_expression_parts)
-
-                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                        # ++ ADD THIS LOG BEFORE THE UPDATE ITEM CALL ++++++++++++++++++++++++++++
-                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                        logger.info(f"DEBUG PRE_DRAFT_READY: About to update DDB for lobby {lobby_id}. Payload being used to build SET: {json.dumps(pre_draft_payload, cls=DecimalEncoder, indent=2)}")
-                        logger.info(f"DEBUG PRE_DRAFT_READY: Update Expression: {update_item_expression}")
-                        logger.info(f"DEBUG PRE_DRAFT_READY: ExpressionAttributeNames: {expression_attribute_names}")
-                        logger.info(f"DEBUG PRE_DRAFT_READY: ExpressionAttributeValues: {json.dumps(expression_attribute_values, cls=DecimalEncoder, indent=2)}")
-                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                        # ++ END OF ADDED LOG LINES ++++++++++++++++++++++++++++++++++++++++++++++
-                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                         
                         lobbies_table.update_item(
                             Key={'lobbyId': lobby_id},
@@ -934,16 +907,6 @@ def handler(event, context):
                         )
                         logger.info(f"Lobby {lobby_id} successfully updated to PRE_DRAFT_READY state.")
 
-                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                        # ++ ADD THIS LOG AFTER THE UPDATE (Optional but good) +++++++++++++++++++
-                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                        # Re-fetch to confirm what was written, or at least log success of write before broadcast
-                        updated_lobby_item_after_pre_draft = lobbies_table.get_item(Key={'lobbyId': lobby_id}, ConsistentRead=True).get('Item', {})
-                        logger.info(f"DEBUG PRE_DRAFT_READY: Lobby {lobby_id} state in DDB after update: equilibrationEnabled = {updated_lobby_item_after_pre_draft.get('equilibrationEnabled')}")
-                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                        # ++ END OF ADDED LOG LINES ++++++++++++++++++++++++++++++++++++++++++++++
-                        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
                     except Exception as e:
                         logger.error(f"Lobby {lobby_id}: Error updating DDB to PRE_DRAFT_READY state: {str(e)}", exc_info=True)
                         raise 
@@ -953,18 +916,8 @@ def handler(event, context):
 
             # If not all conditions met to go to PRE_DRAFT_READY (e.g., only one player ready)
             # or if the PRE_DRAFT_READY logic path didn't execute/return:
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++ ADD THESE LOGS ++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            logger.info(f"PLAYER_READY_DEBUG: Conditions for PRE_DRAFT_READY not fully met OR fell through. About to broadcast standard ready update for lobby {lobby_id}.")
-            logger.info(f"PLAYER_READY_DEBUG: Broadcasting with last_action: '{current_event_last_action}'")
-            logger.info(f"PLAYER_READY_DEBUG: Lobby item that will be fetched by broadcast_lobby_state should be: {json.dumps(updated_lobby_item, cls=DecimalEncoder)}")
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++ END OF ADDED LOGS +++++++++++++++++++++++++++++++++++++++++++++++++++
-            # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            
             broadcast_lobby_state(lobby_id, apigw_management_client, last_action=current_event_last_action)
-            logger.info(f"PLAYER_READY_DEBUG: Broadcast initiated from playerReady for lobby {lobby_id}.")
+            logger.info(f"Lobby {lobby_id}: Broadcast initiated from playerReady.")
 
             return {'statusCode': 200, 'body': 'Player readiness updated.'}
 

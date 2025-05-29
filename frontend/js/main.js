@@ -183,80 +183,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Ready Buttons
   function handleReadyClick() {
-    console.log(
-      `READY_BUTTON_LOG: handleReadyClick called. My current slot: ${state.myAssignedSlot}`
-    );
-    console.log(
-      `READY_BUTTON_LOG: Sending playerReady action (My Slot: ${state.myAssignedSlot})`
-    );
     sendMessageToServer({ action: "playerReady" });
 
     // Temporarily disable button to prevent multiple clicks until server responds
     if (state.myAssignedSlot === "P1" && elements.player1ReadyBtn) {
       elements.player1ReadyBtn.disabled = true;
-      console.log(
-        "READY_BUTTON_LOG: P1 Ready Button disabled by click handler."
-      );
     }
     if (state.myAssignedSlot === "P2" && elements.player2ReadyBtn) {
       elements.player2ReadyBtn.disabled = true;
-      console.log(
-        "READY_BUTTON_LOG: P2 Ready Button disabled by click handler."
-      );
     }
   }
 
-  console.log(
-    "DEBUG_MAIN_JS: Checking P1 Ready Btn before listener:",
-    elements.player1ReadyBtn
-  );
   if (elements.player1ReadyBtn) {
-    // Check if the button exists
     elements.player1ReadyBtn.addEventListener("click", (event) => {
-      console.log(
-        "READY_BUTTON_LOG: P1 Ready Button raw click event object:",
-        event
-      );
-      console.log(
-        "READY_BUTTON_LOG: P1 Ready Button event listener ATTEMPTING TO FIRE."
-      );
       if (state.myAssignedSlot === "P1") {
         handleReadyClick();
-      } else {
-        console.log(
-          "READY_BUTTON_LOG: P1 Ready Button clicked, but myAssignedSlot is not P1. Slot:",
-          state.myAssignedSlot
-        );
       }
     });
-    console.log("DEBUG_MAIN_JS: Event listener ATTACHED to P1 Ready Button.");
-  } else {
-    console.error(
-      "DEBUG_MAIN_JS: elements.player1ReadyBtn is NULL or UNDEFINED. Listener NOT attached."
-    );
   }
 
-  console.log(
-    "DEBUG_MAIN_JS: Checking P2 Ready Btn before listener:",
-    elements.player2ReadyBtn
-  );
   if (elements.player2ReadyBtn) {
     elements.player2ReadyBtn.addEventListener("click", () => {
-      console.log("READY_BUTTON_LOG: P2 Ready Button event listener FIRED.");
       if (state.myAssignedSlot === "P2") {
         handleReadyClick();
-      } else {
-        console.log(
-          "READY_BUTTON_LOG: P2 Ready Button clicked, but myAssignedSlot is not P2. Slot:",
-          state.myAssignedSlot
-        );
       }
     });
-    console.log("DEBUG_MAIN_JS: Event listener ATTACHED to P2 Ready Button.");
-  } else {
-    console.error(
-      "DEBUG_MAIN_JS: elements.player2ReadyBtn is NULL or UNDEFINED. Listener NOT attached."
-    );
   }
 
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
