@@ -835,11 +835,10 @@ export function updateDraftScreenUI(draftState) {
 
     // Manage Reset Draft button visibility
     if (elements.hostResetDraftBtn) {
-      // Show Reset button if draft is active (not pre-draft) but not yet complete
-      toggleElementVisibility(
-        elements.hostResetDraftBtn,
-        !isPreDraftReadyState && !isDraftComplete && !!draftState.currentPhase
-      );
+      // Show Reset button if the host is viewing the draft screen AND
+      // the draft is NOT in the "PRE_DRAFT_READY" state (i.e., it's active or complete)
+      const showResetButton = !isPreDraftReadyState;
+      toggleElementVisibility(elements.hostResetDraftBtn, showResetButton);
     }
 
     // Manage Delete Lobby button visibility
