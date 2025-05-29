@@ -864,7 +864,11 @@ export function updateDraftScreenUI(draftState) {
 
     if (elements.draftPhaseStatus) {
       elements.draftPhaseStatus.textContent = "Draft Complete!";
-      elements.draftPhaseStatus.classList.add("text-success", "fw-bold");
+      elements.draftPhaseStatus.classList.add(
+        "text-success",
+        "fw-bold",
+        "phase-complete"
+      );
     }
     if (elements.hostStartDraftBtn) {
       toggleElementVisibility(elements.hostStartDraftBtn, false);
@@ -879,6 +883,29 @@ export function updateDraftScreenUI(draftState) {
 
     updatePickSlots(draftState);
     updateBanSlots(draftState);
+
+    // Instead of clearing the grid, render it one last time
+    try {
+      renderCharacterGrid(draftState);
+    } catch (gridError) {
+      console.error(
+        "Error calling renderCharacterGrid during draft complete:",
+        gridError
+      );
+    }
+
+    // Hide filter controls as they are no longer functional
+    const filterControls = document.getElementById("draft-filter-controls");
+    if (filterControls) {
+      filterControls.style.display = "none";
+    }
+
+    // Remove active turn highlighting from player areas
+    const playerAreas = document.querySelectorAll(
+      ".draft-main-flex-container .player-area"
+    );
+    playerAreas.forEach((area) => area.classList.remove("active-turn"));
+
     return;
   }
 
