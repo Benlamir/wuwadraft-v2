@@ -94,7 +94,24 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
     "myAssignedSlot:",
     state.myAssignedSlot
   );
-  // console.log("UI: Updating lobby wait screen", lobbyStateData);
+  console.log(
+    "UPDATE_LOBBY_UI_DEBUG: lobbyStateData received:",
+    JSON.stringify(lobbyStateData)
+  );
+  console.log(
+    "UPDATE_LOBBY_UI_DEBUG: Player 1 Ready from data:",
+    lobbyStateData.player1Ready,
+    "(type:",
+    typeof lobbyStateData.player1Ready,
+    ")"
+  );
+  console.log(
+    "UPDATE_LOBBY_UI_DEBUG: Player 2 Ready from data:",
+    lobbyStateData.player2Ready,
+    "(type:",
+    typeof lobbyStateData.player2Ready,
+    ")"
+  );
 
   // --- DEBUG: Verify all button elements exist ---
   // console.log("DEBUG: Verifying button elements...");
@@ -281,17 +298,43 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 
   // Player Ready Buttons
   if (elements.player1ReadyBtn) {
-    const shouldShowP1Ready =
-      mySlot === "P1" && lobbyStateData.player1Ready !== true;
-    toggleElementVisibility(elements.player1ReadyBtn, shouldShowP1Ready);
-    elements.player1ReadyBtn.disabled = !shouldShowP1Ready;
+    const playerIsActuallyReady = lobbyStateData.player1Ready === true;
+    // Determine if the P1 Ready button *should* be shown
+    const shouldShowP1ReadyButton =
+      state.myAssignedSlot === "P1" && !playerIsActuallyReady;
+
+    toggleElementVisibility(elements.player1ReadyBtn, shouldShowP1ReadyButton);
+    elements.player1ReadyBtn.disabled = !shouldShowP1ReadyButton;
+
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++ ADD THIS LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    console.log(
+      `UIVIEWS_DEBUG: P1 Ready Button - Visible: ${shouldShowP1ReadyButton}, Disabled: ${elements.player1ReadyBtn.disabled}, PlayerActuallyReady: ${playerIsActuallyReady}`
+    );
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++ END OF ADDED LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   if (elements.player2ReadyBtn) {
-    const shouldShowP2Ready =
-      mySlot === "P2" && lobbyStateData.player2Ready !== true;
-    toggleElementVisibility(elements.player2ReadyBtn, shouldShowP2Ready);
-    elements.player2ReadyBtn.disabled = !shouldShowP2Ready;
+    const playerIsActuallyReady = lobbyStateData.player2Ready === true;
+    // Determine if the P2 Ready button *should* be shown
+    const shouldShowP2ReadyButton =
+      state.myAssignedSlot === "P2" && !playerIsActuallyReady;
+
+    toggleElementVisibility(elements.player2ReadyBtn, shouldShowP2ReadyButton);
+    elements.player2ReadyBtn.disabled = !shouldShowP2ReadyButton;
+
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++ ADD THIS LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    console.log(
+      `UIVIEWS_DEBUG: P2 Ready Button - Visible: ${shouldShowP2ReadyButton}, Disabled: ${elements.player2ReadyBtn.disabled}, PlayerActuallyReady: ${playerIsActuallyReady}`
+    );
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++ END OF ADDED LOG ++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   // Player Back Button
