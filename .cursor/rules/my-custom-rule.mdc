@@ -8,3 +8,5 @@ alwaysApply: true
 
 - You can @ files here
 - You can use markdown but dont have to
+- Always emplement changes exaclty as instructed
+- Never do agressive refactoring anless you are asked to
