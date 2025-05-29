@@ -392,8 +392,12 @@ function updatePickSlots(draftState) {
       }
       slot.classList.add("p1-picked-slot-themed");
 
-      // Add Sequence Badge if BSS is enabled and sequence exists for this picked resonator
-      if (draftState.equilibrationEnabled && resonator && resonator.isLimited) {
+      // Add Sequence Badge if BSS is enabled and it's a 5-star resonator
+      if (
+        draftState.equilibrationEnabled &&
+        resonator &&
+        resonator.rarity === 5
+      ) {
         const seqVal = p1Sequences[resonator.name];
         if (seqVal !== undefined && seqVal >= 0) {
           const seqBadge = document.createElement("div");
@@ -434,7 +438,12 @@ function updatePickSlots(draftState) {
       }
       slot.classList.add("p2-picked-slot-themed");
 
-      if (draftState.equilibrationEnabled && resonator && resonator.isLimited) {
+      // Add Sequence Badge if BSS is enabled and it's a 5-star resonator
+      if (
+        draftState.equilibrationEnabled &&
+        resonator &&
+        resonator.rarity === 5
+      ) {
         const seqVal = p2Sequences[resonator.name];
         if (seqVal !== undefined && seqVal >= 0) {
           const seqBadge = document.createElement("div");
@@ -1282,8 +1291,9 @@ function renderCharacterGrid(draftState) {
         <span class="character-name">${resonator.name}</span>
     `;
 
-    // --- NEW: Add Sequence Overlay Logic ---
-    if (draftState.equilibrationEnabled && resonator.isLimited) {
+    // --- MODIFY SEQUENCE OVERLAY LOGIC ---
+    // Show sequence badges if BSS is enabled AND it's a 5-star resonator
+    if (draftState.equilibrationEnabled && resonator.rarity === 5) {
       const p1Sequences =
         typeof draftState.player1Sequences === "object" &&
         draftState.player1Sequences !== null
@@ -1298,25 +1308,21 @@ function renderCharacterGrid(draftState) {
       const p1SeqVal = p1Sequences[resonator.name];
       const p2SeqVal = p2Sequences[resonator.name];
 
-      // P1 Sequence Number (Top-Left)
       if (p1SeqVal !== undefined && p1SeqVal >= 0) {
-        // Only show for S0-S6
         const p1SeqBadge = document.createElement("div");
         p1SeqBadge.className = "char-seq-badge p1-seq-badge";
         p1SeqBadge.textContent = p1SeqVal.toString();
         button.appendChild(p1SeqBadge);
       }
 
-      // P2 Sequence Number (Top-Right)
       if (p2SeqVal !== undefined && p2SeqVal >= 0) {
-        // Only show for S0-S6
         const p2SeqBadge = document.createElement("div");
         p2SeqBadge.className = "char-seq-badge p2-seq-badge";
         p2SeqBadge.textContent = p2SeqVal.toString();
         button.appendChild(p2SeqBadge);
       }
     }
-    // --- END NEW ---
+    // --- END MODIFIED SEQUENCE OVERLAY LOGIC ---
 
     // Determine button state based on draftState
     let isActuallyAvailableOnServer = availableSet.has(resonator.name);
@@ -1456,11 +1462,14 @@ export function updateTotalBoxScore() {
 
   selects.forEach((select) => {
     const sequenceValue = parseInt(select.value, 10);
+    const isLimited = select.dataset.isLimited === "true"; // Get isLimited status from dataset
     let charPoints = 0;
 
-    if (sequenceValue >= 0 && sequenceValue <= 6) {
+    // Only calculate points if the resonator is limited and sequence is valid (S0-S6)
+    if (isLimited && sequenceValue >= 0 && sequenceValue <= 6) {
       charPoints = SEQUENCE_POINTS[sequenceValue] || 0;
     }
+    // For non-limited 5-stars, charPoints remains 0.
 
     const pointsDisplayElement = select
       .closest(".row")
@@ -1469,7 +1478,7 @@ export function updateTotalBoxScore() {
       pointsDisplayElement.innerHTML = `<small>Points: ${charPoints}</small>`;
     }
 
-    totalScore += charPoints;
+    totalScore += charPoints; // Only limited characters will add to totalScore
   });
 
   elements.totalBoxScoreDisplay.textContent = totalScore;
@@ -1484,45 +1493,42 @@ export function populateBoxScoreScreen() {
     return;
   }
 
-  // ---- LOAD FROM LOCALSTORAGE ----
   let lastSubmittedSequences = {};
   try {
     const savedData = localStorage.getItem(LOCAL_STORAGE_SEQUENCES_KEY);
-    //console.log(
-    //  "POPULATE_BSS_DEBUG: Raw savedData from localStorage:",
-    //  savedData
-    //);
     if (savedData) {
       lastSubmittedSequences = JSON.parse(savedData);
-      //console.log(
-      //  "POPULATE_BSS_DEBUG: Parsed lastSubmittedSequences:",
-      //  lastSubmittedSequences
-      //);
-    } else {
-      //console.log("POPULATE_BSS_DEBUG: No savedData found in localStorage.");
     }
   } catch (e) {
     console.warn(
       "POPULATE_BSS_WARN: Could not parse sequences from localStorage.",
       e
     );
-    lastSubmittedSequences = {}; // Default to empty if error
+    lastSubmittedSequences = {};
   }
-  // -----------------------------
 
   elements.limitedResonatorsList.innerHTML = "";
-  const limitedResonators = ALL_RESONATORS_DATA.filter(
-    (resonator) => resonator.isLimited === true
+
+  // Get ALL 5-star resonators
+  const fiveStarResonators = ALL_RESONATORS_DATA.filter(
+    (resonator) => resonator.rarity === 5
   );
 
-  if (limitedResonators.length === 0) {
+  // Sort them so limited ones appear first, then by name
+  fiveStarResonators.sort((a, b) => {
+    if (a.isLimited && !b.isLimited) return -1;
+    if (!a.isLimited && b.isLimited) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  if (fiveStarResonators.length === 0) {
     elements.limitedResonatorsList.innerHTML =
-      '<p class="text-muted">No limited resonators found to declare sequences for.</p>';
+      '<p class="text-muted">No 5-star resonators found to declare sequences for.</p>';
     updateTotalBoxScore();
     return;
   }
 
-  limitedResonators.forEach((resonator) => {
+  fiveStarResonators.forEach((resonator) => {
     const resonatorRow = document.createElement("div");
     resonatorRow.className =
       "row mb-3 align-items-center justify-content-center border-bottom pb-2";
@@ -1531,11 +1537,30 @@ export function populateBoxScoreScreen() {
     nameLabel.className = "col-md-4 col-form-label text-md-end fw-bold";
     nameLabel.textContent = `${resonator.name}:`;
 
+    // Add a small indicator if the resonator is limited (for scoring)
+    if (resonator.isLimited) {
+      const limitedBadge = document.createElement("span");
+      limitedBadge.className = "badge bg-warning text-dark ms-2 small";
+      limitedBadge.textContent = "Score Counts";
+      limitedBadge.title =
+        "Sequence for this Limited Resonator contributes to the Weighted Box Score.";
+      nameLabel.appendChild(limitedBadge);
+    } else {
+      const standardBadge = document.createElement("span");
+      standardBadge.className = "badge bg-secondary ms-2 small";
+      standardBadge.textContent = "Standard";
+      standardBadge.title =
+        "Sequence for this Standard 5-Star Resonator is for display only and does NOT contribute to the Weighted Box Score.";
+      nameLabel.appendChild(standardBadge);
+    }
+
     const selectDiv = document.createElement("div");
     selectDiv.className = "col-md-3";
     const selectElement = document.createElement("select");
     selectElement.className = "form-select sequence-select text-center";
     selectElement.dataset.resonatorName = resonator.name;
+    // Store isLimited status directly on the select element for updateTotalBoxScore
+    selectElement.dataset.isLimited = resonator.isLimited ? "true" : "false";
 
     const notOwnedOption = document.createElement("option");
     notOwnedOption.value = "-1";
@@ -1549,27 +1574,23 @@ export function populateBoxScoreScreen() {
       selectElement.appendChild(option);
     }
 
-    // ---- PRE-FILL LOGIC ----
     const previouslySelectedValue = lastSubmittedSequences[resonator.name];
-    // console.log(`POPULATE_BSS_LOOP_DEBUG: For ${resonator.name}, previouslySelectedValue is: ${previouslySelectedValue}`);
     if (
       previouslySelectedValue !== undefined &&
-      parseInt(previouslySelectedValue) >= -1 && // Allow -1 for "Not Owned"
+      parseInt(previouslySelectedValue) >= -1 &&
       parseInt(previouslySelectedValue) <= 6
     ) {
       selectElement.value = previouslySelectedValue.toString();
     } else {
-      selectElement.value = "-1"; // Default to "Not Owned"
+      selectElement.value = "-1";
     }
-    // -------------------------
 
     selectElement.addEventListener("change", updateTotalBoxScore);
     selectDiv.appendChild(selectElement);
 
     const pointsDisplay = document.createElement("div");
     pointsDisplay.className = "col-md-3 resonator-points-display text-md-start";
-    // updateTotalBoxScore will populate this after all elements are set
-    pointsDisplay.innerHTML = "<small>Points: 0</small>";
+    pointsDisplay.innerHTML = "<small>Points: 0</small>"; // Will be updated by updateTotalBoxScore
 
     resonatorRow.appendChild(nameLabel);
     resonatorRow.appendChild(selectDiv);
@@ -1578,15 +1599,11 @@ export function populateBoxScoreScreen() {
     elements.limitedResonatorsList.appendChild(resonatorRow);
   });
 
-  updateTotalBoxScore(); // Calculate initial total score based on pre-filled/default values
+  updateTotalBoxScore();
 
-  // Ensure submit button is enabled when screen is populated
   if (elements.submitBoxScoreBtn) {
     elements.submitBoxScoreBtn.disabled = false;
     elements.submitBoxScoreBtn.innerHTML =
       '<i class="bi bi-check-circle-fill me-2"></i>Submit Score & Proceed';
   }
-  //console.log(
-  //  "UI_VIEWS_BSS: Box Score Screen populated. Submit button ensured enabled."
-  //);
 }

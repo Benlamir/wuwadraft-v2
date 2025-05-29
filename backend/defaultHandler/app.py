@@ -2606,16 +2606,18 @@ def handler(event, context):
         elif action == 'submitBoxScore':
             lobby_id = message_data.get('lobbyId')
             received_sequences = message_data.get('sequences', {}) # Dict: {'CharName': S_val}
-            # client_total_score = message_data.get('totalScore', 0) # For logging/debug if needed
+            client_total_score = message_data.get('totalScore', 0) # Get the total score calculated by the client
 
             if not lobby_id or not connection_id:
+                logger.error(f"submitBoxScore: Missing lobbyId or connectionId. ConnId: {connection_id}, LobbyId: {lobby_id}")
                 return {'statusCode': 400, 'body': 'Missing lobbyId or connectionId.'}
 
-            logger.info(f"Processing 'submitBoxScore' from {connection_id} for lobby {lobby_id}")
+            logger.info(f"Processing 'submitBoxScore' from {connection_id} for lobby {lobby_id}. Client calculated totalScore: {client_total_score}")
 
             try:
                 lobby_item = lobbies_table.get_item(Key={'lobbyId': lobby_id}).get('Item')
                 if not lobby_item:
+                    logger.warning(f"Lobby {lobby_id} not found for submitBoxScore by {connection_id}.")
                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Lobby not found."})
                     return {'statusCode': 404, 'body': 'Lobby not found.'}
 
@@ -2628,42 +2630,67 @@ def handler(event, context):
                     player_slot_label = 'player2'
                     player_name_for_action = lobby_item.get('player2Name', 'Player 2')
                 else:
+                    logger.warning(f"Connection {connection_id} tried to submitBoxScore for lobby {lobby_id} but is not an active player.")
                     send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "You are not an active player in this lobby."})
                     return {'statusCode': 403, 'body': 'Not an active player.'}
 
-                # Recalculate weighted score on backend for security/consistency
-                backend_calculated_score = 0
+                # Validate received sequences format if necessary (e.g., ensure s_value is int between -1 and 6)
+                # For simplicity, we'll trust the client sends valid sequence numbers for storage.
+                # The client already filters for S0-S6 for point calculation.
                 valid_sequences_to_store = {}
                 for char_name, s_value in received_sequences.items():
-                    if isinstance(s_value, int) and 0 <= s_value <= 6:
-                        backend_calculated_score += SEQUENCE_POINTS.get(s_value, 0)
+                    if isinstance(s_value, int) and -1 <= s_value <= 6: # Allow -1 (Not Owned) to be stored
                         valid_sequences_to_store[char_name] = s_value
                     else:
-                        logger.warning(f"Lobby {lobby_id}: Invalid sequence value {s_value} for {char_name} from {connection_id}. Ignoring for score.")
+                        logger.warning(f"Lobby {lobby_id}: Invalid sequence value {s_value} for {char_name} from {connection_id}. Not storing this sequence entry.")
                 
-                logger.info(f"Lobby {lobby_id}: Player {player_name_for_action} ({player_slot_label}) submitted sequences. Backend calculated score: {backend_calculated_score}")
+                # --- MODIFICATION: Use client_total_score directly ---
+                # No backend recalculation for playerXWeightedBoxScore based on SEQUENCE_POINTS here.
+                # We trust the client's calculation which now correctly considers only 'isLimited' resonators.
+                player_weighted_box_score_to_store = client_total_score
+                
+                logger.info(f"Lobby {lobby_id}: Player {player_name_for_action} ({player_slot_label}) submitted sequences. Using client-calculated score: {player_weighted_box_score_to_store}")
 
                 update_expression_parts = []
                 expression_attribute_values = {}
-                
-                update_expression_parts.append(f"{player_slot_label}Sequences = :seq")
+                # Use ExpressionAttributeNames for safety, though current names are likely fine
+                expression_attribute_names = {} 
+
+                # Player Sequences
+                seq_attr_name_placeholder = f"#{player_slot_label}Sequences_attr"
+                expression_attribute_names[seq_attr_name_placeholder] = f"{player_slot_label}Sequences"
+                update_expression_parts.append(f"{seq_attr_name_placeholder} = :seq")
                 expression_attribute_values[':seq'] = valid_sequences_to_store
                 
-                update_expression_parts.append(f"{player_slot_label}WeightedBoxScore = :score")
-                expression_attribute_values[':score'] = backend_calculated_score
-                
-                update_expression_parts.append(f"{player_slot_label}ScoreSubmitted = :trueVal")
+                # Player Weighted Box Score (from client)
+                score_attr_name_placeholder = f"#{player_slot_label}WeightedBoxScore_attr"
+                expression_attribute_names[score_attr_name_placeholder] = f"{player_slot_label}WeightedBoxScore"
+                update_expression_parts.append(f"{score_attr_name_placeholder} = :score")
+                expression_attribute_values[':score'] = decimal.Decimal(str(player_weighted_box_score_to_store)) # Store as Decimal
+
+                # Player Score Submitted Flag
+                submitted_attr_name_placeholder = f"#{player_slot_label}ScoreSubmitted_attr"
+                expression_attribute_names[submitted_attr_name_placeholder] = f"{player_slot_label}ScoreSubmitted"
+                update_expression_parts.append(f"{submitted_attr_name_placeholder} = :trueVal")
                 expression_attribute_values[':trueVal'] = True
                 
+                # Last Action
                 last_action_msg = f"{player_name_for_action} submitted their Resonator sequences."
-                update_expression_parts.append(f"lastAction = :lastAct")
+                expression_attribute_names["#lastAction_attr"] = "lastAction"
+                update_expression_parts.append(f"#lastAction_attr = :lastAct")
                 expression_attribute_values[':lastAct'] = last_action_msg
 
                 update_expression = "SET " + ", ".join(update_expression_parts)
 
+                logger.info(f"SUBMIT_BOX_SCORE_DDB_UPDATE for lobby {lobby_id}:")
+                logger.info(f"  UpdateExpression: {update_expression}")
+                logger.info(f"  ExpressionAttributeNames: {expression_attribute_names}")
+                logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_attribute_values, cls=DecimalEncoder)}")
+
                 lobbies_table.update_item(
                     Key={'lobbyId': lobby_id},
                     UpdateExpression=update_expression,
+                    ExpressionAttributeNames=expression_attribute_names,
                     ExpressionAttributeValues=expression_attribute_values
                 )
 
@@ -2673,7 +2700,7 @@ def handler(event, context):
                 return {'statusCode': 200, 'body': 'Box score submitted.'}
 
             except Exception as e:
-                logger.error(f"Error processing submitBoxScore for {lobby_id}: {str(e)}", exc_info=True)
+                logger.error(f"Error processing submitBoxScore for {lobby_id}, connection {connection_id}: {str(e)}", exc_info=True)
                 send_message_to_client(apigw_management_client, connection_id, {"type": "error", "message": "Failed to submit box score."})
                 return {'statusCode': 500, 'body': 'Failed to process box score.'}
 
