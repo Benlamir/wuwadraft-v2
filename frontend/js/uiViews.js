@@ -343,6 +343,12 @@ function updateSlotGlowState(slot, isActive, isFilled, type) {
 
 // --- ADD NEW FUNCTION for Pick Slots ---
 function updatePickSlots(draftState) {
+  console.log(
+    "UPDATE_PICK_SLOTS: Called. P1 Picks:",
+    JSON.stringify(draftState.player1Picks),
+    "P2 Picks:",
+    JSON.stringify(draftState.player2Picks)
+  );
   const p1Picks = draftState.player1Picks || [];
   const p2Picks = draftState.player2Picks || [];
   const p1Sequences =
@@ -844,7 +850,19 @@ export function updateDraftScreenUI(draftState) {
 
   // If draft is complete, handle UI and return early
   if (isDraftComplete) {
-    console.log("UI: Rendering Draft Complete state.");
+    console.log(
+      "UIVIEWS_DRAFT_COMPLETE: Rendering Draft Complete state. Full draftState:",
+      JSON.stringify(draftState)
+    );
+    console.log(
+      "UIVIEWS_DRAFT_COMPLETE: (Log 1) P1 Picks before updatePickSlots:",
+      JSON.stringify(draftState.player1Picks)
+    );
+    console.log(
+      "UIVIEWS_DRAFT_COMPLETE: (Log 1) P2 Picks before updatePickSlots:",
+      JSON.stringify(draftState.player2Picks)
+    );
+
     if (elements.draftPhaseStatus) {
       elements.draftPhaseStatus.textContent = "Draft Complete!";
       elements.draftPhaseStatus.classList.add("text-success", "fw-bold");
@@ -853,6 +871,15 @@ export function updateDraftScreenUI(draftState) {
       toggleElementVisibility(elements.hostStartDraftBtn, false);
     }
     stopTimerDisplay();
+
+    // Add log right before updatePickSlots to check for mutations
+    console.log(
+      "UIVIEWS_DRAFT_COMPLETE: (Log 2) P2 Picks JUST BEFORE calling updatePickSlots:",
+      JSON.stringify(draftState.player2Picks)
+    );
+
+    updatePickSlots(draftState);
+    updateBanSlots(draftState);
     return;
   }
 

@@ -1494,33 +1494,47 @@ def handler(event, context):
             if not effective_draft_order:
                 logger.error(f"Lobby {lobby_id} missing effectiveDraftOrder during pick.")
                 return {'statusCode': 500, 'body': 'Internal error: Missing draft order configuration.'}
+            
+            # 1. Determine next state from draft order
             next_phase, next_turn_designation, next_step_index = determine_next_state(current_step_index, effective_draft_order)
 
-            # Resolve the actual player turn based on playerRoles and the role from the template
+            # 2. Resolve the actual player for the next turn
             player_roles = lobby_item.get('playerRoles', {})
-            actual_next_turn = None
-            if 'P1_ROLE_IN_TEMPLATE' in player_roles: # P1_FAVORED_DRAFT_ORDER was chosen
-                if next_turn_designation == 'P1_ROLE':
-                    actual_next_turn = player_roles['P1_ROLE_IN_TEMPLATE']
-                elif next_turn_designation == 'P2_ROLE':
-                    actual_next_turn = player_roles['P2_ROLE_IN_TEMPLATE']
-            elif 'ROLE_A' in player_roles: # NEUTRAL_DRAFT_ORDER_TEMPLATE_V2 was chosen
-                if next_turn_designation == 'ROLE_A':
-                    actual_next_turn = player_roles['ROLE_A']
-                elif next_turn_designation == 'ROLE_B':
-                    actual_next_turn = player_roles['ROLE_B']
+            actual_next_turn = None  # Initialize to None
             
-            if not actual_next_turn:
-                logger.error(f"Lobby {lobby_id}: Could not resolve actual next turn from designation '{next_turn_designation}' and roles {player_roles}. Defaulting to P1.")
-                actual_next_turn = 'P1' # Fallback, should not happen
+            if next_turn_designation:  # Only attempt to resolve if there is a designation
+                if 'P1_ROLE_IN_TEMPLATE' in player_roles:  # P1_FAVORED_DRAFT_ORDER was chosen
+                    if next_turn_designation == 'P1_ROLE':
+                        actual_next_turn = player_roles['P1_ROLE_IN_TEMPLATE']
+                    elif next_turn_designation == 'P2_ROLE':
+                        actual_next_turn = player_roles['P2_ROLE_IN_TEMPLATE']
+                elif 'ROLE_A' in player_roles:  # NEUTRAL_DRAFT_ORDER_TEMPLATE_V2 was chosen
+                    if next_turn_designation == 'ROLE_A':
+                        actual_next_turn = player_roles['ROLE_A']
+                    elif next_turn_designation == 'ROLE_B':
+                        actual_next_turn = player_roles['ROLE_B']
+                
+                # Log if resolution failed but a designation was expected
+                if not actual_next_turn:
+                    logger.warning(f"Lobby {lobby_id}: Could not resolve actual_next_turn from designation '{next_turn_designation}' and roles {player_roles}. This is expected if draft is completing.")
 
-            # 6. *** Update DynamoDB (with index and timer) ***
+            # If draft is complete, next turn should be None
+            if next_phase == 'DRAFT_COMPLETE':
+                actual_next_turn = None
+                logger.info(f"Lobby {lobby_id}: Draft is now complete. Next turn is None.")
+
+            # 3. Now it's safe to log these resolved values
+            logger.info(f"MAKE_PICK_FINAL_STEP_DEBUG: Processing pick: {resonator_name} by {current_turn}")
+            logger.info(f"MAKE_PICK_FINAL_STEP_DEBUG: Next state determined: Phase='{next_phase}', TurnDes='{next_turn_designation}', Index='{next_step_index}'")
+            logger.info(f"MAKE_PICK_FINAL_STEP_DEBUG: Actual next turn resolved to: {actual_next_turn}")
+
+            # 4. Prepare payload for DynamoDB update
             try:
                 new_available_list = [res for res in available_resonators if res != resonator_name]
 
                 # --- Calculate expiry for the NEXT turn ---
                 turn_expires_at_iso = None
-                if actual_next_turn: # Only set expiry if there is a next turn
+                if actual_next_turn:  # Only set expiry if there is a next turn
                     now = datetime.now(timezone.utc)
                     expires_at_dt = now + timedelta(seconds=TURN_DURATION_SECONDS)
                     turn_expires_at_iso = expires_at_dt.isoformat()
@@ -1587,7 +1601,7 @@ def handler(event, context):
                 logger.info(f"UpdateItem Params for lobby {lobby_id} (pick for {current_turn}):")
                 logger.info(f"  UpdateExpression: {update_expression_string}")
                 logger.info(f"  ConditionExpression: {condition_expression_string}")
-                logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_attribute_values_dict)}")
+                logger.info(f"  ExpressionAttributeValues: {json.dumps(expression_attribute_values_dict, cls=DecimalEncoder, indent=2)}")
                 # --- END LOGGING ---
 
             except ClientError as e:

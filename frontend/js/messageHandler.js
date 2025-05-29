@@ -110,6 +110,14 @@ export function handleWebSocketMessage(jsonData) {
           JSON.stringify(message)
         );
 
+        // Add DRAFT_COMPLETE logging
+        if (message.currentPhase === "DRAFT_COMPLETE") {
+          console.log(
+            "MESSAGE_HANDLER_DRAFT_COMPLETE: Received DRAFT_COMPLETE state:",
+            JSON.stringify(message)
+          );
+        }
+
         // +++ ADD THIS LOG IMMEDIATELY +++
         console.log(
           "LOBBY_STATE_UPDATE_RECEIVED: Raw message.equilibrationEnabled:",
