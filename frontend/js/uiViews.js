@@ -513,7 +513,17 @@ function updateBanSlots(draftState) {
     let isFilled = false;
     let isActiveForPulse = false;
 
-    if (i < eqBansAllowed) {
+    // Add ban-slot-disabled class if equilibration is disabled OR if this slot is beyond allowed EQ bans
+    if (!isEqEnabled || i >= eqBansAllowed) {
+      slot.classList.add("ban-slot-disabled");
+      // Add padlock icon for disabled slots with enhanced styling and perfect centering
+      slot.innerHTML = `
+        <div style="position: absolute; top: 68%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+          <i class="bi bi-lock-fill" style="font-size: 2rem; color: #6c757d; opacity: 0.8; filter: drop-shadow(0 0 2px rgba(0,0,0,0.2)); display: block;"></i>
+          <small class="text-muted mt-1" style="font-size: 0.8rem; display: block;">Disabled</small>
+        </div>
+      `;
+    } else {
       if (isEqEnabled && i < eqBansAllowed) {
         // Log conditions for the specific slot being evaluated
         console.log(
@@ -543,16 +553,11 @@ function updateBanSlots(draftState) {
         // isActiveForPulse remains false
       }
       // If neither of the above, it's an empty, non-active, but allowed EQ slot.
-      // 'ban-slot-disabled' is NOT added here.
-
-      console.log(
-        `[updateBanSlots] EQ_SLOT_RESULT[${i}]: isActiveForPulse=${isActiveForPulse}, isFilled=${isFilled}`
-      );
-    } else {
-      // This EQ slot is not used in this draft.
-      slot.classList.add("ban-slot-disabled");
-      // isFilled and isActiveForPulse remain false.
     }
+
+    console.log(
+      `[updateBanSlots] EQ_SLOT_RESULT[${i}]: isActiveForPulse=${isActiveForPulse}, isFilled=${isFilled}`
+    );
 
     if (banName) {
       const resonator = findResonatorByName(banName);
