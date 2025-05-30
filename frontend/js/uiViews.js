@@ -1161,6 +1161,14 @@ export function applyCharacterFilter() {
 
 function renderCharacterGrid(draftState) {
   console.log(
+    `RENDER_GRID_ENTRY_FILTERS: Initial state.activeElementFilter = '${
+      state.activeElementFilter
+    }', Initial state.activeRarityFilter = '${
+      state.activeRarityFilter
+    }' (Type of rarity filter: ${typeof state.activeRarityFilter})`
+  );
+
+  console.log(
     "RENDER_GRID_ENTRY: Received draftState:",
     JSON.parse(JSON.stringify(draftState))
   ); // Log a deep copy
