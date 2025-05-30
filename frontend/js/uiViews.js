@@ -1142,9 +1142,12 @@ export function initializeCopyButton() {
   }
 }
 
-export function applyCharacterFilter(filterElement) {
-  // console.log(`UI: Applying filter: ${filterElement}`);
-  state.setActiveElementFilter(filterElement);
+export function applyCharacterFilter() {
+  // This function is now just a trigger to re-render the grid.
+  // main.js is responsible for setting state.activeElementFilter and state.activeRarityFilter.
+  console.log(
+    `UI_VIEWS: applyCharacterFilter called. Element filter from state: ${state.activeElementFilter}, Rarity filter from state: ${state.activeRarityFilter}`
+  );
 
   if (state.currentDraftState) {
     renderCharacterGrid(state.currentDraftState);
@@ -1174,39 +1177,6 @@ function renderCharacterGrid(draftState) {
     JSON.stringify(draftState.player2Sequences)
   );
 
-  // Log 1: Function entry and basic draftState info
-  //console.log(
-  //  "RENDER_GRID: Entry. Current Phase:",
-  //  draftState.currentPhase,
-  //  "Current Turn:",
-  //  draftState.currentTurn
-  //);
-
-  // Add logs BSS related data from draftstate
-  //console.log(
-  //  "RENDER_GRID: Equilibration Enabled in draftState:",
-  //  draftState.equilibrationEnabled
-  //);
-  // Check if sequences are objects, otherwise default to empty object for safety
-  const p1SequencesFromState =
-    typeof draftState.player1Sequences === "object" &&
-    draftState.player1Sequences !== null
-      ? draftState.player1Sequences
-      : {};
-  const p2SequencesFromState =
-    typeof draftState.player2Sequences === "object" &&
-    draftState.player2Sequences !== null
-      ? draftState.player2Sequences
-      : {};
-  //console.log(
-  //  "RENDER_GRID: P1 Sequences in draftState:",
-  //  JSON.stringify(p1SequencesFromState)
-  //);
-  //console.log(
-  //  "RENDER_GRID: P2 Sequences in draftState:",
-  //  JSON.stringify(p2SequencesFromState)
-  //);
-
   if (!elements.characterGridContainer) {
     console.error(
       "RENDER_GRID_ERROR: elements.characterGridContainer is null or undefined!"
@@ -1214,8 +1184,14 @@ function renderCharacterGrid(draftState) {
     return;
   }
 
-  // Log 5: Active filter
-  const activeFilter = state.activeElementFilter || "All";
+  // Get active filters from state
+  const activeElementFilter = state.activeElementFilter || "All";
+  const activeRarityFilter = state.activeRarityFilter;
+
+  console.log(
+    `RENDER_GRID: Applying filters - Element: ${activeElementFilter}, Rarity: ${activeRarityFilter}`
+  );
+
   elements.characterGridContainer.innerHTML = "";
 
   // Log 3: Available Resonators from draftState
@@ -1229,47 +1205,51 @@ function renderCharacterGrid(draftState) {
       "RENDER_GRID_WARN: No availableResonators from server, but draft is not complete. Grid will be empty."
     );
   }
+
   // Log 4: Player picks and bans from draftState
   const player1Picks = draftState.player1Picks || [];
   const player2Picks = draftState.player2Picks || [];
   const bans = draftState.bans || [];
-  //onsole.log("RENDER_GRID: P1 Picks:", JSON.stringify(player1Picks));
-  //console.log("RENDER_GRID: P2 Picks:", JSON.stringify(player2Picks));
-  //console.log("RENDER_GRID: Bans:", JSON.stringify(bans));
   const currentTurn = draftState.currentTurn || state.currentTurn;
 
   const isMyTurn = state.myAssignedSlot === currentTurn;
-  // console.log(
-  //   `UI: Rendering grid. Is it my turn? ${isMyTurn} (MySlot: ${state.myAssignedSlot}, CurrentTurn: ${currentTurn})`
-  // );
 
   const availableSet = new Set(availableResonatorsFromServer);
   const p1PicksSet = new Set(player1Picks);
   const p2PicksSet = new Set(player2Picks);
   const bansSet = new Set(bans);
 
-  // Filter ALL_RESONATORS_DATA based on the activeFilter
-  const resonatorsToDisplay =
-    activeFilter === "All"
-      ? ALL_RESONATORS_DATA // Use the full list from resonatorData.js
-      : ALL_RESONATORS_DATA.filter(
-          (resonator) =>
-            Array.isArray(resonator.element) &&
-            resonator.element.includes(activeFilter)
-        );
+  // Filter ALL_RESONATORS_DATA based on both activeElementFilter and activeRarityFilter
+  let resonatorsToDisplay = ALL_RESONATORS_DATA;
 
-  // Log 6: Resonators to display after filtering ALL_RESONATORS_DATA
-  //console.log(
-  //  "RENDER_GRID: resonatorsToDisplay after client-side filter (length):",
-  //  resonatorsToDisplay.length
-  //);
+  // 1. Apply Rarity Filter (if one is selected)
+  if (activeRarityFilter) {
+    const rarityNum = parseInt(activeRarityFilter, 10);
+    resonatorsToDisplay = resonatorsToDisplay.filter(
+      (resonator) => resonator.rarity === rarityNum
+    );
+  }
 
-  if (resonatorsToDisplay.length === 0 && activeFilter !== "All") {
-    elements.characterGridContainer.innerHTML = `<p class="text-center text-muted fst-italic">No resonators match the '${activeFilter}' filter.</p>`;
-  } else if (
-    resonatorsToDisplay.length === 0 &&
-    ALL_RESONATORS_DATA.length > 0
-  ) {
+  // 2. Apply Element Filter (if one is selected and not "All")
+  if (activeElementFilter && activeElementFilter !== "All") {
+    resonatorsToDisplay = resonatorsToDisplay.filter(
+      (resonator) =>
+        Array.isArray(resonator.element) &&
+        resonator.element.includes(activeElementFilter)
+    );
+  }
+
+  if (resonatorsToDisplay.length === 0) {
+    let message = "No resonators match the current filter criteria.";
+    if (activeElementFilter !== "All" && !activeRarityFilter) {
+      message = `No resonators match the '${activeElementFilter}' element filter.`;
+    } else if (activeElementFilter === "All" && activeRarityFilter) {
+      message = `No resonators match the '${activeRarityFilter}-Star' rarity filter.`;
+    } else if (activeElementFilter !== "All" && activeRarityFilter) {
+      message = `No resonators match the '${activeRarityFilter}-Star ${activeElementFilter}' filter combination.`;
+    }
+    elements.characterGridContainer.innerHTML = `<p class="text-center text-muted fst-italic">${message}</p>`;
+  } else if (ALL_RESONATORS_DATA.length === 0) {
     // Should not happen unless ALL_RESONATORS_DATA is empty
     elements.characterGridContainer.innerHTML = `<p class="text-center text-danger">Error: No resonators found.</p>`;
   }
@@ -1566,7 +1546,6 @@ export function populateBoxScoreScreen() {
     selectElement.dataset.resonatorName = resonator.name;
     // Store isLimited status directly on the select element for updateTotalBoxScore
     selectElement.dataset.isLimited = resonator.isLimited ? "true" : "false";
-
     const notOwnedOption = document.createElement("option");
     notOwnedOption.value = "-1";
     notOwnedOption.textContent = "Not Owned";

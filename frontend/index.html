@@ -267,9 +267,25 @@
                           </div>
                       </div>
                       <div class="d-flex justify-content-center mt-2">
-                          <div id="draft-filter-controls" class="filter-controls d-flex align-items-center justify-content-flex-end gap-1">
+                          <div id="draft-filter-controls" class="filter-controls d-flex align-items-center justify-content-flex-end gap-1 flex-wrap">
                               <span class="draft-label me-1 small">Filter:</span>
-                              <button class="btn btn-sm btn-outline-light filter-btn active" data-element="All">All</button>
+                              <button class="btn btn-sm btn-outline-light filter-btn active" data-element="All" id="filter-all-btn">All</button>
+                              
+                              <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/filter+5+stars.webp" 
+                                   alt="5 Stars" 
+                                   title="Filter 5-Star Resonators" 
+                                   class="element-filter-icon rarity-filter-img ms-1" 
+                                   data-rarity="5" 
+                                   id="filter-5star-img">
+
+                              <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/filter+4+stars.webp" 
+                                   alt="4 Stars" 
+                                   title="Filter 4-Star Resonators" 
+                                   class="element-filter-icon rarity-filter-img ms-1" 
+                                   data-rarity="4" 
+                                   id="filter-4star-img">
+
+                              <span class="draft-label ms-2 me-1 small">Elements:</span>
                               <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/aero.webp" alt="Aero" title="Aero" class="element-filter-icon ms-1" data-element="Aero">
                               <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/electro.webp" alt="Electro" title="Electro" class="element-filter-icon ms-1" data-element="Electro">
                               <img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/fusion.webp" alt="Fusion" title="Fusion" class="element-filter-icon ms-1" data-element="Fusion">

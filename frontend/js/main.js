@@ -303,55 +303,109 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- Attach Event Listeners for Filter Controls ---
+  // Select all filter controls: buttons with data-element, images with data-element, AND images with data-rarity
   const filterControls = document.querySelectorAll(
-    "#draft-filter-controls .filter-btn, #draft-filter-controls .element-filter-icon"
+    '#draft-filter-controls .filter-btn[data-element="All"], #draft-filter-controls .element-filter-icon[data-element], #draft-filter-controls .rarity-filter-img[data-rarity]'
   );
+
+  const allButton = document.getElementById("filter-all-btn"); // Get the "All" button by its ID
+  const elementFilterIcons = document.querySelectorAll(
+    "#draft-filter-controls .element-filter-icon[data-element]"
+  );
+  const rarityFilterImgs = document.querySelectorAll(
+    "#draft-filter-controls .rarity-filter-img[data-rarity]"
+  );
+
   if (filterControls.length > 0) {
     filterControls.forEach((control) => {
       control.addEventListener("click", (event) => {
-        const filterElement = event.currentTarget.dataset.element; // 'All', 'Aero', 'Electro', etc.
-        if (filterElement) {
-          console.log(`UI: Filter clicked - ${filterElement}`);
-          try {
-            // Call the function from uiViews to handle filtering
-            if (typeof uiViews.applyCharacterFilter === "function") {
-              uiViews.applyCharacterFilter(filterElement);
-            } else {
-              console.error(
-                "applyCharacterFilter function not found in uiViews"
-              );
-            }
+        const clickedControl = event.currentTarget;
+        const newElementFilter = clickedControl.dataset.element; // Will be "All", "Aero", etc., or undefined
+        const newRarityFilter = clickedControl.dataset.rarity; // Will be "5", "4", or undefined
 
-            // Update active class on buttons/icons for visual feedback
-            filterControls.forEach((btn) => {
-              // Check if it's the button or the image icon for class handling
-              if (
-                btn.classList.contains("filter-btn") ||
-                btn.tagName === "IMG"
-              ) {
-                btn.classList.remove("active");
+        let needsRender = false;
+
+        if (newElementFilter === "All") {
+          // Clicked "All" button
+          if (
+            state.activeElementFilter !== "All" ||
+            state.activeRarityFilter !== null
+          ) {
+            state.setActiveElementFilter("All");
+            state.setActiveRarityFilter(null);
+            needsRender = true;
+          }
+          // Update active classes
+          allButton.classList.add("active");
+          elementFilterIcons.forEach((icon) => icon.classList.remove("active"));
+          rarityFilterImgs.forEach((img) => img.classList.remove("active"));
+        } else if (newElementFilter) {
+          // Clicked an Element icon (Aero, Electro, etc.)
+          if (state.activeElementFilter !== newElementFilter) {
+            state.setActiveElementFilter(newElementFilter);
+            needsRender = true;
+          }
+          // Update active classes for elements
+          allButton.classList.remove("active");
+          elementFilterIcons.forEach((icon) => {
+            if (icon === clickedControl) {
+              icon.classList.add("active");
+            } else {
+              icon.classList.remove("active");
+            }
+          });
+          // Rarity filter remains unchanged by element selection
+        } else if (newRarityFilter) {
+          // Clicked a Rarity image (5 Stars, 4 Stars)
+          // Toggle behavior for rarity filters
+          if (state.activeRarityFilter === newRarityFilter) {
+            // If clicking the already active rarity filter
+            state.setActiveRarityFilter(null); // Deactivate it
+            clickedControl.classList.remove("active");
+            needsRender = true;
+          } else {
+            state.setActiveRarityFilter(newRarityFilter);
+            // Update active classes for rarity
+            rarityFilterImgs.forEach((img) => {
+              if (img === clickedControl) {
+                img.classList.add("active");
+              } else {
+                img.classList.remove("active");
               }
             });
-            // Add active class to the specific clicked element
-            event.currentTarget.classList.add("active");
-          } catch (e) {
-            console.error("Error applying filter:", e);
+            needsRender = true;
           }
-        } else {
-          console.warn(
-            "Clicked filter control missing data-element attribute."
+          // Deactivate "All" button if a specific rarity is chosen
+          if (state.activeRarityFilter !== null) {
+            allButton.classList.remove("active");
+          }
+          // Element filter remains unchanged by rarity selection
+        }
+
+        if (needsRender) {
+          console.log(
+            `UI: Filters changed. Element: ${state.activeElementFilter}, Rarity: ${state.activeRarityFilter}. Re-rendering grid.`
           );
+          // We'll adapt applyCharacterFilter or call renderGrid directly in the next phase
+          // For now, let's assume we have a function that handles applying both filters.
+          // This will be done in uiViews.js modification (Phase 4)
+          if (typeof uiViews.applyCharacterFilter === "function") {
+            // Existing function
+            // We might need to rename/refactor applyCharacterFilter in uiViews.js to handle both,
+            // or ensure it reads both state.activeElementFilter and state.activeRarityFilter.
+            // For now, we assume uiViews.applyCharacterFilter will internally handle reading both states
+            // when it calls renderCharacterGrid.
+            uiViews.applyCharacterFilter(state.activeElementFilter); // Pass current element filter, rarity filter is read from state by renderGrid
+          } else {
+            console.error("applyCharacterFilter function not found in uiViews");
+          }
         }
       });
     });
-    console.log("UI: Filter control listeners attached.");
-
-    // Ensure 'All' filter is active by default visually if needed
-    const allButton = document.querySelector(
-      '#draft-filter-controls .filter-btn[data-element="All"]'
-    );
+    console.log("UI: Enhanced filter control listeners attached.");
+    // Initial visual setup for "All" button
     if (allButton) {
-      allButton.classList.add("active"); // Set 'All' as active initially
+      allButton.classList.add("active");
     }
   } else {
     console.warn("UI: Could not find filter controls to attach listeners.");
