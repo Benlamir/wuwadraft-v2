@@ -229,10 +229,27 @@
       </div>
 
       <div id="draft-screen" class="screen">
-          <h2 id="draft-phase-status">[Phase - Turn Loading...]</h2>
-          <p id="draft-timer">
-              <i class="bi bi-clock timer-icon me-1"></i> <span>Time Remaining: --:--</span>
-          </p>
+          <div id="draft-top-bar" class="d-flex justify-content-between align-items-stretch mb-3">
+              <div id="top-bar-player1" class="top-bar-player-area flex-grow-1 p1-theme p-2">
+                  <h4 id="top-bar-p1-name" class="text-center player-name-top-bar">[P1 Name]</h4>
+                  <div class="player-ban-slots-horizontal d-flex justify-content-center gap-1 mt-2" id="top-bar-p1-bans">
+                  </div>
+              </div>
+
+              <div id="top-bar-center-info" class="text-center p-2 d-flex flex-column justify-content-center align-items-center">
+                  <p id="draft-timer-top" class="mb-1 draft-timer-top-bar">
+                      <i class="bi bi-clock timer-icon me-1"></i>
+                      <span>0:30</span>
+                  </p>
+                  <h5 id="draft-phase-status-top" class="mb-0 draft-phase-top-bar">[Draft Phase]</h5>
+              </div>
+
+              <div id="top-bar-player2" class="top-bar-player-area flex-grow-1 p2-theme p-2">
+                  <h4 id="top-bar-p2-name" class="text-center player-name-top-bar">[P2 Name]</h4>
+                  <div class="player-ban-slots-horizontal d-flex justify-content-center gap-1 mt-2" id="top-bar-p2-bans">
+                  </div>
+              </div>
+          </div>
 
           <div class="draft-main-area draft-main-flex-container">
               <div class="player-area">

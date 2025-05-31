@@ -1657,3 +1657,123 @@ body.draft-active-background header {
     transform: scale(1);
   }
 }
+
+/* NEW STYLES FOR DRAFT SCREEN REDESIGN */
+
+/* Overall Top Bar Container */
+#draft-top-bar {
+  background-color: #1a1a2e; /* Dark blue/purple background for the whole bar */
+  padding: 8px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  min-height: 100px; /* Ensure it has some minimum height */
+  width: 100%;
+}
+
+/* Player Areas in Top Bar (Left and Right) */
+.top-bar-player-area {
+  display: flex;
+  flex-direction: column; /* Stack name and bans vertically */
+  align-items: center; /* Center content horizontally within the player area */
+  min-width: 300px; /* Ensure player areas don't get too squeezed */
+  width: 100%;
+}
+
+/* Player Name Styling in Top Bar */
+h4.player-name-top-bar {
+  color: #ffffff;
+  font-weight: bold;
+  padding: 8px 15px; /* Padding around the name */
+  border-radius: 4px;
+  margin-bottom: 8px; /* Space between name and ban slots */
+  width: 90%; /* Make name background take most of the player area width */
+  font-size: 1.1rem; /* Adjust as needed */
+}
+
+/* Player 1 Theme (Blue) */
+.top-bar-player-area.p1-theme h4.player-name-top-bar {
+  background-color: var(
+    --p1-color,
+    #007bff
+  ); /* Using existing P1 color variable */
+}
+
+/* Player 2 Theme (Red) */
+.top-bar-player-area.p2-theme h4.player-name-top-bar {
+  background-color: var(
+    --p2-color,
+    #a020f0
+  ); /* Using existing P2 color variable */
+}
+
+/* Container for Horizontal Ban Slots (under player name) */
+.player-ban-slots-horizontal {
+  width: 100%; /* Take full width of the .top-bar-player-area */
+}
+
+/* Individual Ban Slots in the Top Bar */
+.ban-slot.top-ban-slot {
+  width: 30px; /* Adjust width as per your image's proportions */
+  height: 20px; /* Adjust height */
+  background-color: rgba(0, 0, 0, 0.4); /* Darker slots */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+/* Styling for a ban slot in the top bar that contains a banned character image */
+.ban-slot.top-ban-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Cover to fill the small slot */
+  border-radius: 1px;
+}
+
+/* Styling for the "highlighted" or "next ban" slot */
+.ban-slot.top-ban-slot.active-ban-choice {
+  background-color: #ffffff; /* White background as in image example */
+  border: 1px solid #ffffff;
+}
+
+.ban-slot.top-ban-slot.ban-slot-disabled {
+  border-style: dotted;
+  opacity: 0.4;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Central Info Area (Timer and Phase) */
+#top-bar-center-info {
+  background-color: #000000; /* Black background for center block */
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 4px;
+  flex-shrink: 0; /* Doesn't shrink */
+  min-width: 450px; /* Ensure it has some width for timer/phase */
+}
+
+p#draft-timer-top.draft-timer-top-bar {
+  font-size: 1.8rem; /* Larger timer font */
+  font-weight: bold;
+  margin-bottom: 2px !important; /* Override Bootstrap's mb-1 if needed */
+  line-height: 1.1;
+}
+
+p#draft-timer-top.draft-timer-top-bar .timer-icon {
+  font-size: 0.8em; /* Relative to the new timer font size */
+}
+
+h5#draft-phase-status-top.draft-phase-top-bar {
+  font-size: 0.9rem;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #cccccc; /* Slightly dimmer color for phase text */
+}
+
+/* Ensure the theme classes take precedence for background if needed */
+.p1-theme {
+  background-color: var(--p1-color-light, rgba(0, 123, 255, 0.1));
+}
+
+.p2-theme {
+  background-color: var(--p2-color-light, rgba(160, 32, 240, 0.1));
+}
