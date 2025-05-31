@@ -485,6 +485,8 @@ body.draft-active-background .app-footer:hover {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
 .ban-slot img {
@@ -1598,6 +1600,7 @@ body.draft-active-background header {
   justify-content: center;
   overflow: hidden;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .ban-slot img {
@@ -1897,4 +1900,40 @@ p#draft-timer-top:not(.timer-low) {
     text-shadow: 0 0 5px rgba(255, 77, 77, 0.6);
     transform: scale(1);
   }
+}
+
+/* Draft Order Number Styling */
+.draft-order-number {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.299);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  font-family: "Arial", sans-serif;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(2px);
+}
+
+/* Smaller numbers for ban slots */
+.ban-order-number {
+  font-size: 1.8rem;
+  width: 40px;
+  height: 40px;
+}
+
+/* Hover effect for order numbers */
+.draft-order-number:hover {
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.5);
 }

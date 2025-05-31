@@ -20,7 +20,6 @@ function toggleElementVisibility(element, show) {
     // console.warn("Attempted to toggle visibility on a non-existent element.");
   }
 }
-// --- END HELPER FUNCTION ---
 
 // --- Screen Navigation ---
 export function showScreen(screenIdToShow) {
@@ -299,6 +298,69 @@ export function updateLobbyWaitScreenUI(lobbyStateData) {
 function findResonatorByName(name) {
   return ALL_RESONATORS_DATA.find((resonator) => resonator.name === name);
 }
+
+// Function to calculate draft sequence numbers for picks and bans
+function calculateDraftSequence(draftState) {
+  const effectiveDraftOrder = draftState.effectiveDraftOrder || [];
+  const isEqEnabled = draftState.equilibrationEnabled;
+  const eqBansAllowed = isEqEnabled
+    ? draftState.equilibrationBansAllowed || 0
+    : 0;
+  const playerRoles = draftState.playerRoles || {};
+
+  const sequence = {
+    eqBans: {}, // { playerSlot: [orderNumbers] }
+    picks: { P1: [], P2: [] }, // { P1: [orderNumbers], P2: [orderNumbers] }
+    bans: { P1: [], P2: [] }, // { P1: [orderNumbers], P2: [orderNumbers] }
+  };
+
+  let currentOrderNumber = 1;
+
+  // 1. Handle EQ bans first (if enabled)
+  if (isEqEnabled && eqBansAllowed > 0) {
+    const eqBanner = draftState.currentEquilibrationBanner;
+    if (eqBanner) {
+      sequence.eqBans[eqBanner] = [];
+      for (let i = 0; i < eqBansAllowed; i++) {
+        sequence.eqBans[eqBanner].push(currentOrderNumber++);
+      }
+    }
+  }
+
+  // 2. Handle standard draft order (picks and bans)
+  effectiveDraftOrder.forEach((step) => {
+    const roleDesignation = step.turnPlayerDesignation;
+    let assignedPlayer = "P1"; // fallback
+
+    // Resolve role to actual player using playerRoles mapping
+    if (Object.keys(playerRoles).length > 0) {
+      if (roleDesignation === "P1_ROLE") {
+        assignedPlayer = playerRoles["P1_ROLE_IN_TEMPLATE"];
+      } else if (roleDesignation === "P2_ROLE") {
+        assignedPlayer = playerRoles["P2_ROLE_IN_TEMPLATE"];
+      } else if (roleDesignation === "ROLE_A") {
+        assignedPlayer = playerRoles["ROLE_A"];
+      } else if (roleDesignation === "ROLE_B") {
+        assignedPlayer = playerRoles["ROLE_B"];
+      }
+    } else {
+      // Fallback if playerRoles is empty
+      if (roleDesignation === "P1_ROLE") {
+        assignedPlayer = "P1";
+      } else if (roleDesignation === "P2_ROLE") {
+        assignedPlayer = "P2";
+      }
+    }
+
+    if (step.phase && step.phase.startsWith("BAN")) {
+      sequence.bans[assignedPlayer].push(currentOrderNumber++);
+    } else if (step.phase && step.phase.startsWith("PICK")) {
+      sequence.picks[assignedPlayer].push(currentOrderNumber++);
+    }
+  });
+
+  return sequence;
+}
 // --- END HELPER FUNCTION ---
 
 // Function to manage slot glow states
@@ -365,6 +427,9 @@ function updatePickSlots(draftState) {
   const currentPhase = draftState.currentPhase;
   const currentTurn = draftState.currentTurn;
 
+  // Calculate draft sequence numbers
+  const sequence = calculateDraftSequence(draftState);
+
   // --- Player 1 Pick Slots ---
   const p1SlotElements = [elements.p1Pick1, elements.p1Pick2, elements.p1Pick3];
   p1SlotElements.forEach((slot, index) => {
@@ -384,6 +449,7 @@ function updatePickSlots(draftState) {
       index === p1Picks.length;
 
     if (pickName) {
+      // Show character image
       const resonator = findResonatorByName(pickName);
       if (resonator && resonator.image_pick) {
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
@@ -406,6 +472,12 @@ function updatePickSlots(draftState) {
           slot.appendChild(seqBadge);
           slot.classList.add("has-sequence-badge");
         }
+      }
+    } else {
+      // Show numbered placeholder
+      const orderNumber = sequence.picks.P1[index];
+      if (orderNumber) {
+        slot.innerHTML = `<div class="draft-order-number">${orderNumber}</div>`;
       }
     }
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
@@ -430,6 +502,7 @@ function updatePickSlots(draftState) {
       index === p2Picks.length;
 
     if (pickName) {
+      // Show character image
       const resonator = findResonatorByName(pickName);
       if (resonator && resonator.image_pick) {
         slot.innerHTML = `<img src="${resonator.image_pick}" alt="${resonator.name}" title="${resonator.name}" style="width: 100%; height: 100%; object-fit: contain;">`;
@@ -452,6 +525,12 @@ function updatePickSlots(draftState) {
           slot.appendChild(seqBadge);
           slot.classList.add("has-sequence-badge");
         }
+      }
+    } else {
+      // Show numbered placeholder
+      const orderNumber = sequence.picks.P2[index];
+      if (orderNumber) {
+        slot.innerHTML = `<div class="draft-order-number">${orderNumber}</div>`;
       }
     }
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
@@ -496,6 +575,9 @@ function updateBanSlots(draftState) {
     );
   }
 
+  // Calculate draft sequence numbers
+  const sequence = calculateDraftSequence(draftState);
+
   // Clear existing ban slots from both player areas
   if (elements.topBarP1Bans) {
     elements.topBarP1Bans.innerHTML = "";
@@ -523,6 +605,9 @@ function updateBanSlots(draftState) {
           eqBansMadeByLSP < eqBansAllowed,
         isDisabled: !isEqEnabled || i >= eqBansAllowed,
         type: "eq",
+        orderNumber: sequence.eqBans[eqBanner]
+          ? sequence.eqBans[eqBanner][i]
+          : null,
       };
 
       if (eqBanner === "P1") {
@@ -534,6 +619,9 @@ function updateBanSlots(draftState) {
   }
 
   // Then, handle standard bans (using actual draft order instead of fixed alternating)
+  let p1StandardIndex = 0;
+  let p2StandardIndex = 0;
+
   for (let i = 0; i < 4; i++) {
     // 4 standard ban slots
     const overallBanIndex = numEqBansToOffset + i; // Position in allBans array
@@ -628,6 +716,15 @@ function updateBanSlots(draftState) {
       assignedPlayer = standardBanIndex % 2 === 0 ? "P1" : "P2";
     }
 
+    // Add order number to ban data
+    if (assignedPlayer === "P1") {
+      banData.orderNumber = sequence.bans.P1[p1StandardIndex];
+      p1StandardIndex++;
+    } else {
+      banData.orderNumber = sequence.bans.P2[p2StandardIndex];
+      p2StandardIndex++;
+    }
+
     // Assign to the correct player's ban list
     if (assignedPlayer === "P1") {
       p1Bans.push(banData);
@@ -683,11 +780,15 @@ function createBanSlotElement(banData, slotId) {
 
     // Add ban content if available
     if (banData.banName) {
+      // Show character image
       const resonator = findResonatorByName(banData.banName);
       slot.innerHTML =
         resonator && resonator.image_button
           ? `<img src="${resonator.image_button}" alt="${banData.banName}" title="${banData.banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`
           : `<span>X</span>`;
+    } else if (banData.orderNumber) {
+      // Show numbered placeholder
+      slot.innerHTML = `<div class="draft-order-number ban-order-number">${banData.orderNumber}</div>`;
     }
 
     // Apply visual state
