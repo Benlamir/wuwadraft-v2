@@ -706,48 +706,27 @@ function createBanSlotElement(banData, slotId) {
 
 // Helper function to sync top bar timer with main timer
 function syncTopBarTimer() {
-  if (elements.draftTimerTop && elements.draftTimer) {
-    const mainTimerSpan = elements.draftTimer.querySelector("span");
-    const topTimerSpan = elements.draftTimerTop.querySelector("span");
-
-    if (mainTimerSpan) {
-      // Ensure top timer has the same structure
-      if (!topTimerSpan) {
-        elements.draftTimerTop.innerHTML = elements.draftTimer.innerHTML;
-      } else {
-        topTimerSpan.textContent = mainTimerSpan.textContent;
-      }
-
-      // Sync timer-low class state
-      if (elements.draftTimer.classList.contains("timer-low")) {
-        elements.draftTimerTop.classList.add("timer-low");
-      } else {
-        elements.draftTimerTop.classList.remove("timer-low");
-      }
-    }
-  }
+  // No longer needed since we're updating the top bar directly
+  return;
 }
 
 export function stopTimerDisplay() {
   // console.log("UI_VIEWS_TIMER: stopTimerDisplay called.");
   state.clearTimerInterval(); // Clears intervalId in state.js AND calls clearInterval
 
-  const timerElement = elements.draftTimer;
+  const timerElement = elements.draftTimerTop; // Use top bar timer instead
   // Only try to update DOM if the timer element is actually part of the current document
   if (timerElement && document.body.contains(timerElement)) {
     const timerTextSpan = timerElement.querySelector("span");
     if (timerTextSpan) {
-      timerTextSpan.textContent = "Time Remaining: --:--";
+      timerTextSpan.textContent = "--:--";
     } else {
       // This warning is acceptable if the span was, e.g., cleared by other DOM manipulation
       // console.warn("UI_VIEWS_TIMER: stopTimerDisplay - timerTextSpan not found within existing timerElement.");
     }
     timerElement.classList.remove("timer-low");
-
-    // Sync with top bar timer
-    syncTopBarTimer();
   } else {
-    // console.warn("UI_VIEWS_TIMER: stopTimerDisplay - elements.draftTimer not found or not in DOM.");
+    // console.warn("UI_VIEWS_TIMER: stopTimerDisplay - elements.draftTimerTop not found or not in DOM.");
   }
 }
 
@@ -762,10 +741,10 @@ function updateCountdown(expiryTime, intervalId) {
     return;
   }
 
-  const timerElement = elements.draftTimer;
+  const timerElement = elements.draftTimerTop; // Use top bar timer instead
   if (!timerElement || !document.body.contains(timerElement)) {
     console.warn(
-      "UI_VIEWS_TIMER: updateCountdown - elements.draftTimer NOT FOUND or not in DOM. Clearing interval.",
+      "UI_VIEWS_TIMER: updateCountdown - elements.draftTimerTop NOT FOUND or not in DOM. Clearing interval.",
       intervalId
     );
     clearInterval(intervalId);
@@ -787,11 +766,8 @@ function updateCountdown(expiryTime, intervalId) {
   const remainingMs = expiryTime - now;
 
   if (remainingMs <= 0) {
-    timerTextSpan.textContent = "Time Remaining: 00:00";
+    timerTextSpan.textContent = "00:00";
     timerElement.classList.add("timer-low");
-
-    // Sync with top bar timer
-    syncTopBarTimer();
 
     clearInterval(intervalId); // Stop this interval
 
@@ -839,19 +815,15 @@ function updateCountdown(expiryTime, intervalId) {
     const remainingSeconds = Math.floor(remainingMs / 1000);
     const minutes = Math.floor(remainingSeconds / 60);
     const seconds = remainingSeconds % 60;
-    timerTextSpan.textContent = `Time Remaining: ${String(minutes).padStart(
-      2,
-      "0"
-    )}:${String(seconds).padStart(2, "0")}`;
+    timerTextSpan.textContent = `${String(minutes).padStart(2, "0")}:${String(
+      seconds
+    ).padStart(2, "0")}`;
 
     if (remainingSeconds <= 10) {
       timerElement.classList.add("timer-low");
     } else {
       timerElement.classList.remove("timer-low");
     }
-
-    // Sync with top bar timer
-    syncTopBarTimer();
   }
 }
 
@@ -873,25 +845,19 @@ export function startOrUpdateTimerDisplay() {
     return;
   }
 
-  const timerElement = elements.draftTimer;
+  const timerElement = elements.draftTimerTop; // Use top bar timer instead
   // Ensure the timer element exists and has its necessary child span before starting.
   // This is important if the draft screen was just made active.
   if (!timerElement || !document.body.contains(timerElement)) {
     console.warn(
-      "UI_VIEWS_TIMER: startOrUpdateTimerDisplay - elements.draftTimer NOT FOUND or not in DOM. Timer not starting."
+      "UI_VIEWS_TIMER: startOrUpdateTimerDisplay - elements.draftTimerTop NOT FOUND or not in DOM. Timer not starting."
     );
     return;
   }
   // Ensure the inner structure (span) is present
   if (!timerElement.querySelector("span")) {
     timerElement.innerHTML =
-      '<i class="bi bi-clock timer-icon me-1"></i> <span>Time Remaining: --:--</span>';
-  }
-
-  // Initialize top bar timer structure if needed
-  if (elements.draftTimerTop && !elements.draftTimerTop.querySelector("span")) {
-    elements.draftTimerTop.innerHTML =
-      '<i class="bi bi-clock timer-icon me-1"></i> <span>Time Remaining: --:--</span>';
+      '<i class="bi bi-clock timer-icon me-1"></i> <span>--:--</span>';
   }
 
   try {
@@ -916,12 +882,9 @@ export function startOrUpdateTimerDisplay() {
       );
       const timerTextSpan = timerElement.querySelector("span");
       if (timerTextSpan) {
-        timerTextSpan.textContent = "Time Remaining: 00:00";
+        timerTextSpan.textContent = "00:00";
       }
       timerElement.classList.add("timer-low");
-
-      // Sync with top bar timer
-      syncTopBarTimer();
 
       return;
     }
@@ -1059,30 +1022,30 @@ export function updateDraftScreenUI(draftState) {
   }
 
   // Timer Display Management
-  if (elements.draftTimer) {
-    const timerTextSpan = elements.draftTimer.querySelector("span");
+  if (elements.draftTimerTop) {
+    const timerTextSpan = elements.draftTimerTop.querySelector("span");
     if (timerTextSpan) {
       if (isPreDraftReadyState) {
         stopTimerDisplay();
         timerTextSpan.textContent = "Waiting for Host to Start Draft...";
-        elements.draftTimer.classList.remove("timer-low");
+        elements.draftTimerTop.classList.remove("timer-low");
       } else if (isDraftComplete) {
         stopTimerDisplay();
         timerTextSpan.textContent = "Draft Finished!";
-        elements.draftTimer.classList.remove("timer-low");
+        elements.draftTimerTop.classList.remove("timer-low");
       } else if (draftState.currentPhase && draftState.turnExpiresAt) {
         startOrUpdateTimerDisplay();
       } else {
         stopTimerDisplay();
-        timerTextSpan.textContent = "Time Remaining: --:--";
-        elements.draftTimer.classList.remove("timer-low");
+        timerTextSpan.textContent = "--:--";
+        elements.draftTimerTop.classList.remove("timer-low");
       }
     }
   }
 
   // Update Phase and Turn Status & Apply Class
-  if (elements.draftPhaseStatus) {
-    elements.draftPhaseStatus.classList.remove(
+  if (elements.draftPhaseStatusTop) {
+    elements.draftPhaseStatusTop.classList.remove(
       "phase-ban",
       "phase-pick",
       "phase-complete",
@@ -1091,11 +1054,11 @@ export function updateDraftScreenUI(draftState) {
     );
 
     if (isPreDraftReadyState) {
-      elements.draftPhaseStatus.textContent =
+      elements.draftPhaseStatusTop.textContent =
         "Prepare for Draft - Waiting for Host";
     } else if (isDraftComplete) {
-      elements.draftPhaseStatus.textContent = "Draft Complete!";
-      elements.draftPhaseStatus.classList.add("phase-complete");
+      elements.draftPhaseStatusTop.textContent = "Draft Complete!";
+      elements.draftPhaseStatusTop.classList.add("phase-complete");
     } else {
       const currentPhase = draftState.currentPhase || "N/A";
       const turnPlayerName =
@@ -1105,49 +1068,19 @@ export function updateDraftScreenUI(draftState) {
       const isMyTurnText =
         state.myAssignedSlot === draftState.currentTurn ? " (Your Turn)" : "";
 
-      elements.draftPhaseStatus.textContent = `Phase: ${currentPhase} | ${turnPlayerName}'s Turn${isMyTurnText}`;
+      elements.draftPhaseStatusTop.textContent = `Phase: ${currentPhase} | ${turnPlayerName}'s Turn${isMyTurnText}`;
 
       if (
         currentPhase.startsWith("BAN") ||
         currentPhase === EQUILIBRATION_PHASE_NAME
       ) {
-        elements.draftPhaseStatus.classList.add("phase-ban");
+        elements.draftPhaseStatusTop.classList.add("phase-ban");
       } else if (currentPhase.startsWith("PICK")) {
-        elements.draftPhaseStatus.classList.add("phase-pick");
+        elements.draftPhaseStatusTop.classList.add("phase-pick");
       }
     }
   } else {
     console.warn("UI Update Warning: Draft phase status element not found");
-  }
-
-  // Sync top bar phase status
-  if (elements.draftPhaseStatusTop) {
-    // Copy the same content and classes from the main phase status
-    if (elements.draftPhaseStatus) {
-      elements.draftPhaseStatusTop.textContent =
-        elements.draftPhaseStatus.textContent;
-      elements.draftPhaseStatusTop.className =
-        elements.draftPhaseStatus.className;
-    }
-  }
-
-  // Sync top bar timer
-  if (elements.draftTimerTop) {
-    const mainTimerSpan = elements.draftTimer?.querySelector("span");
-    const topTimerSpan = elements.draftTimerTop.querySelector("span");
-
-    if (mainTimerSpan && topTimerSpan) {
-      topTimerSpan.textContent = mainTimerSpan.textContent;
-      // Copy timer-low class state
-      if (elements.draftTimer.classList.contains("timer-low")) {
-        elements.draftTimerTop.classList.add("timer-low");
-      } else {
-        elements.draftTimerTop.classList.remove("timer-low");
-      }
-    } else if (mainTimerSpan && !topTimerSpan) {
-      // Create span structure if it doesn't exist
-      elements.draftTimerTop.innerHTML = elements.draftTimer.innerHTML;
-    }
   }
 
   // Update player names with color coding
