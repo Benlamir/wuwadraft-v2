@@ -1210,36 +1210,36 @@ body.draft-active-background header {
 /* Enhanced Pulse Animations */
 @keyframes pulse-pick {
   0% {
-    box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7);
-    border-color: rgba(74, 144, 226, 0.7);
+    box-shadow: 0 0 0 0 rgba(200, 200, 200, 0.7);
+    border-color: rgba(200, 200, 200, 0.7);
     transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 20px 10px rgba(74, 144, 226, 0.3);
-    border-color: rgba(74, 144, 226, 1);
+    box-shadow: 0 0 20px 10px rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 1);
     transform: scale(1.02);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(74, 144, 226, 0);
-    border-color: rgba(74, 144, 226, 0.7);
+    box-shadow: 0 0 0 0 rgba(200, 200, 200, 0);
+    border-color: rgba(200, 200, 200, 0.7);
     transform: scale(1);
   }
 }
 
 @keyframes pulse-ban {
   0% {
-    box-shadow: 0 0 0 0 rgba(226, 74, 74, 0.7);
-    border-color: rgba(226, 74, 74, 0.7);
+    box-shadow: 0 0 0 0 rgba(200, 200, 200, 0.7);
+    border-color: rgba(200, 200, 200, 0.7);
     transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 20px 10px rgba(226, 74, 74, 0.3);
-    border-color: rgba(226, 74, 74, 1);
+    box-shadow: 0 0 20px 10px rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 1);
     transform: scale(1.02);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(226, 74, 74, 0);
-    border-color: rgba(226, 74, 74, 0.7);
+    box-shadow: 0 0 0 0 rgba(200, 200, 200, 0);
+    border-color: rgba(200, 200, 200, 0.7);
     transform: scale(1);
   }
 }
@@ -1247,15 +1247,15 @@ body.draft-active-background header {
 /* Enhanced Pulse Classes with higher specificity */
 .pick-slot.pulse-pick {
   animation: pulse-pick 2s infinite;
-  background-color: rgba(74, 144, 226, 0.1);
+  background-color: rgba(255, 255, 255, 0.1);
   border-width: 2px;
   border-style: solid;
 }
 
 .ban-slot.pulse-ban {
-  border: 2px solid rgba(226, 74, 74, 0.7);
+  border: 2px solid rgba(200, 200, 200, 0.7);
   animation: pulse-ban 2s infinite;
-  background-color: rgba(226, 74, 74, 0.1);
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Remove any conflicting styles */
@@ -1368,7 +1368,7 @@ body.draft-active-background header {
 /* Style for the actively pulsing pick slot */
 .pick-slot.pulse-pick {
   animation: pulse-pick 2s infinite;
-  background-color: rgba(74, 144, 226, 0.1);
+  background-color: rgba(255, 255, 255, 0.1);
   border-width: 2px;
   border-style: solid;
 }
@@ -1376,18 +1376,18 @@ body.draft-active-background header {
 /* Keep the pulse-pick keyframes as they are */
 @keyframes pulse-pick {
   0% {
-    box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7);
-    border-color: rgba(74, 144, 226, 0.7);
+    box-shadow: 0 0 0 0 rgba(200, 200, 200, 0.7);
+    border-color: rgba(200, 200, 200, 0.7);
     transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 20px 10px rgba(74, 144, 226, 0.3);
-    border-color: rgba(74, 144, 226, 1);
+    box-shadow: 0 0 20px 10px rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 1);
     transform: scale(1.02);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(74, 144, 226, 0);
-    border-color: rgba(74, 144, 226, 0.7);
+    box-shadow: 0 0 0 0 rgba(200, 200, 200, 0);
+    border-color: rgba(200, 200, 200, 0.7);
     transform: scale(1);
   }
 }
@@ -1649,9 +1649,9 @@ body.draft-active-background header {
 
 /* Active and Filled States */
 .ban-slot.pulse-ban {
-  border: 2px solid rgba(226, 74, 74, 0.7);
+  border: 2px solid rgba(200, 200, 200, 0.7);
   animation: pulse-ban 2s infinite;
-  background-color: rgba(226, 74, 74, 0.1);
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .ban-slot.glow-ban {
@@ -1661,7 +1661,7 @@ body.draft-active-background header {
 
 @keyframes pulse-ban {
   0% {
-    box-shadow: 0 0 0 0 rgba(226, 74, 74, 0.7);
+    box-shadow: 0 0 0 0 rgba(200, 200, 200, 0.7);
     transform: scale(1);
   }
   50% {
@@ -1669,7 +1669,7 @@ body.draft-active-background header {
     transform: scale(1.02);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(226, 74, 74, 0);
+    box-shadow: 0 0 0 0 rgba(200, 200, 200, 0);
     transform: scale(1);
   }
 }
@@ -1864,34 +1864,6 @@ h5#draft-phase-status-top.draft-phase-top-bar {
 
 .p2-theme {
   background-color: var(--p2-color-light);
-}
-
-/* EQ Ban Slots - Add "EQ" label before the slot */
-.ban-slot-eq::before {
-  content: "EQ";
-  position: absolute;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #606060;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 1px 3px;
-  border-radius: 2px;
-  z-index: 10;
-}
-
-/* Standard Ban Slots - Add "STD" label before the slot */
-.ban-slot-standard::before {
-  content: "STD";
-  position: absolute;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #606060;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 1px 3px;
-  border-radius: 2px;
-  z-index: 10;
 }
 
 /* Add spacing between EQ and Standard ban slots */
