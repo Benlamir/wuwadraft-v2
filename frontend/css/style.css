@@ -1330,7 +1330,6 @@ body.draft-active-background header {
   box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
 }
 
-
 /* --- Pick Slot Styling Adjustments --- */
 
 /* Style for the actively pulsing pick slot */
@@ -1868,4 +1867,34 @@ h5#draft-phase-status-top.draft-phase-top-bar {
 /* P2 Ban Slots - All bans in P2's container */
 #top-bar-p2-bans .ban-slot {
   border: 2px solid var(--p2-color) !important;
+}
+
+/* Apply the same low time styling to the top bar timer */
+p#draft-timer-top.timer-low {
+  font-weight: bold;
+  color: #ff4d4d !important;
+  animation: pulse-red-glow 1.5s infinite ease-in-out;
+}
+
+p#draft-timer-top:not(.timer-low) {
+  animation: none;
+}
+
+/* Red glow animation for top bar timer */
+@keyframes pulse-red-glow {
+  0% {
+    color: #ff4d4d;
+    text-shadow: 0 0 5px rgba(255, 77, 77, 0.6);
+    transform: scale(1);
+  }
+  50% {
+    color: #ff0000;
+    text-shadow: 0 0 15px rgba(255, 0, 0, 0.9);
+    transform: scale(1.02);
+  }
+  100% {
+    color: #ff4d4d;
+    text-shadow: 0 0 5px rgba(255, 77, 77, 0.6);
+    transform: scale(1);
+  }
 }
