@@ -99,6 +99,7 @@ def broadcast_lobby_state(lobby_id, apigw_client, last_action=None, exclude_conn
             "player1Sequences": final_lobby_item_for_broadcast.get('player1Sequences'),
             "player2Sequences": final_lobby_item_for_broadcast.get('player2Sequences'),
             "effectiveDraftOrder": final_lobby_item_for_broadcast.get('effectiveDraftOrder'),
+            "playerRoles": final_lobby_item_for_broadcast.get('playerRoles'),
             "currentEquilibrationBanner": final_lobby_item_for_broadcast.get('currentEquilibrationBanner'), # Added
             "equilibrationBansAllowed": final_lobby_item_for_broadcast.get('equilibrationBansAllowed', 0), # Renamed from equilibrationBansTarget
             "equilibrationBansMade": final_lobby_item_for_broadcast.get('equilibrationBansMade', 0)

@@ -477,6 +477,18 @@ function updateBanSlots(draftState) {
   console.log(
     `[updateBanSlots] CALLED. Phase: ${currentPhase}, Turn: ${currentTurn}, MySlot: ${state.myAssignedSlot}`
   );
+  console.log(
+    `[updateBanSlots] DRAFT_ORDER_DEBUG: effectiveDraftOrder:`,
+    JSON.stringify(draftState.effectiveDraftOrder)
+  );
+  console.log(
+    `[updateBanSlots] DRAFT_ORDER_DEBUG: playerRoles:`,
+    JSON.stringify(draftState.playerRoles)
+  );
+  console.log(
+    `[updateBanSlots] DRAFT_ORDER_DEBUG: allBans:`,
+    JSON.stringify(allBans)
+  );
   if (isEqEnabled) {
     // Only log EQ details if relevant
     console.log(
@@ -521,11 +533,11 @@ function updateBanSlots(draftState) {
     }
   }
 
-  // Then, handle standard bans (alternating between players)
+  // Then, handle standard bans (using actual draft order instead of fixed alternating)
   for (let i = 0; i < 4; i++) {
     // 4 standard ban slots
-    const overallBanIndex = numEqBansToOffset + i;
-    const standardBanIndex = i;
+    const overallBanIndex = numEqBansToOffset + i; // Position in allBans array
+    const standardBanIndex = i; // Position in standard ban sequence
 
     const isFilled =
       overallBanIndex < allBans.length && allBans[overallBanIndex] != null;
@@ -545,8 +557,79 @@ function updateBanSlots(draftState) {
       type: "standard",
     };
 
-    // Alternate standard bans: P1 gets 0,2 and P2 gets 1,3
-    if (standardBanIndex % 2 === 0) {
+    // Determine which player gets this ban slot based on the actual draft order
+    let assignedPlayer = "P1"; // default fallback
+
+    // Try to determine from the draft order which player should get this ban
+    const effectiveDraftOrder = draftState.effectiveDraftOrder || [];
+    const playerRoles = draftState.playerRoles || {};
+
+    if (effectiveDraftOrder.length > 0) {
+      // Find ban phases in the draft order (skip equilibration phase)
+      const banSteps = effectiveDraftOrder.filter(
+        (step) => step.phase && step.phase.startsWith("BAN")
+      );
+      console.log(
+        `[updateBanSlots] DRAFT_ORDER_DEBUG: banSteps found:`,
+        JSON.stringify(banSteps)
+      );
+
+      // Standard bans use their direct index in the effectiveDraftOrder (no EQ offset needed)
+      // because EQ bans are a separate phase and effectiveDraftOrder only contains standard draft steps
+      console.log(
+        `[updateBanSlots] Standard ban ${standardBanIndex}: using direct index ${standardBanIndex} in banSteps`
+      );
+
+      if (standardBanIndex < banSteps.length) {
+        const banStep = banSteps[standardBanIndex];
+        const roleDesignation = banStep.turnPlayerDesignation;
+
+        // Resolve role to actual player using playerRoles mapping
+        if (Object.keys(playerRoles).length > 0) {
+          // Use the playerRoles mapping to resolve roles
+          if (roleDesignation === "P1_ROLE") {
+            assignedPlayer = playerRoles["P1_ROLE_IN_TEMPLATE"];
+          } else if (roleDesignation === "P2_ROLE") {
+            assignedPlayer = playerRoles["P2_ROLE_IN_TEMPLATE"];
+          } else if (roleDesignation === "ROLE_A") {
+            assignedPlayer = playerRoles["ROLE_A"];
+          } else if (roleDesignation === "ROLE_B") {
+            assignedPlayer = playerRoles["ROLE_B"];
+          } else {
+            console.warn(
+              `[updateBanSlots] Unknown role designation: ${roleDesignation}`
+            );
+          }
+        } else {
+          // Fallback if playerRoles is empty - direct mapping
+          console.warn(
+            `[updateBanSlots] playerRoles empty, using direct mapping for ${roleDesignation}`
+          );
+          if (roleDesignation === "P1_ROLE") {
+            assignedPlayer = "P1";
+          } else if (roleDesignation === "P2_ROLE") {
+            assignedPlayer = "P2";
+          }
+        }
+
+        console.log(
+          `[updateBanSlots] Standard ban ${standardBanIndex}: role=${roleDesignation} -> player=${assignedPlayer}`
+        );
+      } else {
+        console.warn(
+          `[updateBanSlots] Index ${standardBanIndex} exceeds banSteps length ${banSteps.length} for standard ban ${standardBanIndex}`
+        );
+      }
+    } else {
+      // Fallback to old alternating logic if draft order info is missing
+      console.warn(
+        `[updateBanSlots] Missing draft order info, using fallback logic for ban ${standardBanIndex}`
+      );
+      assignedPlayer = standardBanIndex % 2 === 0 ? "P1" : "P2";
+    }
+
+    // Assign to the correct player's ban list
+    if (assignedPlayer === "P1") {
       p1Bans.push(banData);
     } else {
       p2Bans.push(banData);
