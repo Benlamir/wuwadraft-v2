@@ -1330,13 +1330,6 @@ body.draft-active-background header {
   box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
 }
 
-/* Optional: Style for draft complete */
-#draft-phase-status.phase-complete {
-  border-color: #198754;
-  background-color: rgba(25, 135, 84, 0.2);
-  box-shadow: 0 0 10px rgba(25, 135, 84, 0.4);
-  color: #2fcc71;
-}
 
 /* --- Pick Slot Styling Adjustments --- */
 

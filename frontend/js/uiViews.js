@@ -974,18 +974,31 @@ export function updateDraftScreenUI(draftState) {
       JSON.stringify(draftState.player2Picks)
     );
 
-    if (elements.draftPhaseStatus) {
-      elements.draftPhaseStatus.textContent = "Draft Complete!";
-      elements.draftPhaseStatus.classList.add(
-        "text-success",
-        "fw-bold",
-        "phase-complete"
-      );
-    }
     if (elements.hostStartDraftBtn) {
       toggleElementVisibility(elements.hostStartDraftBtn, false);
     }
     stopTimerDisplay();
+
+    // Update top bar timer and phase status for draft complete
+    if (elements.draftTimerTop) {
+      const timerTextSpan = elements.draftTimerTop.querySelector("span");
+      if (timerTextSpan) {
+        stopTimerDisplay();
+        timerTextSpan.textContent = "Draft Complete!";
+        elements.draftTimerTop.classList.remove("timer-low");
+        console.log(
+          "UIVIEWS_DRAFT_COMPLETE: Updated top bar timer to 'Draft Complete!'"
+        );
+      }
+    }
+
+    if (elements.draftPhaseStatusTop) {
+      // Hide the phase status when draft is complete since it's no longer relevant
+      elements.draftPhaseStatusTop.style.display = "none";
+      console.log(
+        "UIVIEWS_DRAFT_COMPLETE: Hidden top bar phase status since draft is complete"
+      );
+    }
 
     // Add log right before updatePickSlots to check for mutations
     console.log(
@@ -1029,10 +1042,6 @@ export function updateDraftScreenUI(draftState) {
         stopTimerDisplay();
         timerTextSpan.textContent = "Waiting for Host to Start Draft...";
         elements.draftTimerTop.classList.remove("timer-low");
-      } else if (isDraftComplete) {
-        stopTimerDisplay();
-        timerTextSpan.textContent = "Draft Finished!";
-        elements.draftTimerTop.classList.remove("timer-low");
       } else if (draftState.currentPhase && draftState.turnExpiresAt) {
         startOrUpdateTimerDisplay();
       } else {
@@ -1054,12 +1063,11 @@ export function updateDraftScreenUI(draftState) {
     );
 
     if (isPreDraftReadyState) {
+      elements.draftPhaseStatusTop.style.display = ""; // Ensure it's visible
       elements.draftPhaseStatusTop.textContent =
         "Prepare for Draft - Waiting for Host";
-    } else if (isDraftComplete) {
-      elements.draftPhaseStatusTop.textContent = "Draft Complete!";
-      elements.draftPhaseStatusTop.classList.add("phase-complete");
     } else {
+      elements.draftPhaseStatusTop.style.display = ""; // Ensure it's visible
       const currentPhase = draftState.currentPhase || "N/A";
       const turnPlayerName =
         draftState.currentTurn === "P1"
