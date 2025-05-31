@@ -308,7 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
     '#draft-filter-controls .filter-btn[data-element="All"], #draft-filter-controls .element-filter-icon[data-element], #draft-filter-controls .rarity-filter-img[data-rarity]'
   );
 
-  const allButton = document.getElementById("filter-all-btn"); // Get the "All" button by its ID
+  const allButton = document.getElementById("filter-all-btn");
   const elementFilterIcons = document.querySelectorAll(
     "#draft-filter-controls .element-filter-icon[data-element]"
   );
@@ -320,13 +320,13 @@ document.addEventListener("DOMContentLoaded", () => {
     filterControls.forEach((control) => {
       control.addEventListener("click", (event) => {
         const clickedControl = event.currentTarget;
-        const newElementFilter = clickedControl.dataset.element; // Will be "All", "Aero", etc., or undefined
-        const newRarityFilter = clickedControl.dataset.rarity; // Will be "5", "4", or undefined
+        const newElementFilter = clickedControl.dataset.element;
+        const newRarityFilter = clickedControl.dataset.rarity;
 
         let needsRender = false;
 
         if (newElementFilter === "All") {
-          // Clicked "All" button
+          // Clicked "All" button - This logic should remain largely the same
           if (
             state.activeElementFilter !== "All" ||
             state.activeRarityFilter !== null
@@ -335,37 +335,47 @@ document.addEventListener("DOMContentLoaded", () => {
             state.setActiveRarityFilter(null);
             needsRender = true;
           }
-          // Update active classes
           allButton.classList.add("active");
           elementFilterIcons.forEach((icon) => icon.classList.remove("active"));
           rarityFilterImgs.forEach((img) => img.classList.remove("active"));
         } else if (newElementFilter) {
           // Clicked an Element icon (Aero, Electro, etc.)
-          if (state.activeElementFilter !== newElementFilter) {
+          if (state.activeElementFilter === newElementFilter) {
+            // Clicked the currently active element filter - deactivate it
+            state.setActiveElementFilter("All");
+            clickedControl.classList.remove("active");
+            // If no rarity filter is active, "All" button becomes active
+            if (state.activeRarityFilter === null) {
+              allButton.classList.add("active");
+            }
+            needsRender = true;
+          } else {
+            // Clicked a new or different element filter - activate it
             state.setActiveElementFilter(newElementFilter);
+            allButton.classList.remove("active");
+            elementFilterIcons.forEach((icon) => {
+              if (icon === clickedControl) {
+                icon.classList.add("active");
+              } else {
+                icon.classList.remove("active");
+              }
+            });
             needsRender = true;
           }
-          // Update active classes for elements
-          allButton.classList.remove("active");
-          elementFilterIcons.forEach((icon) => {
-            if (icon === clickedControl) {
-              icon.classList.add("active");
-            } else {
-              icon.classList.remove("active");
-            }
-          });
           // Rarity filter remains unchanged by element selection
         } else if (newRarityFilter) {
           // Clicked a Rarity image (5 Stars, 4 Stars)
-          // Toggle behavior for rarity filters
           if (state.activeRarityFilter === newRarityFilter) {
-            // If clicking the already active rarity filter
-            state.setActiveRarityFilter(null); // Deactivate it
+            state.setActiveRarityFilter(null);
             clickedControl.classList.remove("active");
+            // If no element filter is active (i.e., element filter is "All"), "All" button becomes active
+            if (state.activeElementFilter === "All") {
+              allButton.classList.add("active");
+            }
             needsRender = true;
           } else {
             state.setActiveRarityFilter(newRarityFilter);
-            // Update active classes for rarity
+            allButton.classList.remove("active"); // Deactivate "All" if a specific rarity is chosen
             rarityFilterImgs.forEach((img) => {
               if (img === clickedControl) {
                 img.classList.add("active");
@@ -375,10 +385,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             needsRender = true;
           }
-          // Deactivate "All" button if a specific rarity is chosen
-          if (state.activeRarityFilter !== null) {
-            allButton.classList.remove("active");
-          }
           // Element filter remains unchanged by rarity selection
         }
 
@@ -386,16 +392,8 @@ document.addEventListener("DOMContentLoaded", () => {
           console.log(
             `UI: Filters changed. Element: ${state.activeElementFilter}, Rarity: ${state.activeRarityFilter}. Re-rendering grid.`
           );
-          // We'll adapt applyCharacterFilter or call renderGrid directly in the next phase
-          // For now, let's assume we have a function that handles applying both filters.
-          // This will be done in uiViews.js modification (Phase 4)
           if (typeof uiViews.applyCharacterFilter === "function") {
-            // Existing function
-            // We might need to rename/refactor applyCharacterFilter in uiViews.js to handle both,
-            // or ensure it reads both state.activeElementFilter and state.activeRarityFilter.
-            // For now, we assume uiViews.applyCharacterFilter will internally handle reading both states
-            // when it calls renderCharacterGrid.
-            uiViews.applyCharacterFilter(state.activeElementFilter); // Pass current element filter, rarity filter is read from state by renderGrid
+            uiViews.applyCharacterFilter(); // Call without arguments (it reads state internally)
           } else {
             console.error("applyCharacterFilter function not found in uiViews");
           }
