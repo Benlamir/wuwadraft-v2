@@ -1937,3 +1937,153 @@ p#draft-timer-top:not(.timer-low) {
   border-color: rgba(255, 255, 255, 0.5);
   background: rgba(0, 0, 0, 0.5);
 }
+
+/* Equilibration Advantage Badges */
+.equilibration-badges-container {
+  position: absolute;
+  top: -20px; /* Position above the container, "stitched" to the top */
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  z-index: 10; /* Ensure badges appear above other elements */
+}
+
+/* For P1 (left-aligned names), badges go to the right */
+.p1-themed-header .equilibration-badges-container {
+  right: 15px;
+  left: auto;
+}
+
+/* For P2 (right-aligned names), badges go to the left */
+.p2-themed-header .equilibration-badges-container {
+  left: 15px;
+  right: auto;
+}
+
+.equilibration-advantage-badge {
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s ease-in-out;
+  filter: none; /* Removed automatic drop-shadow to prevent glow */
+  border: 2px solid rgba(255, 255, 255, 0.3); /* Changed from golden to white for better contrast on hover */
+  animation: none !important; /* Ensure no automatic animation */
+}
+
+.equilibration-advantage-badge:hover {
+  transform: scale(1.15) !important; /* Reduced from 1.25 */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7), 0 0 15px rgba(255, 215, 0, 0.9),
+    0 0 30px rgba(255, 215, 0, 0.5) !important; /* Reduced glow intensity */
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8)) brightness(1.2) !important; /* Reduced glow */
+  border: 3px solid rgba(255, 215, 0, 1) !important; /* Back to gold and thinner border */
+  transition: all 0.3s ease-in-out !important;
+  animation: none !important; /* Override any animation */
+}
+
+/* Top bar badges positioning and sizing - also stitched to top */
+h4.player-name-top-bar .equilibration-badges-container {
+  position: absolute;
+  top: -15px; /* Stitched to top of top bar names */
+  transform: none;
+  z-index: 15;
+}
+
+/* P1 top bar - badges on the right */
+.top-bar-player-area.p1-theme
+  h4.player-name-top-bar
+  .equilibration-badges-container {
+  right: 10px;
+  left: auto;
+}
+
+/* P2 top bar - badges on the left */
+.top-bar-player-area.p2-theme
+  h4.player-name-top-bar
+  .equilibration-badges-container {
+  left: 10px;
+  right: auto;
+}
+
+/* Smaller badges for top bar */
+h4.player-name-top-bar .equilibration-advantage-badge {
+  width: 64px;
+  height: 64px;
+}
+
+/* Ensure player name containers have relative positioning for absolute badge positioning */
+.player-area h4 {
+  position: relative;
+  overflow: visible; /* Allow badges to extend outside the container */
+}
+
+/* Ensure top bar player areas also have relative positioning */
+.top-bar-player-area {
+  position: relative;
+  overflow: visible; /* Allow badges to extend outside the container */
+}
+
+/* Ensure top bar h4 elements also have relative positioning */
+h4.player-name-top-bar {
+  position: relative;
+  overflow: visible; /* Allow badges to extend outside the container */
+}
+
+/* Extra hover rule with highest specificity to ensure it works */
+img.equilibration-advantage-badge:hover,
+.equilibration-badges-container .equilibration-advantage-badge:hover {
+  transform: scale(
+    1.1
+  ) !important; /* Reduced, will be overridden by specific badge rules */
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* Ultra-specific rule to ensure hover effect works on all equilibration badges */
+.equilibration-badges-container img.equilibration-advantage-badge:hover,
+.p1-themed-header
+  .equilibration-badges-container
+  img.equilibration-advantage-badge:hover,
+.p2-themed-header
+  .equilibration-badges-container
+  img.equilibration-advantage-badge:hover,
+h4.player-name-top-bar
+  .equilibration-badges-container
+  img.equilibration-advantage-badge:hover {
+  transform: scale(
+    1.1
+  ) !important; /* Reduced, will be overridden by specific badge rules */
+  transition: all 0.2s ease-in-out !important;
+  animation: none !important;
+  outline: none !important;
+}
+
+/* Base hover effect - reduced intensity */
+.equilibration-advantage-badge:hover {
+  transform: scale(1.1) !important; /* Further reduced */
+  transition: all 0.3s ease-in-out !important;
+  animation: none !important;
+}
+
+/* Priority Badge - Bronze glow */
+img.equilibration-advantage-badge[src*="PRIO"]:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 8px rgba(205, 127, 50, 0.7),
+    0 0 16px rgba(205, 127, 50, 0.3) !important;
+  filter: drop-shadow(0 0 6px rgba(205, 127, 50, 0.6)) brightness(1.15) !important;
+  border: 2px solid rgba(205, 127, 50, 1) !important; /* Bronze color */
+}
+
+/* 1 Ban Badge - Silver glow */
+img.equilibration-advantage-badge[src*="1BAN"]:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 8px rgba(192, 192, 192, 0.7),
+    0 0 16px rgba(192, 192, 192, 0.3) !important;
+  filter: drop-shadow(0 0 6px rgba(192, 192, 192, 0.6)) brightness(1.15) !important;
+  border: 2px solid rgba(192, 192, 192, 1) !important; /* Silver color */
+}
+
+/* 2 Bans Badge - Gold glow */
+img.equilibration-advantage-badge[src*="2BAN"]:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 8px rgba(255, 215, 0, 0.7),
+    0 0 16px rgba(255, 215, 0, 0.3) !important;
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.6)) brightness(1.15) !important;
+  border: 2px solid rgba(255, 215, 0, 1) !important; /* Gold color */
+}

@@ -361,6 +361,45 @@ function calculateDraftSequence(draftState) {
 
   return sequence;
 }
+
+// Function to get equilibration advantage icons for a player
+function getEquilibrationAdvantageIcons(draftState, playerSlot) {
+  if (!draftState.equilibrationEnabled) {
+    return null;
+  }
+
+  const playerRoles = draftState.playerRoles || {};
+  const eqBansAllowed = draftState.equilibrationBansAllowed || 0;
+
+  // Determine if this player is the lower score player (P1-ROLE in the role mapping)
+  const isLowerScorePlayer = playerRoles["P1_ROLE_IN_TEMPLATE"] === playerSlot;
+
+  if (!isLowerScorePlayer) {
+    return null; // Only show badges for the lower score player
+  }
+
+  // Build badges array - always start with priority badge
+  let badges = [];
+
+  // Lower score player always gets priority
+  badges.push(
+    `<img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/PRIO.webp" class="equilibration-advantage-badge" title="Priority: Goes first in draft order" alt="Priority Badge">`
+  );
+
+  // Add ban badges based on equilibration bans allowed
+  if (eqBansAllowed === 1) {
+    badges.push(
+      `<img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/1BAN.webp" class="equilibration-advantage-badge" title="1 Equilibration Ban" alt="1 Ban Badge">`
+    );
+  } else if (eqBansAllowed === 2) {
+    badges.push(
+      `<img src="https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/icons/2BAN.webp" class="equilibration-advantage-badge" title="2 Equilibration Bans" alt="2 Bans Badge">`
+    );
+  }
+
+  // Wrap badges in a container positioned to the opposite side
+  return `<div class="equilibration-badges-container">${badges.join("")}</div>`;
+}
 // --- END HELPER FUNCTION ---
 
 // Function to manage slot glow states
@@ -1200,6 +1239,23 @@ export function updateDraftScreenUI(draftState) {
     if (p1Header) {
       p1Header.classList.add("p1-themed-header");
       p1Header.classList.remove("p2-themed-header");
+
+      // Add equilibration advantage badge if applicable - only if not already present
+      if (draftState.equilibrationEnabled) {
+        const existingBadges = p1Header.querySelector(
+          ".equilibration-badges-container"
+        );
+        if (!existingBadges) {
+          const p1AdvantageIcons = getEquilibrationAdvantageIcons(
+            draftState,
+            "P1"
+          );
+          if (p1AdvantageIcons) {
+            p1Header.insertAdjacentHTML("beforeend", p1AdvantageIcons);
+            // Remove automatic animation listeners since we only want hover effects
+          }
+        }
+      }
     }
   } else if (elements.draftP1Name) {
     elements.draftP1Name.textContent = "Waiting for Player 1...";
@@ -1212,6 +1268,28 @@ export function updateDraftScreenUI(draftState) {
   // Update top bar P1 name
   if (elements.topBarP1Name && draftState.player1Name) {
     elements.topBarP1Name.innerHTML = `<span class="p1-name-colored">${draftState.player1Name}</span>`;
+
+    // Add equilibration advantage badge if applicable - only if not already present
+    if (draftState.equilibrationEnabled) {
+      const p1TopBarHeader = elements.topBarP1Name.closest(
+        "h4.player-name-top-bar"
+      );
+      if (p1TopBarHeader) {
+        const existingBadges = p1TopBarHeader.querySelector(
+          ".equilibration-badges-container"
+        );
+        if (!existingBadges) {
+          const p1AdvantageIcons = getEquilibrationAdvantageIcons(
+            draftState,
+            "P1"
+          );
+          if (p1AdvantageIcons) {
+            p1TopBarHeader.insertAdjacentHTML("beforeend", p1AdvantageIcons);
+            // Remove automatic animation listeners since we only want hover effects
+          }
+        }
+      }
+    }
   } else if (elements.topBarP1Name) {
     elements.topBarP1Name.textContent = "Player 1";
   }
@@ -1223,6 +1301,23 @@ export function updateDraftScreenUI(draftState) {
     if (p2Header) {
       p2Header.classList.add("p2-themed-header");
       p2Header.classList.remove("p1-themed-header");
+
+      // Add equilibration advantage badge if applicable - only if not already present
+      if (draftState.equilibrationEnabled) {
+        const existingBadges = p2Header.querySelector(
+          ".equilibration-badges-container"
+        );
+        if (!existingBadges) {
+          const p2AdvantageIcons = getEquilibrationAdvantageIcons(
+            draftState,
+            "P2"
+          );
+          if (p2AdvantageIcons) {
+            p2Header.insertAdjacentHTML("beforeend", p2AdvantageIcons);
+            // Remove automatic animation listeners since we only want hover effects
+          }
+        }
+      }
     }
   } else if (elements.draftP2Name) {
     elements.draftP2Name.textContent = "Waiting for Player 2...";
@@ -1235,6 +1330,28 @@ export function updateDraftScreenUI(draftState) {
   // Update top bar P2 name
   if (elements.topBarP2Name && draftState.player2Name) {
     elements.topBarP2Name.innerHTML = `<span class="p2-name-colored">${draftState.player2Name}</span>`;
+
+    // Add equilibration advantage badge if applicable - only if not already present
+    if (draftState.equilibrationEnabled) {
+      const p2TopBarHeader = elements.topBarP2Name.closest(
+        "h4.player-name-top-bar"
+      );
+      if (p2TopBarHeader) {
+        const existingBadges = p2TopBarHeader.querySelector(
+          ".equilibration-badges-container"
+        );
+        if (!existingBadges) {
+          const p2AdvantageIcons = getEquilibrationAdvantageIcons(
+            draftState,
+            "P2"
+          );
+          if (p2AdvantageIcons) {
+            p2TopBarHeader.insertAdjacentHTML("beforeend", p2AdvantageIcons);
+            // Remove automatic animation listeners since we only want hover effects
+          }
+        }
+      }
+    }
   } else if (elements.topBarP2Name) {
     elements.topBarP2Name.textContent = "Player 2";
   }
