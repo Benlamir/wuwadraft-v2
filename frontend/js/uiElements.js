@@ -78,6 +78,14 @@ export const elements = {
   stdBanSlot2: null,
   stdBanSlot3: null,
   stdBanSlot4: null,
+  // Top Bar Player Areas for Ban Display
+  topBarP1Bans: null,
+  topBarP2Bans: null,
+  topBarP1Name: null,
+  topBarP2Name: null,
+  // Top Bar Draft Info Elements
+  draftTimerTop: null,
+  draftPhaseStatusTop: null,
 };
 
 // Function to populate the elements object
@@ -213,6 +221,18 @@ export function initializeElements() {
   elements.stdBanSlot2 = document.getElementById("std-ban-slot-2");
   elements.stdBanSlot3 = document.getElementById("std-ban-slot-3");
   elements.stdBanSlot4 = document.getElementById("std-ban-slot-4");
+
+  // Top Bar Player Areas for Ban Display
+  elements.topBarP1Bans = document.getElementById("top-bar-p1-bans");
+  elements.topBarP2Bans = document.getElementById("top-bar-p2-bans");
+  elements.topBarP1Name = document.getElementById("top-bar-p1-name");
+  elements.topBarP2Name = document.getElementById("top-bar-p2-name");
+
+  // Top Bar Draft Info Elements
+  elements.draftTimerTop = document.getElementById("draft-timer-top");
+  elements.draftPhaseStatusTop = document.getElementById(
+    "draft-phase-status-top"
+  );
 
   // Debug logs for new elements
   //console.log("Check element - boxScoreScreen:", elements.boxScoreScreen);

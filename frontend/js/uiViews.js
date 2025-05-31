@@ -484,134 +484,159 @@ function updateBanSlots(draftState) {
     );
   }
 
-  // Define references to EQ ban slot elements
-  const eqBanSlotElements = [elements.eqBanSlot1, elements.eqBanSlot2];
-  // Define references to Standard ban slot elements
-  const stdBanSlotElements = [
-    elements.stdBanSlot1,
-    elements.stdBanSlot2,
-    elements.stdBanSlot3,
-    elements.stdBanSlot4,
-  ];
-
-  // --- Populate EQ Ban Slots ---
-  for (let i = 0; i < eqBanSlotElements.length; i++) {
-    const slot = eqBanSlotElements[i];
-    if (!slot) continue;
-
-    if (isEqEnabled) {
-      // Log only if EQ is even possible
-      console.log(
-        `[updateBanSlots] EQ_SLOT_LOOP[${i}]: eqBansAllowed=${eqBansAllowed}`
-      );
-    }
-
-    slot.innerHTML = "";
-    slot.classList.remove("ban-slot-disabled", "pulse-ban", "glow-ban"); // Reset
-
-    let banName = null;
-    let isFilled = false;
-    let isActiveForPulse = false;
-
-    // Add ban-slot-disabled class if equilibration is disabled OR if this slot is beyond allowed EQ bans
-    if (!isEqEnabled || i >= eqBansAllowed) {
-      slot.classList.add("ban-slot-disabled");
-      // Add padlock icon for disabled slots with enhanced styling and perfect centering
-      slot.innerHTML = `
-        <div style="position: absolute; top: 68%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-          <i class="bi bi-lock-fill" style="font-size: 2rem; color: #6c757d; opacity: 0.8; filter: drop-shadow(0 0 2px rgba(0,0,0,0.2)); display: block;"></i>
-          <small class="text-muted mt-1" style="font-size: 0.8rem; display: block;">Disabled</small>
-        </div>
-      `;
-    } else {
-      if (isEqEnabled && i < eqBansAllowed) {
-        // Log conditions for the specific slot being evaluated
-        console.log(
-          `[updateBanSlots] EQ_SLOT_CHECK[${i}]: PhaseOK?(${
-            currentPhase === EQUILIBRATION_PHASE_NAME
-          }), TurnOK?(${currentTurn === eqBanner}), IndexOK?(${
-            i === eqBansMadeByLSP
-          }), AllowedMore?(${eqBansMadeByLSP < eqBansAllowed})`
-        );
-      }
-
-      if (
-        currentPhase === EQUILIBRATION_PHASE_NAME &&
-        currentTurn === eqBanner &&
-        i === eqBansMadeByLSP &&
-        eqBansMadeByLSP < eqBansAllowed
-      ) {
-        isActiveForPulse = true;
-        // isFilled remains false
-      } else if (
-        i < eqBansMadeByLSP &&
-        allBans.length > i &&
-        allBans[i] != null
-      ) {
-        banName = allBans[i];
-        isFilled = true;
-        // isActiveForPulse remains false
-      }
-      // If neither of the above, it's an empty, non-active, but allowed EQ slot.
-    }
-
-    console.log(
-      `[updateBanSlots] EQ_SLOT_RESULT[${i}]: isActiveForPulse=${isActiveForPulse}, isFilled=${isFilled}`
-    );
-
-    if (banName) {
-      const resonator = findResonatorByName(banName);
-      slot.innerHTML =
-        resonator && resonator.image_button
-          ? `<img src="${resonator.image_button}" alt="${banName}" title="${banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`
-          : `<span>X</span>`;
-    }
-    updateSlotGlowState(slot, isActiveForPulse, isFilled, "ban");
+  // Clear existing ban slots from both player areas
+  if (elements.topBarP1Bans) {
+    elements.topBarP1Bans.innerHTML = "";
+  }
+  if (elements.topBarP2Bans) {
+    elements.topBarP2Bans.innerHTML = "";
   }
 
-  // --- Populate Standard Ban Slots ---
+  // Determine which player gets which bans
+  const p1Bans = [];
+  const p2Bans = [];
   const numEqBansToOffset = eqBansAllowed;
 
-  for (let i = 0; i < stdBanSlotElements.length; i++) {
-    const slot = stdBanSlotElements[i];
-    if (!slot) continue;
+  // First, handle EQ bans (if enabled)
+  if (isEqEnabled && eqBanner) {
+    for (let i = 0; i < eqBansAllowed; i++) {
+      const banData = {
+        banName: i < allBans.length && allBans[i] != null ? allBans[i] : null,
+        isFilled:
+          i < eqBansMadeByLSP && allBans.length > i && allBans[i] != null,
+        isActiveForPulse:
+          currentPhase === EQUILIBRATION_PHASE_NAME &&
+          currentTurn === eqBanner &&
+          i === eqBansMadeByLSP &&
+          eqBansMadeByLSP < eqBansAllowed,
+        isDisabled: !isEqEnabled || i >= eqBansAllowed,
+        type: "eq",
+      };
 
-    slot.innerHTML = "";
-    slot.classList.remove("pulse-ban", "glow-ban"); // Reset
+      if (eqBanner === "P1") {
+        p1Bans.push(banData);
+      } else {
+        p2Bans.push(banData);
+      }
+    }
+  }
 
-    let banName = null;
-    let isFilled = false;
-    let isActiveForPulse = false;
-
+  // Then, handle standard bans (alternating between players)
+  for (let i = 0; i < 4; i++) {
+    // 4 standard ban slots
     const overallBanIndex = numEqBansToOffset + i;
+    const standardBanIndex = i;
 
-    if (overallBanIndex < allBans.length && allBans[overallBanIndex] != null) {
-      banName = allBans[overallBanIndex];
-      isFilled = true;
+    const isFilled =
+      overallBanIndex < allBans.length && allBans[overallBanIndex] != null;
+
+    const banData = {
+      banName:
+        overallBanIndex < allBans.length && allBans[overallBanIndex] != null
+          ? allBans[overallBanIndex]
+          : null,
+      isFilled: isFilled,
+      isActiveForPulse:
+        !isFilled &&
+        currentPhase !== EQUILIBRATION_PHASE_NAME &&
+        currentPhase?.startsWith("BAN") &&
+        overallBanIndex === allBans.length,
+      isDisabled: false,
+      type: "standard",
+    };
+
+    // Alternate standard bans: P1 gets 0,2 and P2 gets 1,3
+    if (standardBanIndex % 2 === 0) {
+      p1Bans.push(banData);
+    } else {
+      p2Bans.push(banData);
     }
+  }
 
-    // Determine if THIS standard ban slot should be pulsing
-    if (
-      !isFilled && // Only pulse if it's not already filled
-      currentPhase !== EQUILIBRATION_PHASE_NAME &&
-      currentPhase?.startsWith("BAN") &&
-      overallBanIndex === allBans.length
-    ) {
-      isActiveForPulse = true;
+  // Create ban slot elements for Player 1
+  p1Bans.forEach((banData, index) => {
+    const slot = createBanSlotElement(banData, `p1-ban-${index}`);
+    if (elements.topBarP1Bans) {
+      elements.topBarP1Bans.appendChild(slot);
     }
+  });
 
-    if (banName) {
-      const resonator = findResonatorByName(banName);
+  // Create ban slot elements for Player 2
+  p2Bans.forEach((banData, index) => {
+    const slot = createBanSlotElement(banData, `p2-ban-${index}`);
+    if (elements.topBarP2Bans) {
+      elements.topBarP2Bans.appendChild(slot);
+    }
+  });
+}
+
+// Helper function to create individual ban slot elements
+function createBanSlotElement(banData, slotId) {
+  const slot = document.createElement("div");
+  slot.className = "ban-slot";
+  slot.id = slotId;
+  slot.innerHTML = "";
+
+  // Apply disabled state if needed
+  if (banData.isDisabled) {
+    slot.classList.add("ban-slot-disabled");
+    // Add padlock icon for disabled slots
+    slot.innerHTML = `
+      <div style="position: absolute; top: 68%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+        <i class="bi bi-lock-fill" style="font-size: 1.5rem; color: #6c757d; opacity: 0.8; filter: drop-shadow(0 0 2px rgba(0,0,0,0.2)); display: block;"></i>
+        <small class="text-muted mt-1" style="font-size: 0.7rem; display: block;">Disabled</small>
+      </div>
+    `;
+  } else {
+    // Remove any existing state classes
+    slot.classList.remove("ban-slot-disabled", "pulse-ban", "glow-ban");
+
+    // Add ban content if available
+    if (banData.banName) {
+      const resonator = findResonatorByName(banData.banName);
       slot.innerHTML =
         resonator && resonator.image_button
-          ? `<img src="${resonator.image_button}" alt="${banName}" title="${banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`
+          ? `<img src="${resonator.image_button}" alt="${banData.banName}" title="${banData.banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`
           : `<span>X</span>`;
     }
-    updateSlotGlowState(slot, isActiveForPulse, isFilled, "ban");
+
+    // Apply visual state
+    updateSlotGlowState(
+      slot,
+      banData.isActiveForPulse,
+      banData.isFilled,
+      "ban"
+    );
   }
+
+  return slot;
 }
 
 // --- ADD TIMER DISPLAY FUNCTIONS ---
+
+// Helper function to sync top bar timer with main timer
+function syncTopBarTimer() {
+  if (elements.draftTimerTop && elements.draftTimer) {
+    const mainTimerSpan = elements.draftTimer.querySelector("span");
+    const topTimerSpan = elements.draftTimerTop.querySelector("span");
+
+    if (mainTimerSpan) {
+      // Ensure top timer has the same structure
+      if (!topTimerSpan) {
+        elements.draftTimerTop.innerHTML = elements.draftTimer.innerHTML;
+      } else {
+        topTimerSpan.textContent = mainTimerSpan.textContent;
+      }
+
+      // Sync timer-low class state
+      if (elements.draftTimer.classList.contains("timer-low")) {
+        elements.draftTimerTop.classList.add("timer-low");
+      } else {
+        elements.draftTimerTop.classList.remove("timer-low");
+      }
+    }
+  }
+}
 
 export function stopTimerDisplay() {
   // console.log("UI_VIEWS_TIMER: stopTimerDisplay called.");
@@ -628,6 +653,9 @@ export function stopTimerDisplay() {
       // console.warn("UI_VIEWS_TIMER: stopTimerDisplay - timerTextSpan not found within existing timerElement.");
     }
     timerElement.classList.remove("timer-low");
+
+    // Sync with top bar timer
+    syncTopBarTimer();
   } else {
     // console.warn("UI_VIEWS_TIMER: stopTimerDisplay - elements.draftTimer not found or not in DOM.");
   }
@@ -671,6 +699,10 @@ function updateCountdown(expiryTime, intervalId) {
   if (remainingMs <= 0) {
     timerTextSpan.textContent = "Time Remaining: 00:00";
     timerElement.classList.add("timer-low");
+
+    // Sync with top bar timer
+    syncTopBarTimer();
+
     clearInterval(intervalId); // Stop this interval
 
     // --- DETAILED LOGGING FOR TIMEOUT DECISION ---
@@ -727,6 +759,9 @@ function updateCountdown(expiryTime, intervalId) {
     } else {
       timerElement.classList.remove("timer-low");
     }
+
+    // Sync with top bar timer
+    syncTopBarTimer();
   }
 }
 
@@ -763,6 +798,12 @@ export function startOrUpdateTimerDisplay() {
       '<i class="bi bi-clock timer-icon me-1"></i> <span>Time Remaining: --:--</span>';
   }
 
+  // Initialize top bar timer structure if needed
+  if (elements.draftTimerTop && !elements.draftTimerTop.querySelector("span")) {
+    elements.draftTimerTop.innerHTML =
+      '<i class="bi bi-clock timer-icon me-1"></i> <span>Time Remaining: --:--</span>';
+  }
+
   try {
     const expiryTimestamp = new Date(state.currentTurnExpiresAt).getTime();
     const now = Date.now();
@@ -788,6 +829,10 @@ export function startOrUpdateTimerDisplay() {
         timerTextSpan.textContent = "Time Remaining: 00:00";
       }
       timerElement.classList.add("timer-low");
+
+      // Sync with top bar timer
+      syncTopBarTimer();
+
       return;
     }
 
@@ -985,6 +1030,36 @@ export function updateDraftScreenUI(draftState) {
     console.warn("UI Update Warning: Draft phase status element not found");
   }
 
+  // Sync top bar phase status
+  if (elements.draftPhaseStatusTop) {
+    // Copy the same content and classes from the main phase status
+    if (elements.draftPhaseStatus) {
+      elements.draftPhaseStatusTop.textContent =
+        elements.draftPhaseStatus.textContent;
+      elements.draftPhaseStatusTop.className =
+        elements.draftPhaseStatus.className;
+    }
+  }
+
+  // Sync top bar timer
+  if (elements.draftTimerTop) {
+    const mainTimerSpan = elements.draftTimer?.querySelector("span");
+    const topTimerSpan = elements.draftTimerTop.querySelector("span");
+
+    if (mainTimerSpan && topTimerSpan) {
+      topTimerSpan.textContent = mainTimerSpan.textContent;
+      // Copy timer-low class state
+      if (elements.draftTimer.classList.contains("timer-low")) {
+        elements.draftTimerTop.classList.add("timer-low");
+      } else {
+        elements.draftTimerTop.classList.remove("timer-low");
+      }
+    } else if (mainTimerSpan && !topTimerSpan) {
+      // Create span structure if it doesn't exist
+      elements.draftTimerTop.innerHTML = elements.draftTimer.innerHTML;
+    }
+  }
+
   // Update player names with color coding
   if (elements.draftP1Name && draftState.player1Name) {
     elements.draftP1Name.innerHTML = `<span class="p1-name-colored">${draftState.player1Name}</span>`;
@@ -1002,6 +1077,13 @@ export function updateDraftScreenUI(draftState) {
     }
   }
 
+  // Update top bar P1 name
+  if (elements.topBarP1Name && draftState.player1Name) {
+    elements.topBarP1Name.innerHTML = `<span class="p1-name-colored">${draftState.player1Name}</span>`;
+  } else if (elements.topBarP1Name) {
+    elements.topBarP1Name.textContent = "Player 1";
+  }
+
   if (elements.draftP2Name && draftState.player2Name) {
     elements.draftP2Name.innerHTML = `<span class="p2-name-colored">${draftState.player2Name}</span>`;
     // Get the parent h4 element and add themed class
@@ -1016,6 +1098,13 @@ export function updateDraftScreenUI(draftState) {
     if (p2Header) {
       p2Header.classList.remove("p1-themed-header", "p2-themed-header");
     }
+  }
+
+  // Update top bar P2 name
+  if (elements.topBarP2Name && draftState.player2Name) {
+    elements.topBarP2Name.innerHTML = `<span class="p2-name-colored">${draftState.player2Name}</span>`;
+  } else if (elements.topBarP2Name) {
+    elements.topBarP2Name.textContent = "Player 2";
   }
 
   // Update Pick and Ban Slots
