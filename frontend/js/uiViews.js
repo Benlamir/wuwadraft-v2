@@ -1296,8 +1296,35 @@ function renderCharacterGrid(draftState) {
     `RENDER_GRID: Applying filters - Element: ${activeElementFilter}, Rarity: ${activeRarityFilter}`
   );
 
-  elements.characterGridContainer.innerHTML = "";
+  // Check if this is a full re-render (filter change) or just state update
+  const needsFullRebuild =
+    !elements.characterGridContainer.hasChildNodes() ||
+    elements.characterGridContainer.dataset.lastElementFilter !==
+      activeElementFilter ||
+    elements.characterGridContainer.dataset.lastRarityFilter !==
+      activeRarityFilter;
 
+  if (needsFullRebuild) {
+    // Full rebuild needed - clear and recreate
+    elements.characterGridContainer.innerHTML = "";
+    elements.characterGridContainer.dataset.lastElementFilter =
+      activeElementFilter;
+    elements.characterGridContainer.dataset.lastRarityFilter =
+      activeRarityFilter;
+
+    // Continue with full rebuild logic...
+    createCharacterButtons(draftState, activeElementFilter, activeRarityFilter);
+  } else {
+    // Just update existing buttons
+    updateExistingCharacterButtons(draftState);
+  }
+}
+
+function createCharacterButtons(
+  draftState,
+  activeElementFilter,
+  activeRarityFilter
+) {
   // Log 3: Available Resonators from draftState
   const availableResonatorsFromServer = draftState.availableResonators || [];
 
@@ -1309,19 +1336,6 @@ function renderCharacterGrid(draftState) {
       "RENDER_GRID_WARN: No availableResonators from server, but draft is not complete. Grid will be empty."
     );
   }
-
-  // Log 4: Player picks and bans from draftState
-  const player1Picks = draftState.player1Picks || [];
-  const player2Picks = draftState.player2Picks || [];
-  const bans = draftState.bans || [];
-  const currentTurn = draftState.currentTurn || state.currentTurn;
-
-  const isMyTurn = state.myAssignedSlot === currentTurn;
-
-  const availableSet = new Set(availableResonatorsFromServer);
-  const p1PicksSet = new Set(player1Picks);
-  const p2PicksSet = new Set(player2Picks);
-  const bansSet = new Set(bans);
 
   // Filter ALL_RESONATORS_DATA based on both activeElementFilter and activeRarityFilter
   let resonatorsToDisplay = ALL_RESONATORS_DATA;
@@ -1360,120 +1374,7 @@ function renderCharacterGrid(draftState) {
 
   // Loop over the filtered list
   resonatorsToDisplay.forEach((resonator) => {
-    const button = document.createElement("button");
-    button.classList.add("character-button", "stylish-button");
-    button.dataset.resonatorId = resonator.id;
-    button.dataset.resonatorName = resonator.name;
-
-    // Add rarity class
-    if (resonator.rarity === 5) {
-      button.classList.add("rarity-5");
-    } else if (resonator.rarity === 4) {
-      button.classList.add("rarity-4");
-    }
-
-    const imgSrc = resonator.image_button || ""; // Use button image, provide fallback
-
-    // Create structure with image and name span
-    button.innerHTML = `
-        <img src="${imgSrc}" alt="${resonator.name}" title="${resonator.name}" class="character-icon" onerror="this.style.display='none'; this.parentElement.textContent='?';" />
-        <span class="character-name">${resonator.name}</span>
-    `;
-
-    // --- MODIFY SEQUENCE OVERLAY LOGIC ---
-    // Show sequence badges if BSS is enabled AND it's a 5-star resonator
-    if (draftState.equilibrationEnabled && resonator.rarity === 5) {
-      const p1Sequences =
-        typeof draftState.player1Sequences === "object" &&
-        draftState.player1Sequences !== null
-          ? draftState.player1Sequences
-          : {};
-      const p2Sequences =
-        typeof draftState.player2Sequences === "object" &&
-        draftState.player2Sequences !== null
-          ? draftState.player2Sequences
-          : {};
-
-      const p1SeqVal = p1Sequences[resonator.name];
-      const p2SeqVal = p2Sequences[resonator.name];
-
-      if (p1SeqVal !== undefined && p1SeqVal >= 0) {
-        const p1SeqBadge = document.createElement("div");
-        p1SeqBadge.className = "char-seq-badge p1-seq-badge";
-        p1SeqBadge.textContent = p1SeqVal.toString();
-        button.appendChild(p1SeqBadge);
-      }
-
-      if (p2SeqVal !== undefined && p2SeqVal >= 0) {
-        const p2SeqBadge = document.createElement("div");
-        p2SeqBadge.className = "char-seq-badge p2-seq-badge";
-        p2SeqBadge.textContent = p2SeqVal.toString();
-        button.appendChild(p2SeqBadge);
-      }
-    }
-    // --- END MODIFIED SEQUENCE OVERLAY LOGIC ---
-
-    // Determine button state based on draftState
-    let isActuallyAvailableOnServer = availableSet.has(resonator.name);
-    let isPickedByP1 = p1PicksSet.has(resonator.name);
-    let isPickedByP2 = p2PicksSet.has(resonator.name);
-    let isBanned = bansSet.has(resonator.name);
-
-    // A character is truly unavailable for selection if picked, banned, OR NOT in the server's available list.
-    let isUnavailableForSelection =
-      isPickedByP1 || isPickedByP2 || isBanned || !isActuallyAvailableOnServer;
-
-    // Log 7: Determine whose turn it is (for clickability)
-    let isMyTurnContext = false;
-    if (draftState.currentPhase === state.EQUILIBRATION_PHASE_NAME) {
-      isMyTurnContext =
-        state.myAssignedSlot === draftState.currentEquilibrationBanner;
-    } else {
-      isMyTurnContext = state.myAssignedSlot === draftState.currentTurn;
-    }
-
-    // Remove previous state classes
-    button.classList.remove(
-      "available",
-      "unavailable",
-      "picked-p1",
-      "picked-p2",
-      "banned",
-      "just-selected"
-    );
-
-    // Apply new state classes for styling
-    if (isPickedByP1) {
-      button.classList.add("unavailable", "picked-p1");
-    } else if (isPickedByP2) {
-      button.classList.add("unavailable", "picked-p2");
-    } else if (isBanned) {
-      button.classList.add("unavailable", "banned");
-    } else if (isActuallyAvailableOnServer) {
-      button.classList.add("available");
-    } else {
-      // If not available, and not picked/banned (shouldn't happen with correct availableResonators list)
-      button.classList.add("unavailable");
-    }
-
-    // Determine if this specific button should be clickable
-    // Condition: Is it my turn? AND Is the character available? AND Not already picked/banned?
-    const isClickable =
-      isMyTurn && isActuallyAvailableOnServer && !isUnavailableForSelection;
-
-    // Set disabled state
-    button.disabled = !isClickable;
-
-    // Add listener ONLY if clickable
-    if (isClickable) {
-      // Remove previous listener to prevent duplicates if grid re-renders often
-      // button.removeEventListener("click", handleCharacterSelection); // Not strictly needed if clearing innerHTML
-      button.addEventListener("click", handleCharacterSelection);
-    } else {
-      // Optionally add a 'not-clickable' class for styling disabled buttons differently
-      button.classList.add("not-clickable");
-    }
-
+    const button = createCharacterButton(resonator, draftState);
     try {
       elements.characterGridContainer.appendChild(button);
     } catch (e) {
@@ -1483,6 +1384,167 @@ function renderCharacterGrid(draftState) {
       );
     }
   });
+}
+
+function createCharacterButton(resonator, draftState) {
+  const button = document.createElement("button");
+  button.classList.add("character-button", "stylish-button");
+  button.dataset.resonatorId = resonator.id;
+  button.dataset.resonatorName = resonator.name;
+
+  // Add rarity class
+  if (resonator.rarity === 5) {
+    button.classList.add("rarity-5");
+  } else if (resonator.rarity === 4) {
+    button.classList.add("rarity-4");
+  }
+
+  const imgSrc = resonator.image_button || ""; // Use button image, provide fallback
+
+  // Create structure with image and name span
+  button.innerHTML = `
+      <img src="${imgSrc}" alt="${resonator.name}" title="${resonator.name}" class="character-icon" onerror="this.style.display='none'; this.parentElement.textContent='?';" />
+      <span class="character-name">${resonator.name}</span>
+  `;
+
+  updateCharacterButtonState(button, resonator, draftState);
+  return button;
+}
+
+function updateExistingCharacterButtons(draftState) {
+  const existingButtons =
+    elements.characterGridContainer.querySelectorAll(".character-button");
+  existingButtons.forEach((button) => {
+    const resonatorName = button.dataset.resonatorName;
+    const resonator = findResonatorByName(resonatorName);
+    if (resonator) {
+      updateCharacterButtonState(button, resonator, draftState);
+    }
+  });
+}
+
+function updateCharacterButtonState(button, resonator, draftState) {
+  // Remove existing sequence badges
+  const existingBadges = button.querySelectorAll(".char-seq-badge");
+  existingBadges.forEach((badge) => badge.remove());
+
+  // --- MODIFY SEQUENCE OVERLAY LOGIC ---
+  // Show sequence badges if BSS is enabled AND it's a 5-star resonator
+  if (draftState.equilibrationEnabled && resonator.rarity === 5) {
+    const p1Sequences =
+      typeof draftState.player1Sequences === "object" &&
+      draftState.player1Sequences !== null
+        ? draftState.player1Sequences
+        : {};
+    const p2Sequences =
+      typeof draftState.player2Sequences === "object" &&
+      draftState.player2Sequences !== null
+        ? draftState.player2Sequences
+        : {};
+
+    const p1SeqVal = p1Sequences[resonator.name];
+    const p2SeqVal = p2Sequences[resonator.name];
+
+    if (p1SeqVal !== undefined && p1SeqVal >= 0) {
+      const p1SeqBadge = document.createElement("div");
+      p1SeqBadge.className = "char-seq-badge p1-seq-badge";
+      p1SeqBadge.textContent = p1SeqVal.toString();
+      button.appendChild(p1SeqBadge);
+    }
+
+    if (p2SeqVal !== undefined && p2SeqVal >= 0) {
+      const p2SeqBadge = document.createElement("div");
+      p2SeqBadge.className = "char-seq-badge p2-seq-badge";
+      p2SeqBadge.textContent = p2SeqVal.toString();
+      button.appendChild(p2SeqBadge);
+    }
+  }
+
+  // Determine button state based on draftState
+  const availableResonatorsFromServer = draftState.availableResonators || [];
+  const player1Picks = draftState.player1Picks || [];
+  const player2Picks = draftState.player2Picks || [];
+  const bans = draftState.bans || [];
+  const currentTurn = draftState.currentTurn || state.currentTurn;
+
+  const isMyTurn = state.myAssignedSlot === currentTurn;
+  const availableSet = new Set(availableResonatorsFromServer);
+  const p1PicksSet = new Set(player1Picks);
+  const p2PicksSet = new Set(player2Picks);
+  const bansSet = new Set(bans);
+
+  let isActuallyAvailableOnServer = availableSet.has(resonator.name);
+  let isPickedByP1 = p1PicksSet.has(resonator.name);
+  let isPickedByP2 = p2PicksSet.has(resonator.name);
+  let isBanned = bansSet.has(resonator.name);
+
+  // A character is truly unavailable for selection if picked, banned, OR NOT in the server's available list.
+  let isUnavailableForSelection =
+    isPickedByP1 || isPickedByP2 || isBanned || !isActuallyAvailableOnServer;
+
+  // Log 7: Determine whose turn it is (for clickability)
+  let isMyTurnContext = false;
+  if (draftState.currentPhase === state.EQUILIBRATION_PHASE_NAME) {
+    isMyTurnContext =
+      state.myAssignedSlot === draftState.currentEquilibrationBanner;
+  } else {
+    isMyTurnContext = state.myAssignedSlot === draftState.currentTurn;
+  }
+
+  // Remove previous state classes
+  button.classList.remove(
+    "available",
+    "unavailable",
+    "picked-p1",
+    "picked-p2",
+    "banned",
+    "just-selected",
+    "not-clickable"
+  );
+
+  // Apply new state classes for styling
+  if (isPickedByP1) {
+    button.classList.add("unavailable", "picked-p1");
+  } else if (isPickedByP2) {
+    button.classList.add("unavailable", "picked-p2");
+  } else if (isBanned) {
+    button.classList.add("unavailable", "banned");
+  } else if (isActuallyAvailableOnServer) {
+    button.classList.add("available");
+  } else {
+    // If not available, and not picked/banned (shouldn't happen with correct availableResonators list)
+    button.classList.add("unavailable");
+  }
+
+  // Determine if this specific button should be clickable
+  // Condition: Is it my turn? AND Is the character available? AND Not already picked/banned?
+  const isClickable =
+    isMyTurn && isActuallyAvailableOnServer && !isUnavailableForSelection;
+
+  // Set disabled state
+  button.disabled = !isClickable;
+
+  // Only handle event listener replacement if button is already in the DOM
+  if (button.parentNode) {
+    // Remove existing event listeners by replacing the button
+    const newButton = button.cloneNode(true);
+    button.parentNode.replaceChild(newButton, button);
+
+    // Add listener ONLY if clickable
+    if (isClickable) {
+      newButton.addEventListener("click", handleCharacterSelection);
+    } else {
+      // Optionally add a 'not-clickable' class for styling disabled buttons differently
+      newButton.classList.add("not-clickable");
+    }
+  } else {
+    // Button not in DOM yet (initial creation), just add event listener directly
+    if (isClickable) {
+      button.addEventListener("click", handleCharacterSelection);
+    } else {
+      button.classList.add("not-clickable");
+    }
+  }
 }
 
 export function handleCharacterSelection(event) {
