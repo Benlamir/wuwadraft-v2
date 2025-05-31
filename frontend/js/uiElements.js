@@ -49,8 +49,6 @@ export const elements = {
   draftBackBtn: null,
   draftPhaseStatus: null,
   draftTimer: null,
-  draftP1Name: null,
-  draftP2Name: null,
   characterGridContainer: null,
   draftP1PicksList: null,
   p1Pick1: null,
@@ -161,8 +159,6 @@ export function initializeElements() {
   elements.draftBackBtn = document.getElementById("draft-back-btn"); // Player's back button on draft screen
   elements.draftPhaseStatus = document.getElementById("draft-phase-status");
   elements.draftTimer = document.getElementById("draft-timer");
-  elements.draftP1Name = document.getElementById("draft-p1-name");
-  elements.draftP2Name = document.getElementById("draft-p2-name");
   elements.characterGridContainer = document.getElementById(
     "character-grid-container"
   );
@@ -240,8 +236,6 @@ export function initializeElements() {
   //  "Check element - enableEquilibrationToggle:",
   //  elements.enableEquilibrationToggle
   //);
-  //console.log("Check element - draftP1Name:", elements.draftP1Name);
-  //console.log("Check element - draftP2Name:", elements.draftP2Name);
 
   //console.log("UI: Elements initialized.", elements);
 

@@ -577,6 +577,13 @@ function createBanSlotElement(banData, slotId) {
   slot.id = slotId;
   slot.innerHTML = "";
 
+  // Add ban type class for styling
+  if (banData.type === "eq") {
+    slot.classList.add("ban-slot-eq");
+  } else if (banData.type === "standard") {
+    slot.classList.add("ban-slot-standard");
+  }
+
   // Apply disabled state if needed
   if (banData.isDisabled) {
     slot.classList.add("ban-slot-disabled");

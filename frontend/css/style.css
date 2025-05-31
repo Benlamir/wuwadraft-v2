@@ -7,9 +7,9 @@
   --p1-color-light: rgba(0, 123, 255, 0.15);
   --p1-color-text: #007bff;
 
-  --p2-color: #a020f0; /* Bootstrap Red */
-  --p2-color-light: rgba(160, 32, 240, 0.15);
-  --p2-color-text: #a020f0;
+  --p2-color: #dc3545; /* Bootstrap Red */
+  --p2-color-light: rgba(220, 53, 69, 0.15);
+  --p2-color-text: #dc3545;
 }
 
 html {
@@ -1588,6 +1588,22 @@ body.draft-active-background header {
   width: 100%;
 }
 
+/* Align eq-bans-slots to the left (Player 1) */
+#eq-bans-slots {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-left: 15px; /* Consistent with player names */
+}
+
+/* Align standard-bans-slots to the right (Player 2) */
+#standard-bans-slots {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-right: 15px; /* Consistent with player names */
+}
+
 .ban-group-container {
   display: flex;
   flex-direction: column;
@@ -1679,15 +1695,29 @@ body.draft-active-background header {
   width: 100%;
 }
 
+/* Player 1 area - align to left */
+.top-bar-player-area.p1-theme {
+  align-items: flex-start; /* Align content to the left */
+}
+
+/* Player 2 area - align to right */
+.top-bar-player-area.p2-theme {
+  align-items: flex-end; /* Align content to the right */
+}
+
 /* Player Name Styling in Top Bar */
 h4.player-name-top-bar {
   color: #ffffff;
+  font-family: "Courier New", "Monaco", "Menlo", "Consolas", monospace !important;
   font-weight: bold;
   padding: 8px 15px; /* Padding around the name */
   border-radius: 4px;
   margin-bottom: 8px; /* Space between name and ban slots */
   width: 90%; /* Make name background take most of the player area width */
-  font-size: 1.1rem; /* Adjust as needed */
+  font-size: 1.4rem; /* Increased from 1.1rem to make names bigger */
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3) !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
 }
 
 /* Player 1 Theme (Blue) */
@@ -1696,6 +1726,16 @@ h4.player-name-top-bar {
     --p1-color,
     #007bff
   ); /* Using existing P1 color variable */
+  color: #ffffff !important; /* Force white text regardless of theme */
+  text-align: left !important; /* Left-align Player 1 name with !important */
+  margin-left: 15px; /* Add left margin for spacing from edge */
+}
+
+/* Force white color and left alignment for dynamically added spans inside top bar names */
+.top-bar-player-area.p1-theme h4.player-name-top-bar .p1-name-colored,
+.top-bar-player-area.p1-theme h4.player-name-top-bar span {
+  color: #ffffff !important; /* Override any colored classes */
+  text-align: left !important; /* Ensure spans are also left-aligned */
 }
 
 /* Player 2 Theme (Red) */
@@ -1704,11 +1744,59 @@ h4.player-name-top-bar {
     --p2-color,
     #a020f0
   ); /* Using existing P2 color variable */
+  color: #ffffff !important; /* Force white text regardless of theme */
+  text-align: right !important; /* Right-align Player 2 name with !important */
+  margin-right: 15px; /* Add right margin for spacing from edge */
+}
+
+/* Force white color and right alignment for dynamically added spans inside top bar names */
+.top-bar-player-area.p2-theme h4.player-name-top-bar .p2-name-colored,
+.top-bar-player-area.p2-theme h4.player-name-top-bar span {
+  color: #ffffff !important; /* Override any colored classes */
+  text-align: right !important; /* Ensure spans are also right-aligned */
 }
 
 /* Container for Horizontal Ban Slots (under player name) */
 .player-ban-slots-horizontal {
   width: 100%; /* Take full width of the .top-bar-player-area */
+}
+
+/* Player 1 ban slots - align to left */
+.top-bar-player-area.p1-theme .player-ban-slots-horizontal {
+  display: flex;
+  justify-content: flex-start; /* Align ban slots to the left */
+  margin-left: 15px; /* Match the player name margin */
+}
+
+/* Add "Bans:" label before P1 ban slots */
+.top-bar-player-area.p1-theme .player-ban-slots-horizontal::before {
+  content: "Bans:";
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #cfcdc4;
+  text-transform: uppercase;
+  margin-right: 8px;
+  letter-spacing: 0.5px;
+  align-self: center;
+}
+
+/* Player 2 ban slots - align to right */
+.top-bar-player-area.p2-theme .player-ban-slots-horizontal {
+  display: flex;
+  justify-content: flex-end; /* Align ban slots to the right */
+  margin-right: 15px; /* Match the player name margin */
+}
+
+/* Add "Bans:" label before P2 ban slots */
+.top-bar-player-area.p2-theme .player-ban-slots-horizontal::before {
+  content: "Bans:";
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #cfcdc4;
+  text-transform: uppercase;
+  margin-right: 8px;
+  letter-spacing: 0.5px;
+  align-self: center;
 }
 
 /* Individual Ban Slots in the Top Bar */
@@ -1775,5 +1863,69 @@ h5#draft-phase-status-top.draft-phase-top-bar {
 }
 
 .p2-theme {
-  background-color: var(--p2-color-light, rgba(160, 32, 240, 0.1));
+  background-color: var(--p2-color-light);
+}
+
+/* EQ Ban Slots - Add "EQ" label before the slot */
+.ban-slot-eq::before {
+  content: "EQ";
+  position: absolute;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #606060;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  z-index: 10;
+}
+
+/* Standard Ban Slots - Add "STD" label before the slot */
+.ban-slot-standard::before {
+  content: "STD";
+  position: absolute;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #606060;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  z-index: 10;
+}
+
+/* Add spacing between EQ and Standard ban slots */
+.ban-slot-standard {
+  margin-left: 12px; /* Add margin to all standard bans */
+}
+
+/* Remove margin from standard ban slots that immediately follow other standard ban slots */
+.ban-slot-standard + .ban-slot-standard {
+  margin-left: 0; /* Remove margin to keep standard bans grouped together */
+}
+
+/* Pick and Ban Placeholder Frames - Correct Player Assignment */
+
+/* P1 Pick Slots - Target specific P1 slots */
+#p1-pick-1,
+#p1-pick-2,
+#p1-pick-3 {
+  border: 2px solid var(--p1-color) !important;
+}
+
+/* P2 Pick Slots - Target specific P2 slots */
+#p2-pick-1,
+#p2-pick-2,
+#p2-pick-3 {
+  border: 2px solid var(--p2-color) !important;
+}
+
+/* P1 Ban Slots - All bans in P1's container */
+#top-bar-p1-bans .ban-slot {
+  border: 2px solid var(--p1-color) !important;
+}
+
+/* P2 Ban Slots - All bans in P2's container */
+#top-bar-p2-bans .ban-slot {
+  border: 2px solid var(--p2-color) !important;
 }
