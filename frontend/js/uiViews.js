@@ -1504,7 +1504,7 @@ export function populateBoxScoreScreen() {
 
   // Get ALL 5-star resonators
   const fiveStarResonators = ALL_RESONATORS_DATA.filter(
-    (resonator) => resonator.rarity === 5
+    (resonator) => resonator.rarity === 5 && resonator.name !== "Rover"
   );
 
   // Sort them so limited ones appear first, then by name
