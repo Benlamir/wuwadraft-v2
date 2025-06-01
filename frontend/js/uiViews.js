@@ -516,7 +516,10 @@ function updatePickSlots(draftState) {
       // Show numbered placeholder
       const orderNumber = sequence.picks.P1[index];
       if (orderNumber) {
-        slot.innerHTML = `<div class="draft-order-number">${orderNumber}</div>`;
+        const orderNumberClass = isActive
+          ? "draft-order-number active-pulse"
+          : "draft-order-number";
+        slot.innerHTML = `<div class="${orderNumberClass}">${orderNumber}</div>`;
       }
     }
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
@@ -569,7 +572,10 @@ function updatePickSlots(draftState) {
       // Show numbered placeholder
       const orderNumber = sequence.picks.P2[index];
       if (orderNumber) {
-        slot.innerHTML = `<div class="draft-order-number">${orderNumber}</div>`;
+        const orderNumberClass = isActive
+          ? "draft-order-number active-pulse"
+          : "draft-order-number";
+        slot.innerHTML = `<div class="${orderNumberClass}">${orderNumber}</div>`;
       }
     }
     updateSlotGlowState(slot, isActive, !!pickName, "pick");
@@ -827,7 +833,10 @@ function createBanSlotElement(banData, slotId) {
           : `<span>X</span>`;
     } else if (banData.orderNumber) {
       // Show numbered placeholder
-      slot.innerHTML = `<div class="draft-order-number ban-order-number">${banData.orderNumber}</div>`;
+      const orderNumberClass = banData.isActiveForPulse
+        ? "draft-order-number ban-order-number active-pulse"
+        : "draft-order-number ban-order-number";
+      slot.innerHTML = `<div class="${orderNumberClass}">${banData.orderNumber}</div>`;
     }
 
     // Apply visual state
