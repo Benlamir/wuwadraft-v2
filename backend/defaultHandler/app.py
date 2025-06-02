@@ -356,12 +356,19 @@ def handler(event, context):
             enable_equilibration = message_data.get('enableEquilibration', True)
             logger.info(f"Lobby {lobby_id} will have equilibration system enabled: {enable_equilibration}")
 
+            # Calculate TTL for lobby expiration (5 hours from creation)
+            LOBBY_LIFESPAN_HOURS = 5 
+            expiry_time = datetime.now(timezone.utc) + timedelta(hours=LOBBY_LIFESPAN_HOURS)
+            ttl_timestamp = int(expiry_time.timestamp())  # Convert to Unix epoch seconds
+            logger.info(f"Lobby {lobby_id} will expire at {expiry_time.isoformat()} (TTL: {ttl_timestamp})")
+
             new_lobby_item = {
                 'lobbyId': lobby_id,
                 'hostConnectionId': connection_id,
                 'hostName': player_name,
                 'lobbyState': 'WAITING',
                 'createdAt': timestamp,
+                'ttl': ttl_timestamp,  # Add TTL attribute for automatic DynamoDB expiration
                 'equilibrationEnabled': enable_equilibration,
                 
                 # Initialize all player-related fields

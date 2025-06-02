@@ -2,6 +2,8 @@ import json
 import boto3
 import os
 import logging
+import time  # Import time
+from datetime import datetime, timedelta, timezone  # Import datetime utilities
 
 # Set up logging
 logger = logging.getLogger()
@@ -25,16 +27,25 @@ def handler(event, context):
 
     logger.info(f"Connect event for connectionId: {connection_id}")
 
+    # Connection TTL configuration (5 hours)
+    CONNECTION_TTL_HOURS = 5
+
     try:
         logger.info(f"Attempting to save connectionId {connection_id} to table {TABLE_NAME}")
+        
+        # Calculate TTL for connection expiration (5 hours from connection)
+        expiry_time = datetime.now(timezone.utc) + timedelta(hours=CONNECTION_TTL_HOURS)
+        ttl_timestamp = int(expiry_time.timestamp())  # Convert to Unix epoch seconds
+        logger.info(f"Connection {connection_id} will expire at {expiry_time.isoformat()} (TTL: {ttl_timestamp})")
+        
         table.put_item(
             Item={
-                'connectionId': connection_id
-                # You could add other attributes here later, e.g.
-                # 'connectTime': datetime.utcnow().isoformat()
+                'connectionId': connection_id,
+                'ttl': ttl_timestamp,  # Add TTL attribute for automatic DynamoDB expiration
+                'connectTime': datetime.now(timezone.utc).isoformat()  # Optional: track connect time
             }
         )
-        logger.info(f"Successfully saved connectionId {connection_id}")
+        logger.info(f"Successfully saved connectionId {connection_id} with TTL")
         # Returning 200 tells API Gateway the connection succeeded
         return {'statusCode': 200, 'body': 'Connected.'}
     except Exception as e:
