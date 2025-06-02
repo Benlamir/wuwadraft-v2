@@ -195,13 +195,49 @@ def handler(event, context):
         disconnected_player_slot_prefix = None
 
         if connection_id == host_connection_id:
-            logger.info(f"Host ({lobby_item.get('hostName', player_name_for_logging)}) disconnected from lobby {lobby_id}. Deleting lobby.")
-            # (Your existing host disconnect logic: find remaining, delete lobby, notify remaining, clean their connections_table)
-            # This part was largely correct in your original file and should be preserved.
-            # For brevity, I'll assume it's correctly implemented as per your file.
-            # ...
-            # Ensure it ends with:
-            return {'statusCode': 200, 'body': 'Host disconnected, lobby deleted.'}
+            host_name = lobby_item.get('hostName', 'The Host')  # Get host name for message
+            logger.info(f"Host ({host_name}) disconnected from lobby {lobby_id}. Preparing to notify players and delete lobby.")
+
+            # 1. Identify remaining participants
+            remaining_participant_ids = []
+            if p1_connection_id and p1_connection_id != connection_id:  # Ensure P1 is not the host themselves
+                remaining_participant_ids.append(p1_connection_id)
+            if p2_connection_id and p2_connection_id != connection_id:  # Ensure P2 is not the host themselves
+                remaining_participant_ids.append(p2_connection_id)
+
+            # 2. Notify remaining participants
+            if apigw_management_client and remaining_participant_ids:
+                notification_payload = {
+                    "type": "forceRedirect",
+                    "reason": "host_disconnected",
+                    "message": f"{host_name} has disconnected. The lobby ({lobby_id}) is closing."
+                }
+                logger.info(f"Notifying remaining players ({remaining_participant_ids}) about host disconnect for lobby {lobby_id}.")
+                for pid in remaining_participant_ids:
+                    send_message_to_client(apigw_management_client, pid, notification_payload)
+            
+            # 3. Delete the lobby from DynamoDB
+            try:
+                lobbies_table.delete_item(Key={'lobbyId': lobby_id})
+                logger.info(f"Lobby {lobby_id} deleted due to host disconnect.")
+            except Exception as e_del_lobby:
+                logger.error(f"Failed to delete lobby {lobby_id} after host disconnect: {str(e_del_lobby)}", exc_info=True)
+                # Continue with connection cleanup even if lobby delete fails
+
+            # 4. Clean up connection table entries for remaining players (remove currentLobbyId)
+            # This ensures they don't think they are still in a deleted lobby
+            for pid in remaining_participant_ids:
+                try:
+                    connections_table.update_item(
+                        Key={'connectionId': pid},
+                        UpdateExpression="REMOVE currentLobbyId"
+                        # Optionally, add a ConditionExpression if currentLobbyId must match lobby_id
+                    )
+                    logger.info(f"Removed currentLobbyId from connection {pid} for deleted lobby {lobby_id}.")
+                except Exception as e_clean_conn:
+                    logger.error(f"Failed to clean currentLobbyId for connection {pid}: {str(e_clean_conn)}")
+            
+            return {'statusCode': 200, 'body': 'Host disconnected, lobby processed.'}
 
         elif connection_id == p1_connection_id:
             disconnected_player_slot_prefix = "player1"
@@ -240,6 +276,8 @@ def handler(event, context):
 
         # --- CONDITIONAL DRAFT RESET LOGIC ---
         EQUILIBRATION_PHASE_NAME = 'EQUILIBRATE_BANS' # Ensure this constant is available
+        PRE_DRAFT_READY_STATE = 'PRE_DRAFT_READY'  # Define the pre-draft ready state constant
+        
         if current_lobby_state == 'DRAFTING' or current_lobby_state == EQUILIBRATION_PHASE_NAME:
             logger.info(f"{player_name_for_logging} disconnected during active draft ('{current_lobby_state}') in lobby {lobby_id}. Resetting entire draft.")
             last_action_message = f"{player_name_for_logging} disconnected during {current_lobby_state}. Draft reset."
@@ -248,12 +286,6 @@ def handler(event, context):
             expression_attribute_names["#LState"] = "lobbyState"
             update_expressions.append("#LState = :waitState")
             expression_attribute_values[':waitState'] = 'WAITING'
-
-            # Only add these if not already covered by specific slot cleanup with the SAME placeholder
-            # To avoid issues, use distinct placeholders for the general reset vs specific slot reset if values could differ,
-            # or ensure the logic paths are mutually exclusive for setting these specific player attributes.
-            # Since specific slot cleanup already sets playerXReady and playerXScoreSubmitted to :falseVal,
-            # we only need to ensure the *other* player (if any) is also reset.
 
             # Reset for P1 if P2 disconnected, or if host reset affects P1
             if disconnected_player_slot_prefix != "player1": # Or always reset for safety if draft is resetting
@@ -283,6 +315,71 @@ def handler(event, context):
             if "player2Sequences" not in remove_expressions: remove_expressions.append("player2Sequences")
             if "player2WeightedBoxScore" not in remove_expressions: remove_expressions.append("player2WeightedBoxScore")
 
+        elif current_lobby_state == PRE_DRAFT_READY_STATE:
+            logger.info(f"{player_name_for_logging} disconnected during PRE_DRAFT_READY state in lobby {lobby_id}. Resetting to WAITING state.")
+            last_action_message = f"{player_name_for_logging} disconnected during preparation. Lobby reset to waiting state."
+            
+            # Reset lobby state to WAITING
+            expression_attribute_names["#LState"] = "lobbyState"
+            update_expressions.append("#LState = :waitState")
+            expression_attribute_values[':waitState'] = 'WAITING'
+
+            # Reset remaining player's ready status (the disconnected player's status is already being reset above)
+            if disconnected_player_slot_prefix != "player1":
+                expression_attribute_names["#P1RdyReset"] = "player1Ready"
+                update_expressions.append("#P1RdyReset = :falseVal")
+                expression_attribute_names["#P1SubReset"] = "player1ScoreSubmitted"
+                update_expressions.append("#P1SubReset = :falseVal")
+            
+            if disconnected_player_slot_prefix != "player2":
+                expression_attribute_names["#P2RdyReset"] = "player2Ready"
+                update_expressions.append("#P2RdyReset = :falseVal")
+                expression_attribute_names["#P2SubReset"] = "player2ScoreSubmitted"
+                update_expressions.append("#P2SubReset = :falseVal")
+            
+            # Remove pre-draft ready state specific data
+            remove_expressions.extend([
+                "effectiveDraftOrder", "playerRoles",
+                "equilibrationBansAllowed", "equilibrationBansMade", "currentEquilibrationBanner"
+            ])
+            # Also remove any existing score/sequence data that may have been calculated
+            if "player1Sequences" not in remove_expressions: remove_expressions.append("player1Sequences")
+            if "player1WeightedBoxScore" not in remove_expressions: remove_expressions.append("player1WeightedBoxScore")
+            if "player2Sequences" not in remove_expressions: remove_expressions.append("player2Sequences")
+            if "player2WeightedBoxScore" not in remove_expressions: remove_expressions.append("player2WeightedBoxScore")
+
+        elif current_lobby_state == 'WAITING':
+            logger.info(f"{player_name_for_logging} disconnected during WAITING state in lobby {lobby_id}. Resetting remaining player's ready status.")
+            last_action_message = f"{player_name_for_logging} disconnected. Remaining player's ready status reset."
+            
+            # Reset remaining player's ready status if they were ready
+            # (the disconnected player's status is already being reset in the slot cleanup above)
+            if disconnected_player_slot_prefix != "player1":
+                # Check if player1 was ready and reset if needed
+                player1_ready = lobby_item.get('player1Ready', False)
+                if player1_ready:
+                    expression_attribute_names["#P1RdyReset"] = "player1Ready"
+                    update_expressions.append("#P1RdyReset = :falseVal")
+                    logger.info(f"Resetting player1Ready status due to {player_name_for_logging} disconnect.")
+            
+            if disconnected_player_slot_prefix != "player2":
+                # Check if player2 was ready and reset if needed
+                player2_ready = lobby_item.get('player2Ready', False)
+                if player2_ready:
+                    expression_attribute_names["#P2RdyReset"] = "player2Ready"
+                    update_expressions.append("#P2RdyReset = :falseVal")
+                    logger.info(f"Resetting player2Ready status due to {player_name_for_logging} disconnect.")
+            
+            # Remove any partial score submission data that might exist
+            if lobby_item.get('player1Sequences') or lobby_item.get('player1WeightedBoxScore'):
+                if "player1Sequences" not in remove_expressions: remove_expressions.append("player1Sequences")
+                if "player1WeightedBoxScore" not in remove_expressions: remove_expressions.append("player1WeightedBoxScore")
+                logger.info(f"Removing player1 score data due to {player_name_for_logging} disconnect.")
+            
+            if lobby_item.get('player2Sequences') or lobby_item.get('player2WeightedBoxScore'):
+                if "player2Sequences" not in remove_expressions: remove_expressions.append("player2Sequences")
+                if "player2WeightedBoxScore" not in remove_expressions: remove_expressions.append("player2WeightedBoxScore")
+                logger.info(f"Removing player2 score data due to {player_name_for_logging} disconnect.")
 
         # Always add/update lastAction to the SET parts
         expression_attribute_names["#LAction"] = "lastAction"
