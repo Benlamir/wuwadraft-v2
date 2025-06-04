@@ -282,6 +282,30 @@ def handler(event, context):
             logger.info(f"{player_name_for_logging} disconnected during active draft ('{current_lobby_state}') in lobby {lobby_id}. Resetting entire draft.")
             last_action_message = f"{player_name_for_logging} disconnected during {current_lobby_state}. Draft reset."
             
+            # Notify remaining participants about the draft disconnect
+            if apigw_management_client:
+                # Get remaining participant connection IDs
+                remaining_participant_ids = []
+                if host_connection_id and host_connection_id != connection_id:
+                    remaining_participant_ids.append(host_connection_id)
+                if p1_connection_id and p1_connection_id != connection_id:
+                    remaining_participant_ids.append(p1_connection_id)
+                if p2_connection_id and p2_connection_id != connection_id:
+                    remaining_participant_ids.append(p2_connection_id)
+                
+                if remaining_participant_ids:
+                    notification_payload = {
+                        "type": "alert",
+                        "message": f"{player_name_for_logging} disconnected during {current_lobby_state.lower()}. The draft has been reset.",
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    }
+                    logger.info(f"Notifying remaining players ({remaining_participant_ids}) about draft disconnect for lobby {lobby_id}.")
+                    for pid in remaining_participant_ids:
+                        send_message_to_client(apigw_management_client, pid, notification_payload)
+            
+            # Check if equilibration is enabled to determine what to preserve
+            is_equilibration_enabled = lobby_item.get('equilibrationEnabled', False)
+            
             # SET operations for full reset (using unique placeholders for ExpressionAttributeNames)
             expression_attribute_names["#LState"] = "lobbyState"
             update_expressions.append("#LState = :waitState")
@@ -291,15 +315,19 @@ def handler(event, context):
             if disconnected_player_slot_prefix != "player1": # Or always reset for safety if draft is resetting
                 expression_attribute_names["#P1RdyReset"] = "player1Ready"
                 update_expressions.append("#P1RdyReset = :falseVal")
-                expression_attribute_names["#P1SubReset"] = "player1ScoreSubmitted"
-                update_expressions.append("#P1SubReset = :falseVal")
+                # Only reset score submission if equilibration is disabled
+                if not is_equilibration_enabled:
+                    expression_attribute_names["#P1SubReset"] = "player1ScoreSubmitted"
+                    update_expressions.append("#P1SubReset = :falseVal")
             
             # Reset for P2 if P1 disconnected, or if host reset affects P2
             if disconnected_player_slot_prefix != "player2": # Or always reset
                 expression_attribute_names["#P2RdyReset"] = "player2Ready"
                 update_expressions.append("#P2RdyReset = :falseVal")
-                expression_attribute_names["#P2SubReset"] = "player2ScoreSubmitted"
-                update_expressions.append("#P2SubReset = :falseVal")
+                # Only reset score submission if equilibration is disabled
+                if not is_equilibration_enabled:
+                    expression_attribute_names["#P2SubReset"] = "player2ScoreSubmitted"
+                    update_expressions.append("#P2SubReset = :falseVal")
             
             # REMOVE operations for full reset
             remove_expressions.extend([ 
@@ -308,16 +336,40 @@ def handler(event, context):
                 "effectiveDraftOrder", "playerRoles", 
                 "equilibrationBansAllowed", "equilibrationBansMade", "currentEquilibrationBanner"
             ])
-            # If we are doing a full draft reset, we also need to ensure sequence/score data
-            # for *both* players is removed, not just the disconnected one.
-            if "player1Sequences" not in remove_expressions: remove_expressions.append("player1Sequences")
-            if "player1WeightedBoxScore" not in remove_expressions: remove_expressions.append("player1WeightedBoxScore")
-            if "player2Sequences" not in remove_expressions: remove_expressions.append("player2Sequences")
-            if "player2WeightedBoxScore" not in remove_expressions: remove_expressions.append("player2WeightedBoxScore")
+            # Only remove score data if equilibration is disabled - preserve for box score submission
+            if not is_equilibration_enabled:
+                if "player1Sequences" not in remove_expressions: remove_expressions.append("player1Sequences")
+                if "player1WeightedBoxScore" not in remove_expressions: remove_expressions.append("player1WeightedBoxScore")
+                if "player2Sequences" not in remove_expressions: remove_expressions.append("player2Sequences")
+                if "player2WeightedBoxScore" not in remove_expressions: remove_expressions.append("player2WeightedBoxScore")
 
         elif current_lobby_state == PRE_DRAFT_READY_STATE:
             logger.info(f"{player_name_for_logging} disconnected during PRE_DRAFT_READY state in lobby {lobby_id}. Resetting to WAITING state.")
             last_action_message = f"{player_name_for_logging} disconnected during preparation. Lobby reset to waiting state."
+            
+            # Notify remaining participants about the pre-draft phase disconnect
+            if apigw_management_client:
+                # Get remaining participant connection IDs
+                remaining_participant_ids = []
+                if host_connection_id and host_connection_id != connection_id:
+                    remaining_participant_ids.append(host_connection_id)
+                if p1_connection_id and p1_connection_id != connection_id:
+                    remaining_participant_ids.append(p1_connection_id)
+                if p2_connection_id and p2_connection_id != connection_id:
+                    remaining_participant_ids.append(p2_connection_id)
+                
+                if remaining_participant_ids:
+                    notification_payload = {
+                        "type": "alert",
+                        "message": f"{player_name_for_logging} disconnected during pre-draft preparation. The lobby has been reset to waiting state.",
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    }
+                    logger.info(f"Notifying remaining players ({remaining_participant_ids}) about pre-draft disconnect for lobby {lobby_id}.")
+                    for pid in remaining_participant_ids:
+                        send_message_to_client(apigw_management_client, pid, notification_payload)
+            
+            # Check if equilibration is enabled to determine what to preserve
+            is_equilibration_enabled = lobby_item.get('equilibrationEnabled', False)
             
             # Reset lobby state to WAITING
             expression_attribute_names["#LState"] = "lobbyState"
@@ -328,32 +380,60 @@ def handler(event, context):
             if disconnected_player_slot_prefix != "player1":
                 expression_attribute_names["#P1RdyReset"] = "player1Ready"
                 update_expressions.append("#P1RdyReset = :falseVal")
-                expression_attribute_names["#P1SubReset"] = "player1ScoreSubmitted"
-                update_expressions.append("#P1SubReset = :falseVal")
+                # Only reset score submission if equilibration is disabled
+                if not is_equilibration_enabled:
+                    expression_attribute_names["#P1SubReset"] = "player1ScoreSubmitted"
+                    update_expressions.append("#P1SubReset = :falseVal")
             
             if disconnected_player_slot_prefix != "player2":
                 expression_attribute_names["#P2RdyReset"] = "player2Ready"
                 update_expressions.append("#P2RdyReset = :falseVal")
-                expression_attribute_names["#P2SubReset"] = "player2ScoreSubmitted"
-                update_expressions.append("#P2SubReset = :falseVal")
+                # Only reset score submission if equilibration is disabled
+                if not is_equilibration_enabled:
+                    expression_attribute_names["#P2SubReset"] = "player2ScoreSubmitted"
+                    update_expressions.append("#P2SubReset = :falseVal")
             
             # Remove pre-draft ready state specific data
             remove_expressions.extend([
                 "effectiveDraftOrder", "playerRoles",
                 "equilibrationBansAllowed", "equilibrationBansMade", "currentEquilibrationBanner"
             ])
-            # Also remove any existing score/sequence data that may have been calculated
-            if "player1Sequences" not in remove_expressions: remove_expressions.append("player1Sequences")
-            if "player1WeightedBoxScore" not in remove_expressions: remove_expressions.append("player1WeightedBoxScore")
-            if "player2Sequences" not in remove_expressions: remove_expressions.append("player2Sequences")
-            if "player2WeightedBoxScore" not in remove_expressions: remove_expressions.append("player2WeightedBoxScore")
+            # Only remove score data if equilibration is disabled - preserve for box score submission
+            if not is_equilibration_enabled:
+                if "player1Sequences" not in remove_expressions: remove_expressions.append("player1Sequences")
+                if "player1WeightedBoxScore" not in remove_expressions: remove_expressions.append("player1WeightedBoxScore")
+                if "player2Sequences" not in remove_expressions: remove_expressions.append("player2Sequences")
+                if "player2WeightedBoxScore" not in remove_expressions: remove_expressions.append("player2WeightedBoxScore")
 
         elif current_lobby_state == 'WAITING':
             logger.info(f"{player_name_for_logging} disconnected during WAITING state in lobby {lobby_id}. Resetting remaining player's ready status.")
             last_action_message = f"{player_name_for_logging} disconnected. Remaining player's ready status reset."
             
+            # Notify remaining participants about the waiting state disconnect
+            if apigw_management_client:
+                # Get remaining participant connection IDs
+                remaining_participant_ids = []
+                if host_connection_id and host_connection_id != connection_id:
+                    remaining_participant_ids.append(host_connection_id)
+                if p1_connection_id and p1_connection_id != connection_id:
+                    remaining_participant_ids.append(p1_connection_id)
+                if p2_connection_id and p2_connection_id != connection_id:
+                    remaining_participant_ids.append(p2_connection_id)
+                
+                if remaining_participant_ids:
+                    notification_payload = {
+                        "type": "alert",
+                        "message": f"{player_name_for_logging} has left the lobby. Ready status has been reset.",
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    }
+                    logger.info(f"Notifying remaining players ({remaining_participant_ids}) about waiting state disconnect for lobby {lobby_id}.")
+                    for pid in remaining_participant_ids:
+                        send_message_to_client(apigw_management_client, pid, notification_payload)
+            
+            # Check if equilibration is enabled to determine what to preserve
+            is_equilibration_enabled = lobby_item.get('equilibrationEnabled', False)
+            
             # Reset remaining player's ready status if they were ready
-            # (the disconnected player's status is already being reset in the slot cleanup above)
             if disconnected_player_slot_prefix != "player1":
                 # Check if player1 was ready and reset if needed
                 player1_ready = lobby_item.get('player1Ready', False)
@@ -370,16 +450,18 @@ def handler(event, context):
                     update_expressions.append("#P2RdyReset = :falseVal")
                     logger.info(f"Resetting player2Ready status due to {player_name_for_logging} disconnect.")
             
-            # Remove any partial score submission data that might exist
-            if lobby_item.get('player1Sequences') or lobby_item.get('player1WeightedBoxScore'):
-                if "player1Sequences" not in remove_expressions: remove_expressions.append("player1Sequences")
-                if "player1WeightedBoxScore" not in remove_expressions: remove_expressions.append("player1WeightedBoxScore")
-                logger.info(f"Removing player1 score data due to {player_name_for_logging} disconnect.")
-            
-            if lobby_item.get('player2Sequences') or lobby_item.get('player2WeightedBoxScore'):
-                if "player2Sequences" not in remove_expressions: remove_expressions.append("player2Sequences")
-                if "player2WeightedBoxScore" not in remove_expressions: remove_expressions.append("player2WeightedBoxScore")
-                logger.info(f"Removing player2 score data due to {player_name_for_logging} disconnect.")
+            # Only remove score data if equilibration is disabled - preserve for box score submission
+            if not is_equilibration_enabled:
+                # Remove any partial score submission data that might exist
+                if lobby_item.get('player1Sequences') or lobby_item.get('player1WeightedBoxScore'):
+                    if "player1Sequences" not in remove_expressions: remove_expressions.append("player1Sequences")
+                    if "player1WeightedBoxScore" not in remove_expressions: remove_expressions.append("player1WeightedBoxScore")
+                    logger.info(f"Removing player1 score data due to {player_name_for_logging} disconnect.")
+                
+                if lobby_item.get('player2Sequences') or lobby_item.get('player2WeightedBoxScore'):
+                    if "player2Sequences" not in remove_expressions: remove_expressions.append("player2Sequences")
+                    if "player2WeightedBoxScore" not in remove_expressions: remove_expressions.append("player2WeightedBoxScore")
+                    logger.info(f"Removing player2 score data due to {player_name_for_logging} disconnect.")
 
         # Always add/update lastAction to the SET parts
         expression_attribute_names["#LAction"] = "lastAction"
