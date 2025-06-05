@@ -2022,6 +2022,45 @@ def handler(event, context):
                     ])
                     expression_values[':waitState'] = 'WAITING'
                     expression_values[':lastAct'] = last_action_msg
+                elif current_lobby_state == 'PRE_DRAFT_READY':
+                    logger.info(f"Player {leaving_player_slot} leaving during PRE_DRAFT_READY. Resetting lobby {lobby_id} to WAITING.")
+                    last_action_msg = f"{leaving_player_name} left during pre-draft preparation. Lobby reset to waiting state."
+                    
+                    # Reset lobby state to WAITING and update last action
+                    update_expressions.extend([
+                        "lobbyState = :waitState",
+                        "lastAction = :lastAct"
+                    ])
+                    
+                    # Reset ready status for remaining players (only if they exist)
+                    player1_ready = lobby_item.get('player1Ready', False)
+                    player2_ready = lobby_item.get('player2Ready', False)
+                    
+                    if leaving_player_slot != 'P1' and player1_ready:
+                        update_expressions.append("player1Ready = :falseVal")
+                        logger.info(f"Resetting player1Ready due to {leaving_player_name} leaving PRE_DRAFT_READY.")
+                    
+                    if leaving_player_slot != 'P2' and player2_ready:
+                        update_expressions.append("player2Ready = :falseVal")
+                        logger.info(f"Resetting player2Ready due to {leaving_player_name} leaving PRE_DRAFT_READY.")
+                    
+                    # Remove pre-draft ready state specific data
+                    remove_expressions.extend([
+                        "effectiveDraftOrder", "playerRoles",
+                        "equilibrationBansAllowed", "equilibrationBansMade", "currentEquilibrationBanner"
+                    ])
+                    
+                    # Check if equilibration is enabled to determine what score data to preserve
+                    is_equilibration_enabled = lobby_item.get('equilibrationEnabled', False)
+                    if not is_equilibration_enabled:
+                        # Only remove score data if equilibration is disabled
+                        if lobby_item.get('player1Sequences') or lobby_item.get('player1WeightedBoxScore'):
+                            remove_expressions.extend(["player1Sequences", "player1WeightedBoxScore"])
+                        if lobby_item.get('player2Sequences') or lobby_item.get('player2WeightedBoxScore'):
+                            remove_expressions.extend(["player2Sequences", "player2WeightedBoxScore"])
+                    
+                    expression_values[':waitState'] = 'WAITING'
+                    expression_values[':lastAct'] = last_action_msg
                 elif current_lobby_state == 'WAITING':
                      logger.info(f"Player {leaving_player_slot} leaving in WAITING state.")
                      last_action_msg = f"{leaving_player_name} left the lobby."
