@@ -2013,6 +2013,32 @@ def handler(event, context):
                         "lobbyState = :waitState",
                         "lastAction = :lastAct"
                     ])
+                    
+                    # Reset ready status for remaining players (only if they exist)
+                    player1_ready = lobby_item.get('player1Ready', False)
+                    player2_ready = lobby_item.get('player2Ready', False)
+                    
+                    if leaving_player_slot != 'P1' and player1_ready:
+                        update_expressions.append("player1Ready = :falseVal")
+                        logger.info(f"Resetting player1Ready due to {leaving_player_name} leaving DRAFTING.")
+                    
+                    if leaving_player_slot != 'P2' and player2_ready:
+                        update_expressions.append("player2Ready = :falseVal")
+                        logger.info(f"Resetting player2Ready due to {leaving_player_name} leaving DRAFTING.")
+                    
+                    # Also remove the leaving player's ready status from the ready expressions 
+                    # since we want it completely removed, not set to false
+                    if leaving_player_slot == 'P1':
+                        remove_expressions.append('#p1r')  # Remove player1Ready
+                        remove_expressions.append('#p1ss') # Remove player1ScoreSubmitted
+                        # Remove the SET expressions for the leaving player
+                        update_expressions = [expr for expr in update_expressions if not expr.startswith('#p1r') and not expr.startswith('#p1ss')]
+                    elif leaving_player_slot == 'P2':
+                        remove_expressions.append('#p2r')  # Remove player2Ready
+                        remove_expressions.append('#p2ss') # Remove player2ScoreSubmitted
+                        # Remove the SET expressions for the leaving player
+                        update_expressions = [expr for expr in update_expressions if not expr.startswith('#p2r') and not expr.startswith('#p2ss')]
+                    
                     remove_expressions.extend([ # Remove all draft-specific fields
                         "currentPhase", "currentTurn", "currentStepIndex",
                         "turnExpiresAt", "bans", "player1Picks",
