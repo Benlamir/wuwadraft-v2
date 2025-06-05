@@ -116,9 +116,9 @@ ALL_RESONATOR_NAMES = sorted([
 # --- Equilibration System Constants ---
 # Weighted points for sequences S0-S6
 SEQUENCE_POINTS = {
-    0: 2,  # S0
-    1: 4,  # S1
-    2: 8,  # S2
+    0: 3,  # S0
+    1: 5,  # S1
+    2: 9,  # S2
     3: 10, # S3
     4: 11, # S4
     5: 12, # S5
