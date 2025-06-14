@@ -391,6 +391,18 @@ const ALL_RESONATORS_DATA = [
     element: ["Aero"],
     weapon: "Pistols",
   },
+  {
+    id: "resonator_id_33",
+    name: "Cartethyia",
+    image_button:
+      "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_cartethyia.webp",
+    image_pick:
+      "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/cartethyia.webp",
+    rarity: 5,
+    isLimited: true,
+    element: ["Aero"],
+    weapon: "Sword",
+  },
 ];
 
 export { ALL_RESONATORS_DATA };

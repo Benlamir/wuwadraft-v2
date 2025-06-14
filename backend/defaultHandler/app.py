@@ -110,7 +110,8 @@ ALL_RESONATOR_NAMES = sorted([
     'Cantarella',
     'Phoebe',
     'Zani',
-    'Ciaconna'
+    'Ciaconna',
+    'Cartethyia'
 ])
 
 # --- Equilibration System Constants ---
