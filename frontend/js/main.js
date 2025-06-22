@@ -14,11 +14,14 @@ import {
 import * as state from "./state.js"; // Import all state functions/vars
 import * as uiViews from "./uiViews.js"; // Or specific functions like applyCharacterFilter if using named exports
 import { LOCAL_STORAGE_SEQUENCES_KEY } from "./config.js";
+import { initializeResonatorData } from "./resonatorData.js";
 
 console.log("Main script loading...");
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   console.log("DOM fully loaded and parsed");
+
+  await initializeResonatorData();
 
   // Initialize references to DOM elements
   initializeElements();
