@@ -1,0 +1,152 @@
+[
+    {
+      "id": "resonator_id_1",
+      "name": "Jiyan",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_jiyan.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/jiyan.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Aero"],
+      "weapon": "Broadblade"
+    },
+    {
+      "id": "resonator_id_2",
+      "name": "Lingyang",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_ling.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/lingyang.webp",
+      "rarity": 5,
+      "isLimited": false,
+      "element": ["Glacio"],
+      "weapon": "Gauntlets"
+    },
+    {
+      "id": "resonator_id_18",
+      "name": "Jinhsi",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_jihni.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/jinhsi.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Spectro"],
+      "weapon": "Broadblade"
+    },
+    {
+      "id": "resonator_id_19",
+      "name": "Changli",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_changli.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/changli.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Fusion"],
+      "weapon": "Sword"
+    },
+    {
+      "id": "resonator_id_20",
+      "name": "Zhezhi",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_zhe.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/zhezhi.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Glacio"],
+      "weapon": "Rectifier"
+    },
+    {
+      "id": "resonator_id_21",
+      "name": "Xiangli Yao",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_xiang.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/xiangli-yao.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Electro"],
+      "weapon": "Gauntlets"
+    },
+    {
+      "id": "resonator_id_22",
+      "name": "The Shorekeeper",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_keeper.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/shorekeeper.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Spectro"],
+      "weapon": "Rectifier"
+    },
+    {
+      "id": "resonator_id_24",
+      "name": "Camellya",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_cam.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/camellya.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Havoc"],
+      "weapon": "Sword"
+    },
+    {
+      "id": "resonator_id_26",
+      "name": "Carlotta",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_carlotta.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/carlotta.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Glacio"],
+      "weapon": "Pistols"
+    },
+    {
+      "id": "resonator_id_27",
+      "name": "Roccia",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_roccia.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/roccia.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Havoc"],
+      "weapon": "Broadblade"
+    },
+    {
+      "id": "resonator_id_28",
+      "name": "Brant",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_brant.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/brant.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Fusion"],
+      "weapon": "Sword"
+    },
+    {
+      "id": "resonator_id_29",
+      "name": "Cantarella",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_canta.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/cantarella.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Havoc"],
+      "weapon": "Rectifier"
+    },
+    {
+      "id": "resonator_id_30",
+      "name": "Phoebe",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_phoebe.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/phoebe.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Spectro"],
+      "weapon": "Rectifier"
+    },
+    {
+      "id": "resonator_id_31",
+      "name": "Zani",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_zani.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/zani.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Spectro"],
+      "weapon": "Broadblade"
+    },
+    {
+      "id": "resonator_id_32",
+      "name": "Ciaconna",
+      "image_button": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/resonators-buttons/button_ciaconna.webp",
+      "image_pick": "https://pick-ban-test-2023-10-27.s3.us-east-1.amazonaws.com/images/portraits/ciaconna.webp",
+      "rarity": 5,
+      "isLimited": true,
+      "element": ["Electro"],
+      "weapon": "Sword"
+    }
+  ]
