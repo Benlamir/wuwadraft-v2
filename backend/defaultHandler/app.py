@@ -77,42 +77,48 @@ def determine_next_state(current_step_index, effective_draft_order_list_of_dicts
         return DRAFT_COMPLETE_PHASE, None, -1 # Indicate completion with index -1 (or None)
 # --- END HELPER FUNCTION ---
 
-# List of all draftable resonators
-ALL_RESONATOR_NAMES = sorted([
-    'Jiyan',
-    'Lingyang',
-    'Rover',
-    'Yangyang',
-    'Chixia',
-    'Baizhi',
-    'Sanhua',
-    'Yuanwu',
-    'Aalto',
-    'Danjin',
-    'Mortefi',
-    'Taoqi',
-    'Calcharo',
-    'Encore',
-    'Jianxin',
-    'Verina',
-    'Yinlin',
-    'Jinhsi',
-    'Changli',
-    'Zhezhi',
-    'Xiangli Yao',
-    'The Shorekeeper',
-    'Youhu',
-    'Camellya',
-    'Lumi',
-    'Carlotta',
-    'Roccia',
-    'Brant',
-    'Cantarella',
-    'Phoebe',
-    'Zani',
-    'Ciaconna',
-    'Cartethyia'
+# ==================== NEW/MODIFIED SECTION START ====================
+
+# --- S3 Configuration for Resonator Data ---
+S3_BUCKET_NAME = os.environ.get('S3_ASSET_BUCKET_NAME', 'wuwadraft') # Create this environment variable in Lambda
+RESONATORS_JSON_KEY = os.environ.get('S3_RESONATORS_KEY', 'data/resonators_master_data.json') # Create this env var
+
+# --- Fallback Resonator List ---
+# This list will be used if fetching from S3 fails for any reason.
+FALLBACK_RESONATOR_NAMES = sorted([
+    'Jiyan', 'Lingyang', 'Rover', 'Yangyang', 'Chixia', 'Baizhi', 'Sanhua',
+    'Yuanwu', 'Aalto', 'Danjin', 'Mortefi', 'Taoqi', 'Calcharo', 'Encore',
+    'Jianxin', 'Verina', 'Yinlin', 'Jinhsi', 'Changli', 'Zhezhi', 
+    'Xiangli Yao', 'The Shorekeeper', 'Youhu', 'Camellya', 'Lumi', 'Carlotta', 
+    'Roccia', 'Brant', 'Cantarella', 'Phoebe', 'Zani', 'Ciaconna', 'Cartethyia'
 ])
+
+ALL_RESONATOR_NAMES = [] # Initialize as empty
+
+# --- Logic to load resonator data from S3 at Lambda cold start ---
+def load_resonator_data_from_s3():
+    """Fetches resonator data from S3 and populates the global name list."""
+    global ALL_RESONATOR_NAMES
+    try:
+        logger.info(f"Attempting to load resonator data from s3://{S3_BUCKET_NAME}/{RESONATORS_JSON_KEY}")
+        s3 = boto3.client('s3')
+        s3_object = s3.get_object(Bucket=S3_BUCKET_NAME, Key=RESONATORS_JSON_KEY)
+        resonator_data_json = s3_object['Body'].read().decode('utf-8')
+        resonators_list_of_dicts = json.loads(resonator_data_json)
+        
+        # Extract just the names from the list of resonator objects
+        names = [resonator['name'] for resonator in resonators_list_of_dicts if 'name' in resonator]
+        ALL_RESONATOR_NAMES = sorted(names)
+        
+        logger.info(f"Successfully loaded {len(ALL_RESONATOR_NAMES)} resonator names from S3.")
+    except Exception as e:
+        logger.error(f"S3_LOAD_ERROR: Could not load resonator data from s3://{S3_BUCKET_NAME}/{RESONATORS_JSON_KEY}. Error: {e}. Using fallback list.")
+        ALL_RESONATOR_NAMES = list(FALLBACK_RESONATOR_NAMES)
+
+# Call the function once when the Lambda container initializes
+load_resonator_data_from_s3()
+
+# ===================== NEW/MODIFIED SECTION END =====================
 
 # --- Equilibration System Constants ---
 # Weighted points for sequences S0-S6
