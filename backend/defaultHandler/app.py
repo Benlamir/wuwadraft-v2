@@ -80,43 +80,34 @@ def determine_next_state(current_step_index, effective_draft_order_list_of_dicts
 # ==================== NEW/MODIFIED SECTION START ====================
 
 # --- S3 Configuration for Resonator Data ---
-S3_BUCKET_NAME = os.environ.get('S3_ASSET_BUCKET_NAME', 'wuwadraft') # Create this environment variable in Lambda
-RESONATORS_JSON_KEY = os.environ.get('S3_RESONATORS_KEY', 'data/resonators_master_data.json') # Create this env var
+S3_BUCKET_NAME = os.environ.get('S3_ASSET_BUCKET_NAME', 'wuwadraft')
+RESONATORS_JSON_KEY = os.environ.get('S3_RESONATORS_KEY', 'data/resonators_master_data.json')
 
 # --- Fallback Resonator List ---
-# This list will be used if fetching from S3 fails for any reason.
 FALLBACK_RESONATOR_NAMES = sorted([
-    'Jiyan', 'Lingyang', 'Rover', 'Yangyang', 'Chixia', 'Baizhi', 'Sanhua',
-    'Yuanwu', 'Aalto', 'Danjin', 'Mortefi', 'Taoqi', 'Calcharo', 'Encore',
-    'Jianxin', 'Verina', 'Yinlin', 'Jinhsi', 'Changli', 'Zhezhi', 
-    'Xiangli Yao', 'The Shorekeeper', 'Youhu', 'Camellya', 'Lumi', 'Carlotta', 
-    'Roccia', 'Brant', 'Cantarella', 'Phoebe', 'Zani', 'Ciaconna', 'Cartethyia'
+    'Jiyan', 'Yinlin', 'Changli', 'Jinhsi', 'Zhezhi', 'Xiangli Yao', 'The Shorekeeper', 
+    'Camellya', 'Carlotta', 'Roccia', 'Brant', 'Cantarella', 'Phoebe', 'Zani', 
+    'Ciaconna', 'Lingyang', 'Calcharo', 'Encore', 'Jianxin', 'Verina', 'Rover', 
+    'Yangyang', 'Chixia', 'Baizhi', 'Sanhua', 'Yuanwu', 'Aalto', 'Danjin', 
+    'Mortefi', 'Taoqi', 'Youhu', 'Lumi'
 ])
 
-ALL_RESONATOR_NAMES = [] # Initialize as empty
-
-# --- Logic to load resonator data from S3 at Lambda cold start ---
-def load_resonator_data_from_s3():
-    """Fetches resonator data from S3 and populates the global name list."""
-    global ALL_RESONATOR_NAMES
+# --- MOVED/MODIFIED S3 Loading Logic ---
+def get_all_resonator_names_from_s3():
+    """Fetches resonator data from S3 and RETURNS the list of names."""
     try:
-        logger.info(f"Attempting to load resonator data from s3://{S3_BUCKET_NAME}/{RESONATORS_JSON_KEY}")
+        logger.info(f"S3_FETCH: Attempting to load resonator data from s3://{S3_BUCKET_NAME}/{RESONATORS_JSON_KEY}")
         s3 = boto3.client('s3')
         s3_object = s3.get_object(Bucket=S3_BUCKET_NAME, Key=RESONATORS_JSON_KEY)
         resonator_data_json = s3_object['Body'].read().decode('utf-8')
         resonators_list_of_dicts = json.loads(resonator_data_json)
         
-        # Extract just the names from the list of resonator objects
         names = [resonator['name'] for resonator in resonators_list_of_dicts if 'name' in resonator]
-        ALL_RESONATOR_NAMES = sorted(names)
-        
-        logger.info(f"Successfully loaded {len(ALL_RESONATOR_NAMES)} resonator names from S3.")
+        logger.info(f"S3_FETCH: Successfully loaded {len(names)} resonator names from S3.")
+        return sorted(names)
     except Exception as e:
-        logger.error(f"S3_LOAD_ERROR: Could not load resonator data from s3://{S3_BUCKET_NAME}/{RESONATORS_JSON_KEY}. Error: {e}. Using fallback list.")
-        ALL_RESONATOR_NAMES = list(FALLBACK_RESONATOR_NAMES)
-
-# Call the function once when the Lambda container initializes
-load_resonator_data_from_s3()
+        logger.error(f"S3_FETCH_ERROR: Could not load resonator data from S3. Using fallback list. Error: {e}", exc_info=True)
+        return list(FALLBACK_RESONATOR_NAMES)
 
 # ===================== NEW/MODIFIED SECTION END =====================
 
@@ -356,6 +347,10 @@ def handler(event, context):
             player_name = message_data.get('name', 'UnknownHost')
             logger.info(f"Processing 'createLobby' action for {connection_id} ({player_name})")
 
+            # --- CALL THE S3 FETCH FUNCTION HERE ---
+            all_resonators_for_new_lobby = get_all_resonator_names_from_s3()
+            # --- END OF CALL ---
+
             lobby_id = str(uuid.uuid4())[:8].upper()
             timestamp = datetime.now(timezone.utc).isoformat()
             
@@ -401,7 +396,7 @@ def handler(event, context):
                 'bans': [],
                 'player1Picks': [],
                 'player2Picks': [],
-                'availableResonators': list(ALL_RESONATOR_NAMES),
+                'availableResonators': all_resonators_for_new_lobby,
                 
                 # Equilibration-specific fields
                 'effectiveDraftOrder': None,
@@ -816,7 +811,7 @@ def handler(event, context):
                         'turnExpiresAt': None,
 
                         # Initialize/reset draft lists
-                        'availableResonators': list(ALL_RESONATOR_NAMES),
+                        'availableResonators': get_all_resonator_names_from_s3(),
                         'bans': [],
                         'player1Picks': [],
                         'player2Picks': [],
@@ -888,7 +883,7 @@ def handler(event, context):
                         'currentTurn': None,
                         'currentStepIndex': None,
                         'turnExpiresAt': None,
-                        'availableResonators': list(ALL_RESONATOR_NAMES),
+                        'availableResonators': get_all_resonator_names_from_s3(),
                         'bans': [],
                         'player1Picks': [],
                         'player2Picks': [],
