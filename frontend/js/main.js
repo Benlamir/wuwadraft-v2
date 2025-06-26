@@ -52,6 +52,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Helper function to reset the Start Lobby button state
+  function resetStartLobbyButton() {
+    if (elements.createStartBtn && elements.createStartBtn.disabled) {
+      elements.createStartBtn.disabled = false;
+      elements.createStartBtn.innerHTML = "Start Lobby";
+    }
+  }
+
   // Create Lobby Screen Action
   if (
     elements.createStartBtn &&
@@ -66,6 +74,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         alert("Please enter your name.");
         return;
       }
+
+      // Show loading indicator immediately
+      const originalText = elements.createStartBtn.innerHTML;
+      elements.createStartBtn.disabled = true;
+      elements.createStartBtn.innerHTML =
+        '<i class="bi bi-hourglass-split"></i> Creating Lobby...';
+
       state.setUserName(name); // Store user name in state module
 
       console.log("Frontend: Attempting to create lobby with settings:", {
@@ -79,6 +94,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         name: name,
         enableEquilibration: enableEquilibration,
       });
+
+      // Reset button state after a timeout in case something goes wrong
+      setTimeout(() => {
+        if (elements.createStartBtn.disabled) {
+          elements.createStartBtn.disabled = false;
+          elements.createStartBtn.innerHTML = originalText;
+        }
+      }, 10000); // 10 second timeout
+
       // UI transition will be handled by the onmessage handler now
     });
   }
@@ -129,10 +153,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           });
           // Only clear draft state and keep connection alive
           state.clearLobbyState();
+          resetStartLobbyButton(); // Reset the Start Lobby button
           showScreen("welcome-screen");
         }
       } else {
         console.warn("Cannot leave lobby, currentLobbyId is null.");
+        resetStartLobbyButton(); // Reset the Start Lobby button
         showScreen("welcome-screen");
       }
     });
@@ -589,6 +615,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           lobbyId: state.currentLobbyId,
         });
         state.clearLobbyState();
+        resetStartLobbyButton(); // Reset the Start Lobby button
         showScreen("welcome-screen");
       }
     } else {
@@ -598,6 +625,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         lobbyId: state.currentLobbyId,
       });
       state.clearLobbyState();
+      resetStartLobbyButton(); // Reset the Start Lobby button
       showScreen("welcome-screen");
     }
   });
@@ -610,6 +638,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         lobbyId: state.currentLobbyId,
       });
       state.clearLobbyState();
+      resetStartLobbyButton(); // Reset the Start Lobby button
       showScreen("welcome-screen");
     }
   });

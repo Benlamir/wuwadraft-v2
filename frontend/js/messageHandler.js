@@ -110,6 +110,12 @@ export function handleWebSocketMessage(jsonData) {
           JSON.stringify(message)
         );
 
+        // Reset Start Lobby button if it's in loading state
+        if (elements.createStartBtn && elements.createStartBtn.disabled) {
+          elements.createStartBtn.disabled = false;
+          elements.createStartBtn.innerHTML = "Start Lobby";
+        }
+
         // Add DRAFT_COMPLETE logging
         if (message.currentPhase === "DRAFT_COMPLETE") {
           console.log(
@@ -269,6 +275,12 @@ export function handleWebSocketMessage(jsonData) {
         state.clearLobbyState();
         //console.log("MH_TRACE: Client state reset via clearLobbyState().");
 
+        // Reset Start Lobby button if it's in loading state
+        if (elements.createStartBtn && elements.createStartBtn.disabled) {
+          elements.createStartBtn.disabled = false;
+          elements.createStartBtn.innerHTML = "Start Lobby";
+        }
+
         // Navigate back to the welcome screen
         // Ensure uiViews is imported correctly
         showScreen("welcome-screen");
@@ -286,6 +298,13 @@ export function handleWebSocketMessage(jsonData) {
       case "error":
         //console.log("MH_TRACE: Case error");
         console.error("MessageHandler: Server error:", message.message);
+
+        // Reset Start Lobby button if it's in loading state
+        if (elements.createStartBtn && elements.createStartBtn.disabled) {
+          elements.createStartBtn.disabled = false;
+          elements.createStartBtn.innerHTML = "Start Lobby";
+        }
+
         alert(`Server Error: ${message.message}`); // Show error to user
         break;
 
