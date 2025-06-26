@@ -157,8 +157,8 @@ export function initializeElements() {
 
   // Draft Screen Elements
   elements.draftBackBtn = document.getElementById("draft-back-btn"); // Player's back button on draft screen
-  elements.draftPhaseStatus = document.getElementById("draft-phase-status");
-  elements.draftTimer = document.getElementById("draft-timer");
+  elements.draftTimerTop = document.getElementById("draft-timer-top");
+  elements.draftPhaseStatusTop = document.getElementById("draft-phase-status-top");
   elements.characterGridContainer = document.getElementById(
     "character-grid-container"
   );
@@ -265,10 +265,10 @@ export function initializeElements() {
     console.error("[Init Check] draftPlayerControls element not found!");
   if (!elements.draftBackBtn)
     console.error("[Init Check] draftBackBtn element not found!");
-  if (!elements.draftTimer)
+  if (!elements.draftTimerTop)
     console.error("[Init Check] draftTimer element not found!");
   if (!elements.characterGridContainer)
     console.error("[Init Check] characterGridContainer element not found!");
-  if (!elements.draftPhaseStatus)
+  if (!elements.draftPhaseStatusTop)
     console.error("[Init Check] draftPhaseStatus element not found!");
 }

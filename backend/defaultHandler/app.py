@@ -1775,6 +1775,69 @@ def handler(event, context):
 
             logger.info(f"Timeout validated for lobby {lobby_id}. Player {current_turn_db} timed out during phase {current_phase_db} at step {current_step_index}.")
 
+            # --- NEW LOGIC BLOCK FOR EQUILIBRATION BAN TIMEOUT ---
+            if current_phase_db == EQUILIBRATION_PHASE_NAME:
+                logger.info(f"Timeout occurred during EQUILIBRATION_PHASE_NAME for lobby {lobby_id}. Skipping bans and starting standard draft.")
+
+                # Get effective draft order and player roles
+                effective_draft_order = lobby_item.get('effectiveDraftOrder')
+                player_roles = lobby_item.get('playerRoles', {})
+                if not effective_draft_order or not player_roles:
+                    logger.error(f"Missing draft configuration for lobby {lobby_id} during EQ ban timeout.")
+                    # Handle error appropriately, maybe reset the lobby
+                    return {'statusCode': 500, 'body': 'Draft configuration missing.'}
+
+                # Get the first step of the standard draft
+                first_step = effective_draft_order[0]
+                first_phase = first_step['phase']
+                first_turn_role = first_step['turnPlayerDesignation']
+
+                # Resolve the actual player for the first turn
+                actual_first_turn = resolve_turn_from_role(first_turn_role, player_roles)
+                if not actual_first_turn:
+                    logger.error(f"Failed to resolve first turn for lobby {lobby_id} after EQ ban timeout.")
+                    return {'statusCode': 500, 'body': 'Failed to determine first turn.'}
+
+                # Set the standard turn timer for the next phase
+                turn_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
+                turn_expires_at_iso = turn_expires_at_dt.isoformat()
+                last_action_msg = f"{current_turn_db} timed out on Equilibration Bans. Skipping to start the draft."
+
+                # Update the lobby state in DynamoDB
+                try:
+                    lobbies_table.update_item(
+                        Key={'lobbyId': lobby_id},
+                        UpdateExpression="""
+                            SET currentPhase = :next_phase,
+                                currentTurn = :next_turn,
+                                currentStepIndex = :next_index,
+                                turnExpiresAt = :expires,
+                                lastAction = :last_action
+                        """,
+                        # Condition to ensure the state hasn't changed since we read it
+                        ConditionExpression="currentPhase = :expected_phase AND currentTurn = :expected_turn",
+                        ExpressionAttributeValues={
+                            ':next_phase': first_phase,
+                            ':next_turn': actual_first_turn,
+                            ':next_index': 0, # Start standard draft from index 0
+                            ':expires': turn_expires_at_iso,
+                            ':last_action': last_action_msg,
+                            ':expected_phase': EQUILIBRATION_PHASE_NAME,
+                            ':expected_turn': current_turn_db
+                        }
+                    )
+                    logger.info(f"Lobby {lobby_id} updated to start standard draft after EQ ban timeout.")
+                    broadcast_lobby_state(lobby_id, apigw_management_client, last_action=last_action_msg)
+                    return {'statusCode': 200, 'body': 'Equilibration ban timeout processed, draft started.'}
+                except ClientError as e:
+                    if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                        logger.warning(f"Conditional check failed for EQ ban timeout update in lobby {lobby_id}. State likely already changed.")
+                        return {'statusCode': 409, 'body': 'Conflict, state changed during request.'}
+                    else:
+                        logger.error(f"Failed to update lobby {lobby_id} after EQ ban timeout: {str(e)}")
+                        return {'statusCode': 500, 'body': 'Failed to process equilibration ban timeout.'}
+                # --- END OF NEW LOGIC BLOCK ---
+
             # 4. *** Perform Random Action ***
             timed_out_player = current_turn_db # The player who failed to act
             available_resonators = lobby_item.get('availableResonators', [])
