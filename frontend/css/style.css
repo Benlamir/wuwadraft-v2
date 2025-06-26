@@ -2114,3 +2114,37 @@ img.equilibration-advantage-badge[src*="2BAN"]:hover {
   filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.6)) brightness(1.15) !important;
   border: 2px solid rgba(255, 215, 0, 1) !important; /* Gold color */
 }
+
+/* Style for the container of a skipped ban */
+.ban-slot.ban-slot-skipped {
+  background-color: rgba(60, 0, 0, 0.5); /* Dark red background */
+  border: 1px solid #8b0000; /* Dark red border */
+  overflow: visible !important; /* CRITICAL: Allows the image to pop out */
+}
+
+/* Style for the timeout image itself */
+.ban-slot-timeout-img {
+  position: absolute;
+  /* Make the image larger than its container */
+  width: 140%;
+  height: 140%;
+  object-fit: contain;
+  /* Apply transformations for the pop-out effect */
+  transform: scale(1.5) rotate(-15deg);
+  /* Add a shadow for depth */
+  filter: drop-shadow(4px 4px 6px rgba(0, 0, 0, 0.8));
+  /* Animate the appearance */
+  animation: pop-out 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* A simple animation for the pop-out effect */
+@keyframes pop-out {
+  0% {
+    transform: scale(0.5) rotate(0deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.5) rotate(-15deg);
+    opacity: 1;
+  }
+}

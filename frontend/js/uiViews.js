@@ -625,6 +625,15 @@ function updateBanSlots(draftState) {
     for (let i = 0; i < eqBansAllowed; i++) {
       // Determine if this specific EQ ban was actually made.
       const wasThisEqBanMade = i < eqBansMadeByLSP;
+
+      // *** ADD THIS LINE ***
+      // A ban was skipped if the phase is past EQ, but this ban was never made.
+      // Also exclude predraft phase (when currentPhase is null) from showing timeout.
+      const wasSkippedByTimeout =
+        currentPhase !== null &&
+        currentPhase !== EQUILIBRATION_PHASE_NAME &&
+        !wasThisEqBanMade;
+
       const banData = {
         // *** KEY CHANGE: Only take a ban name if it was actually an EQ ban ***
         banName: wasThisEqBanMade ? allBans[i] : null,
@@ -638,6 +647,8 @@ function updateBanSlots(draftState) {
         orderNumber: sequence.eqBans[eqBanner]
           ? sequence.eqBans[eqBanner][i]
           : null,
+        // *** ADD THIS NEW PROPERTY ***
+        wasSkipped: wasSkippedByTimeout,
       };
 
       if (eqBanner === "P1") {
@@ -736,8 +747,14 @@ function createBanSlotElement(banData, slotId) {
     slot.classList.add("ban-slot-standard");
   }
 
-  // Apply disabled state if needed
-  if (banData.isDisabled) {
+  // *** START OF NEW/MODIFIED LOGIC ***
+  // Check if the ban was skipped by a timeout
+  if (banData.wasSkipped) {
+    slot.classList.add("ban-slot-skipped");
+    slot.innerHTML = `<img src="https://wuwadraft.s3.us-east-1.amazonaws.com/images/other/timeout_placeholder.webp" alt="Timeout" title="Ban Skipped (Timeout)" class="ban-slot-timeout-img">`;
+  }
+  // Check if the slot is explicitly disabled (e.g., not enough EQ bans allowed)
+  else if (banData.isDisabled) {
     slot.classList.add("ban-slot-disabled");
     // Add padlock icon for disabled slots
     slot.innerHTML = `
@@ -746,27 +763,27 @@ function createBanSlotElement(banData, slotId) {
         <small class="text-muted mt-1" style="font-size: 0.7rem; display: block;">Disabled</small>
       </div>
     `;
-  } else {
-    // Remove any existing state classes
+  }
+  // Otherwise, handle normal filled/empty slots
+  else {
     slot.classList.remove("ban-slot-disabled", "pulse-ban", "glow-ban");
 
-    // Add ban content if available
     if (banData.banName) {
-      // Show character image
+      // Show character image for a filled slot
       const resonator = findResonatorByName(banData.banName);
       slot.innerHTML =
         resonator && resonator.image_button
           ? `<img src="${resonator.image_button}" alt="${banData.banName}" title="${banData.banName}" style="max-width: 90%; max-height: 90%; object-fit: cover; border-radius: 3px;">`
           : `<span>X</span>`;
     } else if (banData.orderNumber) {
-      // Show numbered placeholder
+      // Show numbered placeholder for an empty, waiting slot
       const orderNumberClass = banData.isActiveForPulse
         ? "draft-order-number ban-order-number active-pulse"
         : "draft-order-number ban-order-number";
       slot.innerHTML = `<div class="${orderNumberClass}">${banData.orderNumber}</div>`;
     }
 
-    // Apply visual state
+    // Apply visual state (glow/pulse)
     updateSlotGlowState(
       slot,
       banData.isActiveForPulse,
@@ -774,6 +791,7 @@ function createBanSlotElement(banData, slotId) {
       "ban"
     );
   }
+  // *** END OF NEW/MODIFIED LOGIC ***
 
   return slot;
 }
