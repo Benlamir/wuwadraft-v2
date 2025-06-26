@@ -172,7 +172,7 @@ NEUTRAL_DRAFT_ORDER_TEMPLATE_V2 = [
 ]
 
 EQUILIBRATION_PHASE_NAME = 'EQUILIBRATE_BANS'
-EQUILIBRATION_PHASE_TIMEOUT_SECONDS = 300 # 5 minutes
+EQUILIBRATION_PHASE_TIMEOUT_SECONDS = 5 # 5 minutes
 
 PRE_DRAFT_READY_STATE = 'PRE_DRAFT_READY'
 
@@ -1754,72 +1754,39 @@ def handler(event, context):
             logger.info(f"Timeout time condition met for lobby {lobby_id}. Expiry: {turn_expires_at_db}, Current: {now.isoformat()}.")
             # --- END CORRECTION ---
 
-            # c) Convert and check index (Keep fix from Response #87)
-            current_step_index = None # Initialize
-            try:
-                current_step_index = int(current_step_index_decimal)
-                if current_step_index == -1 and current_step_index_decimal != -1: raise ValueError("Invalid step index (-1)")
-            except (TypeError, ValueError) as e:
-                  logger.error(f"Invalid currentStepIndex '{current_step_index_decimal}' ... Error: {e}")
-                  return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index.'}
-
-            if current_phase_db == DRAFT_COMPLETE_PHASE or current_step_index is None or current_step_index < 0:
-                 logger.warning(f"Timeout ignored for lobby {lobby_id}. Draft already complete or index invalid ({current_step_index}).")
-                 return {'statusCode': 200, 'body': 'Timeout ignored, draft finished or invalid state.'}
-
-            # --- REMOVE SPECIAL CHECK FOR FIRST TURN ---
-            # if current_step_index == 0 and current_phase_db == 'BAN1' and current_turn_db == 'P1':
-            #     logger.info(f"Timeout ignored for lobby {lobby_id}. First turn (BAN1 P1) cannot be automatically passed.")
-            #     return {'statusCode': 200, 'body': 'Timeout ignored, first turn cannot be automatically passed.'}
-            # --- END REMOVE SPECIAL CHECK ---
-
-            logger.info(f"Timeout validated for lobby {lobby_id}. Player {current_turn_db} timed out during phase {current_phase_db} at step {current_step_index}.")
-
-            # --- NEW LOGIC BLOCK FOR EQUILIBRATION BAN TIMEOUT ---
+            # --- *** NEW AND CORRECTED LOGIC PLACEMENT *** ---
+            # Handle the EQ Ban timeout case FIRST, before checking the index.
             if current_phase_db == EQUILIBRATION_PHASE_NAME:
                 logger.info(f"Timeout occurred during EQUILIBRATION_PHASE_NAME for lobby {lobby_id}. Skipping bans and starting standard draft.")
 
-                # Get effective draft order and player roles
                 effective_draft_order = lobby_item.get('effectiveDraftOrder')
                 player_roles = lobby_item.get('playerRoles', {})
                 if not effective_draft_order or not player_roles:
                     logger.error(f"Missing draft configuration for lobby {lobby_id} during EQ ban timeout.")
-                    # Handle error appropriately, maybe reset the lobby
                     return {'statusCode': 500, 'body': 'Draft configuration missing.'}
 
-                # Get the first step of the standard draft
                 first_step = effective_draft_order[0]
                 first_phase = first_step['phase']
                 first_turn_role = first_step['turnPlayerDesignation']
-
-                # Resolve the actual player for the first turn
                 actual_first_turn = resolve_turn_from_role(first_turn_role, player_roles)
+                
                 if not actual_first_turn:
                     logger.error(f"Failed to resolve first turn for lobby {lobby_id} after EQ ban timeout.")
                     return {'statusCode': 500, 'body': 'Failed to determine first turn.'}
 
-                # Set the standard turn timer for the next phase
                 turn_expires_at_dt = datetime.now(timezone.utc) + timedelta(seconds=TURN_DURATION_SECONDS)
                 turn_expires_at_iso = turn_expires_at_dt.isoformat()
                 last_action_msg = f"{current_turn_db} timed out on Equilibration Bans. Skipping to start the draft."
 
-                # Update the lobby state in DynamoDB
                 try:
                     lobbies_table.update_item(
                         Key={'lobbyId': lobby_id},
-                        UpdateExpression="""
-                            SET currentPhase = :next_phase,
-                                currentTurn = :next_turn,
-                                currentStepIndex = :next_index,
-                                turnExpiresAt = :expires,
-                                lastAction = :last_action
-                        """,
-                        # Condition to ensure the state hasn't changed since we read it
+                        UpdateExpression="SET currentPhase = :next_phase, currentTurn = :next_turn, currentStepIndex = :next_index, turnExpiresAt = :expires, lastAction = :last_action",
                         ConditionExpression="currentPhase = :expected_phase AND currentTurn = :expected_turn",
                         ExpressionAttributeValues={
                             ':next_phase': first_phase,
                             ':next_turn': actual_first_turn,
-                            ':next_index': 0, # Start standard draft from index 0
+                            ':next_index': 0,
                             ':expires': turn_expires_at_iso,
                             ':last_action': last_action_msg,
                             ':expected_phase': EQUILIBRATION_PHASE_NAME,
@@ -1836,7 +1803,30 @@ def handler(event, context):
                     else:
                         logger.error(f"Failed to update lobby {lobby_id} after EQ ban timeout: {str(e)}")
                         return {'statusCode': 500, 'body': 'Failed to process equilibration ban timeout.'}
-                # --- END OF NEW LOGIC BLOCK ---
+            
+            # --- *** END OF NEW LOGIC BLOCK *** ---
+
+            # c) Convert and check index (Keep fix from Response #87)
+            current_step_index = None # Initialize
+            try:
+                current_step_index = int(current_step_index_decimal)
+                if current_step_index == -1 and current_step_index_decimal != -1: raise ValueError("Invalid step index (-1)")
+            except (TypeError, ValueError) as e:
+                  logger.error(f"Invalid currentStepIndex '{current_step_index_decimal}' ... Error: {e}")
+                  return {'statusCode': 500, 'body': 'Internal error: Invalid draft step index.'}
+
+            # This check will now be correctly bypassed by the logic above for EQ bans
+            if current_phase_db == DRAFT_COMPLETE_PHASE or current_step_index is None or current_step_index < 0:
+                 logger.warning(f"Timeout ignored for lobby {lobby_id}. Draft already complete or index invalid ({current_step_index}).")
+                 return {'statusCode': 200, 'body': 'Timeout ignored, draft finished or invalid state.'}
+
+            # --- REMOVE SPECIAL CHECK FOR FIRST TURN ---
+            # if current_step_index == 0 and current_phase_db == 'BAN1' and current_turn_db == 'P1':
+            #     logger.info(f"Timeout ignored for lobby {lobby_id}. First turn (BAN1 P1) cannot be automatically passed.")
+            #     return {'statusCode': 200, 'body': 'Timeout ignored, first turn cannot be automatically passed.'}
+            # --- END REMOVE SPECIAL CHECK ---
+
+            logger.info(f"Timeout validated for lobby {lobby_id}. Player {current_turn_db} timed out during phase {current_phase_db} at step {current_step_index}.")
 
             # 4. *** Perform Random Action ***
             timed_out_player = current_turn_db # The player who failed to act
