@@ -47,8 +47,6 @@ export const elements = {
   hostKickP1Btn: null,
   hostKickP2Btn: null,
   draftBackBtn: null,
-  draftPhaseStatus: null,
-  draftTimer: null,
   characterGridContainer: null,
   draftP1PicksList: null,
   p1Pick1: null,
@@ -64,18 +62,6 @@ export const elements = {
   hostStartDraftBtn: null,
   draftPlayerControls: null,
   resetLocalSequencesBtn: null,
-  // Ban Area Containers
-  draftBansArea: null,
-  eqBansSlotsContainer: null,
-  standardBansSlotsContainer: null,
-  // EQ Ban Slots
-  eqBanSlot1: null,
-  eqBanSlot2: null,
-  // Standard Ban Slots
-  stdBanSlot1: null,
-  stdBanSlot2: null,
-  stdBanSlot3: null,
-  stdBanSlot4: null,
   // Top Bar Player Areas for Ban Display
   topBarP1Bans: null,
   topBarP2Bans: null,
@@ -158,7 +144,9 @@ export function initializeElements() {
   // Draft Screen Elements
   elements.draftBackBtn = document.getElementById("draft-back-btn"); // Player's back button on draft screen
   elements.draftTimerTop = document.getElementById("draft-timer-top");
-  elements.draftPhaseStatusTop = document.getElementById("draft-phase-status-top");
+  elements.draftPhaseStatusTop = document.getElementById(
+    "draft-phase-status-top"
+  );
   elements.characterGridContainer = document.getElementById(
     "character-grid-container"
   );
@@ -200,23 +188,6 @@ export function initializeElements() {
   elements.resetLocalSequencesBtn = document.getElementById(
     "reset-local-sequences-btn"
   );
-
-  // Ban Area Containers
-  elements.draftBansArea = document.getElementById("draft-bans-area");
-  elements.eqBansSlotsContainer = document.getElementById("eq-bans-slots");
-  elements.standardBansSlotsContainer = document.getElementById(
-    "standard-bans-slots"
-  );
-
-  // EQ Ban Slots
-  elements.eqBanSlot1 = document.getElementById("eq-ban-slot-1");
-  elements.eqBanSlot2 = document.getElementById("eq-ban-slot-2");
-
-  // Standard Ban Slots
-  elements.stdBanSlot1 = document.getElementById("std-ban-slot-1");
-  elements.stdBanSlot2 = document.getElementById("std-ban-slot-2");
-  elements.stdBanSlot3 = document.getElementById("std-ban-slot-3");
-  elements.stdBanSlot4 = document.getElementById("std-ban-slot-4");
 
   // Top Bar Player Areas for Ban Display
   elements.topBarP1Bans = document.getElementById("top-bar-p1-bans");

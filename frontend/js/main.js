@@ -201,9 +201,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
       }
     });
-    console.log(
-      "[main.js] Event listener attached to player's Leave Draft button."
-    );
+
   } else {
     console.error(
       "[main.js] ERROR: Could not find the player's Leave Draft button (#draft-player-controls #draft-back-btn) to attach listener."
@@ -268,9 +266,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
       }
     });
-    console.log(
-      "[main.js] Event listener attached to host's Start Draft button."
-    );
+
   } else {
     console.warn(
       "Host Start Draft Button (elements.hostStartDraftBtn) not found during listener setup."
@@ -429,7 +425,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       });
     });
-    console.log("UI: Enhanced filter control listeners attached.");
+
     // Initial visual setup for "All" button
     if (allButton) {
       allButton.classList.add("active");
@@ -585,9 +581,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
       }
     });
-    console.log(
-      "[main.js] Event listener attached to host's Leave Slot button on BSS."
-    );
+
   } else {
     console.warn(
       "Host Leave Slot Button on BSS (boxScoreLeaveSlotBtn) not found during listener setup."

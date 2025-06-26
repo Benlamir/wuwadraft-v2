@@ -25,10 +25,7 @@ export async function initializeResonatorData() {
     }
     const data = await response.json();
     ALL_RESONATORS_DATA = data; // Populate the exported variable
-    console.log(
-      "DATA: Resonator data loaded successfully from S3:",
-      ALL_RESONATORS_DATA
-    );
+
   } catch (error) {
     console.error(
       "DATA_ERROR: Failed to load resonator data from S3. Using local fallback data.",

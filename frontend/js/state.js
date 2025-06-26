@@ -50,49 +50,31 @@ export function setAssignedSlot(slot) {
 export function setDraftPhase(phase) {
   const previousPhase = currentPhase;
   currentPhase = phase;
-  console.log(
-    `STATE_JS_DEBUG: Global state.currentPhase changed from '${previousPhase}' to '${currentPhase}'`
-  );
 }
 
 export function setDraftTurn(turn) {
   const previousTurn = currentTurn;
   currentTurn = turn;
-  console.log(
-    `STATE_JS_DEBUG: Global state.currentTurn changed from '${previousTurn}' to '${currentTurn}'`
-  );
 }
 
 export function setActiveElementFilter(filter) {
-  console.log(
-    `STATE_JS_DEBUG: Setting activeElementFilter from ${activeElementFilter} to ${filter}`
-  );
+
   activeElementFilter = filter;
   console.log(`State: Active filter set to ${filter}`);
 }
 
 export function setActiveRarityFilter(filter) {
-  console.log(
-    `STATE_JS_DEBUG: Setting activeRarityFilter from ${activeRarityFilter} to ${filter}`
-  );
+
   activeRarityFilter = filter;
   console.log(`State: Active rarity filter set to ${filter}`);
 }
 
 export function setCurrentDraftState(newState) {
-  console.log(
-    `STATE_JS_DEBUG: Updating currentDraftState from:`,
-    currentDraftState
-  );
-  console.log(`STATE_JS_DEBUG: To new state:`, newState);
   currentDraftState = newState;
-  console.log("State: Stored latest draft state", currentDraftState);
 }
 
 export function setTurnExpiry(isoTimestamp) {
-  console.log(
-    `STATE_JS_DEBUG: Setting currentTurnExpiresAt from ${currentTurnExpiresAt} to ${isoTimestamp}`
-  );
+
   if (currentTurnExpiresAt !== isoTimestamp) {
     currentTurnExpiresAt = isoTimestamp;
   } else {
@@ -101,40 +83,15 @@ export function setTurnExpiry(isoTimestamp) {
 }
 
 export function setPlayer1Picks(picks) {
-  console.log(`STATE_JS_DEBUG: Setting player1Picks from:`, player1Picks);
-  console.log(`STATE_JS_DEBUG: To new picks:`, picks);
-  console.log(`STATE_JS_DEBUG: Picks update triggered by lobbyStateUpdate`);
   player1Picks = picks;
-  console.log(
-    `STATE_JS_DEBUG: Player 1 Picks updated to: ${JSON.stringify(player1Picks)}`
-  );
 }
 
 export function setPlayer2Picks(picks) {
-  console.log(`STATE_JS_DEBUG: Setting player2Picks from:`, player2Picks);
-  console.log(`STATE_JS_DEBUG: To new picks:`, picks);
-  console.log(`STATE_JS_DEBUG: Picks update triggered by lobbyStateUpdate`);
   player2Picks = picks;
-  console.log(
-    `STATE_JS_DEBUG: Player 2 Picks updated to: ${JSON.stringify(player2Picks)}`
-  );
 }
 
 export function setAvailableResonators(resonators) {
-  console.log(
-    `STATE_JS_DEBUG: Setting availableResonators from:`,
-    availableResonators
-  );
-  console.log(`STATE_JS_DEBUG: To new resonators:`, resonators);
-  console.log(
-    `STATE_JS_DEBUG: Resonators update triggered by lobbyStateUpdate`
-  );
   availableResonators = resonators;
-  console.log(
-    `STATE_JS_DEBUG: Available Resonators updated to: ${JSON.stringify(
-      availableResonators
-    )}`
-  );
 }
 // --- END ADD ---
 
@@ -184,12 +141,8 @@ export function setTimerIntervalId(newId) {
 export function clearTimerInterval() {
   if (timerIntervalId !== null) {
     const idToClear = timerIntervalId; // Store temporarily for logging
-    console.log(
-      `STATE DEBUG: Clearing interval ID: ${idToClear} via clearInterval.`
-    );
     clearInterval(idToClear);
     timerIntervalId = null; // Set to null internally
-    console.log(`STATE DEBUG: timerIntervalId set to null.`);
   } else {
     console.log(
       "STATE DEBUG: clearTimerInterval called, but no active interval ID found in state."
@@ -224,16 +177,10 @@ export function setHasPopulatedBoxScoreScreenThisTurn(populated) {
 // Add setter functions for player score submission status
 export function setPlayer1ScoreSubmitted(status) {
   player1ScoreSubmitted = status;
-  console.log(
-    `STATE_JS_DEBUG: Global state.player1ScoreSubmitted updated to: ${player1ScoreSubmitted}`
-  );
 }
 
 export function setPlayer2ScoreSubmitted(status) {
   player2ScoreSubmitted = status;
-  console.log(
-    `STATE_JS_DEBUG: Global state.player2ScoreSubmitted updated to: ${player2ScoreSubmitted}`
-  );
 }
 
 // Optional: Getters if needed, though direct import works for 'let'
